@@ -1,0 +1,9 @@
+rootProject.name = 'togather'
+
+include 'user-service'
+include 'discovery-service'
+include 'module-common'
+include 'api-gateway'
+include 'pay-service'
+include 'trading-service'
+include 'vote-service'
