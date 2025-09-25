@@ -20,23 +20,27 @@ import lombok.NoArgsConstructor;
 @Table(name = "users")
 public class User {
     @Id
-    @GeneratedValue(generator = "UUID")
-    @Column(name = "user_id", columnDefinition = "BINARY(16)")
+    @org.hibernate.annotations.UuidGenerator
+    @Column(name = "userId", columnDefinition = "BINARY(16)")
     private UUID userId;
 
     @Column(name = "password", nullable = false, length = 60)
     private String password;
 
-    @Column(name = "user_name", nullable = false, length = 50)
+    @Column(name = "userName", nullable = false, length = 50)
     private String userName;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "nickName", nullable = false, length = 50)
+    private String nickName;
+
+    @Column(name = "createdAt", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public static User create(String password, String userName) {
+    public static User create(String password, String userName, String nickName) {
         User newUser = new User();
         newUser.password = password;
         newUser.userName = userName;
+        newUser.nickName = nickName;
         return newUser;
     }
 }
