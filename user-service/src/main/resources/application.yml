@@ -19,6 +19,6 @@ spring:
 
 jwt:
   issuer: togather
-  access-exp-min: 30
+  access-exp-seconds: 1800
   refresh-exp-days: 7
-  secret: ${JWT_SECRET:dev-secret-please-change}
+  secret: ${JWT_SECRET:change-this-secret-to-256bit-string}
