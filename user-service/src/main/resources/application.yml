@@ -16,3 +16,9 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+
+jwt:
+  issuer: togather
+  access-exp-min: 30
+  refresh-exp-days: 7
+  secret: ${JWT_SECRET:dev-secret-please-change}
