@@ -1,0 +1,18 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: pay-service
+
+  datasource:
+    url: database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
+    username: admin
+    password: togather1234
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
