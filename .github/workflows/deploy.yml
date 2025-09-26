@@ -20,6 +20,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Set gradlew permissions
+      run: chmod +x gradlew
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -48,10 +51,14 @@ jobs:
           ${{ runner.os }}-gradle-
 
     - name: Build with Gradle
-      run: ./gradlew build -x test
+      run: |
+        chmod +x gradlew
+        ./gradlew build -x test
 
     - name: Run tests
-      run: ./gradlew test
+      run: |
+        chmod +x gradlew
+        ./gradlew test
 
     - name: Build and push API Gateway image
       run: |

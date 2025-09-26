@@ -12,8 +12,11 @@ WORKDIR /build
 # 이렇게 해야 루트 프로젝트의 settings.gradle을 인식하여 멀티모듈 빌드가 가능
 COPY . .
 
+# gradlew 실행 권한 부여
+RUN chmod +x gradlew
+
 # --no-daemon 옵션은 CI/CD 환경에서 빌드 후 프로세스가 즉시 종료되도록 보장
-RUN gradle :user-service:bootJar --no-daemon
+RUN ./gradlew :user-service:bootJar --no-daemon
 
 
 # =================================================================
