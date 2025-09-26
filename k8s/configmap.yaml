@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: togather-config
+  namespace: togather
+data:
+  # RabbitMQ 설정 (비민감 데이터만)
+  RABBITMQ_HOST: "rabbitmq-service"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USERNAME: "guest"
+  
+  # 서비스 포트 설정
+  API_GATEWAY_PORT: "8000"
+  USER_SERVICE_PORT: "8080"
+  TRADING_SERVICE_PORT: "8080"
+  PAY_SERVICE_PORT: "8080"
+  VOTE_SERVICE_PORT: "8080"
+  
+  # 환경 설정
+  SPRING_PROFILES_ACTIVE: "prod"
