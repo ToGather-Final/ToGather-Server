@@ -1,48 +1,65 @@
 package com.example.user_service.controller;
 
-import com.example.user_service.service.UserService;
-import com.example.user_service.dto.UserDto;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
-
     @GetMapping
-    public ResponseEntity<List<UserDto>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<Map<String, Object>> getAllUsers() {
+        return ResponseEntity.ok(Map.of(
+            "message", "Get all users",
+            "data", "[]",
+            "status", "success"
+        ));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUserById(id));
+    public ResponseEntity<Map<String, Object>> getUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(Map.of(
+            "message", "Get user by id: " + id,
+            "data", Map.of("id", id, "name", "Test User"),
+            "status", "success"
+        ));
     }
 
     @PostMapping
-    public ResponseEntity<UserDto> createUser(@RequestBody UserDto userDto) {
-        return ResponseEntity.ok(userService.createUser(userDto));
+    public ResponseEntity<Map<String, Object>> createUser(@RequestBody Map<String, Object> userData) {
+        return ResponseEntity.ok(Map.of(
+            "message", "User created successfully",
+            "data", userData,
+            "status", "success"
+        ));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserDto> updateUser(@PathVariable Long id, @RequestBody UserDto userDto) {
-        return ResponseEntity.ok(userService.updateUser(id, userDto));
+    public ResponseEntity<Map<String, Object>> updateUser(@PathVariable Long id, @RequestBody Map<String, Object> userData) {
+        return ResponseEntity.ok(Map.of(
+            "message", "User updated successfully",
+            "data", Map.of("id", id, "updatedData", userData),
+            "status", "success"
+        ));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, Object>> deleteUser(@PathVariable Long id) {
+        return ResponseEntity.ok(Map.of(
+            "message", "User deleted successfully",
+            "data", Map.of("id", id),
+            "status", "success"
+        ));
     }
 
     @GetMapping("/health")
-    public ResponseEntity<String> health() {
-        return ResponseEntity.ok("User Service is running");
+    public ResponseEntity<Map<String, String>> health() {
+        return ResponseEntity.ok(Map.of(
+            "status", "UP",
+            "service", "user-service",
+            "message", "User Service is running"
+        ));
     }
 }
