@@ -6,7 +6,7 @@ metadata:
   labels:
     app: trading-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: trading-service
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: trading-service
-        image: your-ecr-account.dkr.ecr.region.amazonaws.com/togather/trading-service:latest
+        image: 340623336075.dkr.ecr.region.amazonaws.com/togather/trading-service:latest
         ports:
         - containerPort: 8080
         env:

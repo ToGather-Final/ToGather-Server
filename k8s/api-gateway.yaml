@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: api-gateway
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: your-ecr-account.dkr.ecr.region.amazonaws.com/togather/api-gateway:latest
+        image: 340623336075.dkr.ecr.region.amazonaws.com/togather/api-gateway:latest
         ports:
         - containerPort: 8000
         env:

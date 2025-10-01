@@ -6,7 +6,7 @@ metadata:
   labels:
     app: user-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: user-service
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: your-ecr-account.dkr.ecr.region.amazonaws.com/togather/user-service:latest
+        image: 340623336075.dkr.ecr.region.amazonaws.com/togather/user-service:latest
         ports:
         - containerPort: 8080
         env:
