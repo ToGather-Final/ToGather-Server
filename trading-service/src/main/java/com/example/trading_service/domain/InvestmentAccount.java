@@ -1,0 +1,31 @@
+package com.example.trading_service.domain;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Getter
+@Entity
+@Table(name = "investment_account")
+public class InvestmentAccount {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "investment_account_id", nullable = false, updatable = false)
+    private UUID investmentAccountId;
+
+    @Column(name = "user_id", nullable = false)
+    private String userId;
+
+    @Column(name = "account_no", nullable = false, unique = true)
+    private String accountNo;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+}
