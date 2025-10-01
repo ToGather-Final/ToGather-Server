@@ -1,22 +1,24 @@
 server:
   port: 8000
 
+# JWT 시크릿 키 설정 (Kubernetes Secret에서 값을 주입받음)
+jwt:
+  secret: ${JWT_SECRET_KEY}
+
 spring:
   application:
     name: api-gateway
   cloud:
     gateway:
-      # 모든 라우팅 규칙에 공통적으로 적용될 필터
       default-filters:
-        # 경로에서 첫 번째 세그먼트(/api/users -> /users)를 제거해주는 필터
         - StripPrefix=1
 
       routes:
         # 1. User Service 라우팅
         - id: user-service-route
-          uri: lb://user-service # Kubernetes의 'user-service' Service를 찾아감
+          uri: lb://user-service
           predicates:
-            - Path=/api/user/** # 외부에서는 /api/user/** 로 요청
+            - Path=/api/user/**
 
         # 2. Vote Service 라우팅
         - id: vote-service-route
