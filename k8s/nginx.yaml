@@ -16,7 +16,8 @@ spec:
       containers:
         - name: nginx
           # CI/CD 파이프라인이 빌드한 커스텀 이미지를 사용
-          image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/nginx:latest
+          #340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/nginx:latest
+          image: nginx:1.25
           ports:
             - containerPort: 80
 ---

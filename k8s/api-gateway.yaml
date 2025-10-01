@@ -29,8 +29,8 @@ spec:
               name: togather-secrets   # 비밀번호가 담긴 Secret
         resources:
           requests:
-            memory: "384Mi"
-            cpu: "150m"
+            memory: "256Mi"
+            cpu: "100m"
           limits:
             memory: "768Mi"
             cpu: "500m"
@@ -38,13 +38,13 @@ spec:
           httpGet:
             path: /actuator/health
             port: 8000
-          initialDelaySeconds: 60
+          initialDelaySeconds: 180
           periodSeconds: 30
         readinessProbe:
           httpGet:
             path: /actuator/health
-            port: 8000
-          initialDelaySeconds: 30
+            port: 8080
+          initialDelaySeconds: 120
           periodSeconds: 10
 ---
 apiVersion: v1
