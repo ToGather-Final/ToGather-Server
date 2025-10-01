@@ -28,11 +28,11 @@ spec:
           mountPath: /var/www/html
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "100m"
+            memory: "384Mi"
+            cpu: "150m"
           limits:
-            memory: "256Mi"
-            cpu: "200m"
+            memory: "768Mi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
             path: /

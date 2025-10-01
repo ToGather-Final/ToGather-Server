@@ -17,51 +17,22 @@ spec:
     spec:
       containers:
       - name: vote-service
-        image: 340623336075.dkr.ecr.region.amazonaws.com/togather/vote-service:latest
+        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/vote-service:latest
         ports:
         - containerPort: 8080
-        env:
-        - name: SPRING_DATASOURCE_URL
-          valueFrom:
-            configMapKeyRef:
+        envFrom:
+          - configMapRef:
+              name: togather-config
+          - configMapRef:
               name: togather-db-config
-              key: DB_URL
-        - name: SPRING_DATASOURCE_USERNAME
-          valueFrom:
-            configMapKeyRef:
-              name: togather-db-config
-              key: DB_USERNAME
-        - name: SPRING_DATASOURCE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: togather-secret
-              key: DB_PASSWORD
-        - name: SPRING_RABBITMQ_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: togather-config
-              key: RABBITMQ_HOST
-        - name: SPRING_RABBITMQ_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: togather-config
-              key: RABBITMQ_PORT
-        - name: SPRING_RABBITMQ_USERNAME
-          valueFrom:
-            configMapKeyRef:
-              name: togather-config
-              key: RABBITMQ_USERNAME
-        - name: SPRING_RABBITMQ_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: togather-secret
-              key: RABBITMQ_PASSWORD
+          - secretRef:
+              name: togather-secrets
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "384Mi"
+            cpu: "150m"
           limits:
-            memory: "1Gi"
+            memory: "768Mi"
             cpu: "500m"
         livenessProbe:
           httpGet:

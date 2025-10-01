@@ -1,20 +1,37 @@
 server:
   port: 8000
+
 spring:
-  application.name: api-gateway
+  application:
+    name: api-gateway
   cloud:
     gateway:
-      routes:
-        - id: user-service
-          predicates:
-            - Path=/user-service/**
-        - id: vote-service
-          predicates:
-            - Path=/vote-service/**
-        - id: trading-service
-          predicates:
-            - Path=/trading-service/**
-        - id: pay-service
-          predicates:
-            - Path=/pay-service/**
+      # 모든 라우팅 규칙에 공통적으로 적용될 필터
+      default-filters:
+        # 경로에서 첫 번째 세그먼트(/api/users -> /users)를 제거해주는 필터
+        - StripPrefix=1
 
+      routes:
+        # 1. User Service 라우팅
+        - id: user-service-route
+          uri: lb://user-service # Kubernetes의 'user-service' Service를 찾아감
+          predicates:
+            - Path=/api/user/** # 외부에서는 /api/user/** 로 요청
+
+        # 2. Vote Service 라우팅
+        - id: vote-service-route
+          uri: lb://vote-service
+          predicates:
+            - Path=/api/vote/**
+
+        # 3. Trading Service 라우팅
+        - id: trading-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/trading/**
+
+        # 4. Pay Service 라우팅
+        - id: pay-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/pay/**

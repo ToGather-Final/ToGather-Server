@@ -27,7 +27,7 @@ spec:
         - name: RABBITMQ_DEFAULT_PASS
           valueFrom:
             secretKeyRef:
-              name: togather-secret
+              name: togather-secrets
               key: RABBITMQ_PASSWORD
         resources:
           requests:

@@ -1,20 +1,17 @@
+# k8s/configmaps.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: togather-db-config
+  namespace: togather
+data:
+  # Spring Boot가 자동으로 조합할 수 있도록 개별 정보로 분리
+  SPRING_DATASOURCE_HIKARI_JDBC_URL: jdbc:mysql://togather-database.cxs46swiy72b.ap-northeast-2.rds.amazonaws.com:3306/togather_db
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: togather-config
   namespace: togather
 data:
-  # RabbitMQ 설정 (비민감 데이터만)
-  RABBITMQ_HOST: "rabbitmq-service"
-  RABBITMQ_PORT: "5672"
-  RABBITMQ_USERNAME: "guest"
-  
-  # 서비스 포트 설정
-  API_GATEWAY_PORT: "8000"
-  USER_SERVICE_PORT: "8080"
-  TRADING_SERVICE_PORT: "8080"
-  PAY_SERVICE_PORT: "8080"
-  VOTE_SERVICE_PORT: "8080"
-  
-  # 환경 설정
-  SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_RABBITMQ_HOST: rabbitmq

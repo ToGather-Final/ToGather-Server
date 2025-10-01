@@ -17,50 +17,22 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: 340623336075.dkr.ecr.region.amazonaws.com/togather/api-gateway:latest
+        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/api-gateway:latest
         ports:
         - containerPort: 8000
-        env:
-        - name: SPRING_RABBITMQ_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: togather-config
-              key: RABBITMQ_HOST
-        - name: SPRING_RABBITMQ_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: togather-config
-              key: RABBITMQ_PORT
-        - name: SPRING_RABBITMQ_USERNAME
-          valueFrom:
-            configMapKeyRef:
-              name: togather-config
-              key: RABBITMQ_USERNAME
-        - name: SPRING_RABBITMQ_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: togather-secret
-              key: RABBITMQ_PASSWORD
-        - name: JWT_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: togather-secret
-              key: JWT_SECRET_KEY
-        # 마이크로서비스 URL 설정
-        - name: USER_SERVICE_URL
-          value: "http://user-service:8080"
-        - name: TRADING_SERVICE_URL
-          value: "http://trading-service:8080"
-        - name: PAY_SERVICE_URL
-          value: "http://pay-service:8080"
-        - name: VOTE_SERVICE_URL
-          value: "http://vote-service:8080"
+        envFrom:
+          - configMapRef:
+              name: togather-config    # RabbitMQ 정보가 담긴 ConfigMap
+          - configMapRef:
+              name: togather-db-config # DB 정보가 담긴 ConfigMap
+          - secretRef:
+              name: togather-secrets   # 비밀번호가 담긴 Secret
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "384Mi"
+            cpu: "150m"
           limits:
-            memory: "1Gi"
+            memory: "768Mi"
             cpu: "500m"
         livenessProbe:
           httpGet:
