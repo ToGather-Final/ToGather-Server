@@ -34,7 +34,7 @@ public class AuthController {
         this.refreshTokenService = refreshTokenService;
     }
 
-    @PostMapping("/register")
+    @PostMapping("/signup")
     public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
         validateRegister(request);
         UUID userId = authService.register(request);
