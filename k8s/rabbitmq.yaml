@@ -23,12 +23,12 @@ spec:
         - containerPort: 15672
         env:
         - name: RABBITMQ_DEFAULT_USER
-          value: "guest"
+          value: "admin"
         - name: RABBITMQ_DEFAULT_PASS
           valueFrom:
             secretKeyRef:
               name: togather-secrets
-              key: RABBITMQ_PASSWORD
+              key: SPRING_RABBITMQ_PASSWORD
         resources:
           requests:
             memory: "256Mi"
@@ -40,7 +40,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: rabbitmq-service
+  name: rabbitmq
   namespace: togather
 spec:
   selector:

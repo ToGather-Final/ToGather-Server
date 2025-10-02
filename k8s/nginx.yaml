@@ -17,9 +17,21 @@ spec:
         - name: nginx
           # CI/CD 파이프라인이 빌드한 커스텀 이미지를 사용
           #340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/nginx:latest
-          image: nginx:1.25
+          image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/nginx:latest
           ports:
             - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: / # 👈 Nginx의 기본 경로를 확인
+              port: 80
+            initialDelaySeconds: 5  # 컨테이너 시작 후 5초 뒤에 첫 검사 시작
+            periodSeconds: 10 # 10초마다 반복 검사
+          livenessProbe:
+            httpGet:
+              path: / # 👈 Nginx의 기본 경로를 확인
+              port: 80
+            initialDelaySeconds: 15 # ReadinessProbe보다 넉넉하게 설정
+            periodSeconds: 20
 ---
 apiVersion: v1
 kind: Service

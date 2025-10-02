@@ -1,18 +1,32 @@
 server:
   port: 8080
+
 spring:
   application:
     name: pay-service
 
   datasource:
-    url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
-    username: admin
-    password: togather1234
+    # url, username, password 값은 k8s의 ConfigMap과 Secret에서 환경 변수로 주입됨
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        format_sql: true
-    show-sql: true
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:admin} # Secret에서 주입받지만, 없을 경우 기본값 'admin' 사용
+    password: ${SPRING_RABBITMQ_PASSWORD}
+
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.pay_service: DEBUG
