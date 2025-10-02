@@ -34,12 +34,17 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build and push Nginx image
-      run: |
-        docker build -t $ECR_REGISTRY/togather/nginx:${{ github.sha }} -f ./nginx/Dockerfile .
-        docker build -t $ECR_REGISTRY/togather/nginx:latest -f ./nginx/Dockerfile .
-        docker push $ECR_REGISTRY/togather/nginx:${{ github.sha }}
-        docker push $ECR_REGISTRY/togather/nginx:latest
+    - name: Checkout Client Repo # ToGather-Client 접근
+      uses: actions/checkout@v4
+      with:
+        repository: ToGather-Final/ToGather-Client
+        token: ${{ secrets.GH_PAT }}
+        path: togather-client
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -62,25 +67,14 @@ jobs:
         chmod +x gradlew
         ./gradlew build -x test
 
-    - name: Checkout Client Repo ## 👈 추가된 부분
-      uses: actions/checkout@v4
-      with:
-        repository: ToGather-Final/ToGather-Client # 본인 Client 리포지토리
-        token: ${{ secrets.GH_PAT }}
-        path: togather-client # 'togather-client' 폴더에 클론
-
-    - name: Setup Node.js ## 👈 추가된 부분
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-
-    - name: Build Client ## 👈 추가된 부분
+    - name: Build and push Next.js Client image
       run: |
-        cd togather-client
-        npm install
-        npm run build
+        docker build -t $ECR_REGISTRY/togather/client:${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
+        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
+        docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
+        docker push $ECR_REGISTRY/togather/client:latest
 
-    - name: Build and push Nginx image ## 👈 추가된 부분
+    - name: Build and push Nginx image
       run: |
         docker build -f nginx/Dockerfile -t $ECR_REGISTRY/togather/nginx:${{ github.sha }} .
         docker build -f nginx/Dockerfile -t $ECR_REGISTRY/togather/nginx:latest .

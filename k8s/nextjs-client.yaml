@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextjs-client
+  namespace: togather
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nextjs-client
+  template:
+    metadata:
+      labels:
+        app: nextjs-client
+    spec:
+      containers:
+        - name: nextjs-client
+          image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/client:latest
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextjs-client
+  namespace: togather
+spec:
+  selector:
+    app: nextjs-client
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: ClusterIP
