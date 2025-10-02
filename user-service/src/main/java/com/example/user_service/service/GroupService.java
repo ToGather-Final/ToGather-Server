@@ -13,8 +13,12 @@ import com.example.user_service.repository.GroupRepository;
 import com.example.user_service.repository.GroupRuleRepository;
 import com.example.user_service.repository.InvitationCodeRepository;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -60,6 +64,54 @@ public class GroupService {
         return saved.getCode();
     }
 
+    @Transactional
+    public void acceptInvite(UUID code, UUID userId) {
+        InvitationCode invitationCode = invitationCodeRepository.findByCode(code)
+                .orElseThrow(() -> new NoSuchElementException("초대 코드를 찾을 수 없습니다."));
+
+        validateInvitationAcceptable(invitationCode);
+
+        GroupMemberId groupMemberId = new GroupMemberId(userId, invitationCode.getGroupId());
+        boolean isAlreadyMember = groupMemberRepository.existsById(groupMemberId);
+        if (!isAlreadyMember) {
+            groupMemberRepository.save(GroupMember.join(invitationCode.getGroupId(), userId));
+        }
+
+        invitationCode.expire();
+        invitationCodeRepository.save(invitationCode);
+    }
+
+    @Transactional(TxType.SUPPORTS)
+    public Group getDetail(UUID groupId, UUID userId) {
+        assertMember(groupId, userId);
+        return groupRepository.findById(groupId).orElseThrow(() -> new NoSuchElementException("그룹이 없습니다."));
+    }
+
+    @Transactional(TxType.SUPPORTS)
+    public List<Group> findMyGroups(UUID userId) {
+        return groupRepository.findAllByMember(userId);
+    }
+
+    @Transactional(TxType.SUPPORTS)
+    public List<GroupMember> members(UUID groupId, UUID userId) {
+        assertMember(groupId, userId);
+        return groupMemberRepository.findByGroupId(groupId);
+    }
+
+    @Transactional(TxType.SUPPORTS)
+    public UUID getOwnerId(UUID groupId) {
+        Group group = groupRepository.findById(groupId).orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+        return group.getOwnerId();
+    }
+
+    private void assertMember(UUID groupId, UUID userId) {
+        boolean ok = groupMemberRepository.existsByGroupIdAndUserId(groupId, userId);
+        if (ok) {
+            return;
+        }
+        throw new AccessDeniedException("그룹 멤버가 아닙니다.");
+    }
+
     private void validateCreate(GroupCreateRequest request) {
         if (request == null) {
             throw  new IllegalArgumentException("요청이 비었습니다.");
@@ -84,6 +136,12 @@ public class GroupService {
         }
         if (request.voteDurationHours() == null || request.voteDurationHours() <= 0) {
             throw new IllegalArgumentException("투표 가능 시간은 0 이상이여야 합니다.");
+        }
+    }
+
+    private void validateInvitationAcceptable(InvitationCode invitationCode) {
+        if (invitationCode.isExpired()) {
+            throw new IllegalArgumentException("이미 만료된 초대 코드입니다.");
         }
     }
 
