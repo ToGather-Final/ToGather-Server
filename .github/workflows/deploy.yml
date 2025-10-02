@@ -62,10 +62,30 @@ jobs:
         chmod +x gradlew
         ./gradlew build -x test
 
-#    - name: Run tests
-#      run: |
-#        chmod +x gradlew
-#        ./gradlew test
+    - name: Checkout Client Repo ## 👈 추가된 부분
+      uses: actions/checkout@v4
+      with:
+        repository: ToGather-Final/ToGather-Client # 본인 Client 리포지토리
+        token: ${{ secrets.GH_PAT }}
+        path: togather-client # 'togather-client' 폴더에 클론
+
+    - name: Setup Node.js ## 👈 추가된 부분
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Build Client ## 👈 추가된 부분
+      run: |
+        cd togather-client
+        npm install
+        npm run build
+
+    - name: Build and push Nginx image ## 👈 추가된 부분
+      run: |
+        docker build -f nginx/Dockerfile -t $ECR_REGISTRY/togather/nginx:${{ github.sha }} .
+        docker build -f nginx/Dockerfile -t $ECR_REGISTRY/togather/nginx:latest .
+        docker push $ECR_REGISTRY/togather/nginx:${{ github.sha }}
+        docker push $ECR_REGISTRY/togather/nginx:latest
 
     - name: Build and push API Gateway image
       run: |
