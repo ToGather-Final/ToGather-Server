@@ -5,8 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
-    workflow_dispatch: #
+  workflow_dispatch:
 
 env:
   AWS_REGION: ap-northeast-2
@@ -70,13 +69,6 @@ jobs:
         docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
         docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
         docker push $ECR_REGISTRY/togather/client:latest
-
-    - name: Build and push Nginx image
-      run: |
-        docker build -f nginx/Dockerfile -t $ECR_REGISTRY/togather/nginx:${{ github.sha }} .
-        docker build -f nginx/Dockerfile -t $ECR_REGISTRY/togather/nginx:latest .
-        docker push $ECR_REGISTRY/togather/nginx:${{ github.sha }}
-        docker push $ECR_REGISTRY/togather/nginx:latest
 
     - name: Build and push API Gateway image
       run: |
