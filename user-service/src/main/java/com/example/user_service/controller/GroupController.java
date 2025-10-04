@@ -4,11 +4,13 @@ import com.example.user_service.dto.GroupCreateRequest;
 import com.example.user_service.dto.GroupIdResponse;
 import com.example.user_service.dto.GroupMemberAddRequest;
 import com.example.user_service.dto.GroupMemberSimple;
+import com.example.user_service.dto.GroupRuleResponse;
 import com.example.user_service.dto.GroupRuleUpdateRequest;
 import com.example.user_service.dto.GroupSummaryResponse;
 import com.example.user_service.dto.InvitationCodeResponse;
 import com.example.user_service.model.Group;
 import com.example.user_service.model.GroupMember;
+import com.example.user_service.model.GroupRule;
 import com.example.user_service.service.GroupService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -98,6 +100,15 @@ public class GroupController {
         UUID operatorId = (UUID) authentication.getPrincipal();
         UUID code = groupService.issueInvitation(groupId, operatorId);
         return ResponseEntity.status(HttpStatus.CREATED).body(new InvitationCodeResponse(code));
+    }
+
+    @GetMapping("/{groupId}/rules")
+    public ResponseEntity<GroupRuleResponse> getRule(@PathVariable UUID groupId,
+                                                     Authentication authentication) {
+        UUID userId = (UUID) authentication.getPrincipal();
+        GroupRule rule = groupService.getRule(groupId, userId);
+        GroupRuleResponse body = new GroupRuleResponse(rule.getVoteQuorum(), rule.getVoteDurationHours());
+        return ResponseEntity.ok(body);
     }
 
     private String resolveRole(UUID memberUserId, UUID ownerUserId) {
