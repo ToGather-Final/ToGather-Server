@@ -24,21 +24,57 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
-            chain.doFilter(request,response);
+
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            chain.doFilter(request, response);
             return;
         }
-        try {
-            String token = header.substring(7);
-            UUID userId = jwtUtil.verifyAndGetUserId(token);
-            UsernamePasswordAuthenticationToken authentication = UsernamePasswordAuthenticationToken.authenticated(
-                    userId,
-                    null, Collections.emptyList());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        UUID userIdFromGateway = resolveUserIdFromHeader(request);
+        if (userIdFromGateway != null) {
+            setAuthentication(userIdFromGateway);
             chain.doFilter(request, response);
-        } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
         }
+
+        UUID userIdFromBearer = resolveUserIdFromBearer(request);
+        if (userIdFromBearer != null) {
+            setAuthentication(userIdFromBearer);
+        }
+        chain.doFilter(request, response);
+    }
+
+    private UUID resolveUserIdFromHeader(HttpServletRequest request) {
+        String userIdHeader = request.getHeader("X-User-Id");
+        if (userIdHeader == null || userIdHeader.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(userIdHeader);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private UUID resolveUserIdFromBearer(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header == null) {
+            return null;
+        }
+        if (!header.startsWith("Bearer ")) {
+            return null;
+        }
+        String token = header.substring(7);
+        try {
+            return jwtUtil.verifyAndGetUserId(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void setAuthentication(UUID userId) {
+        UsernamePasswordAuthenticationToken authentication = UsernamePasswordAuthenticationToken.authenticated(userId,
+                null, Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }
