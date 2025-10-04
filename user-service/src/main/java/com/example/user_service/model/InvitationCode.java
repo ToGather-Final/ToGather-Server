@@ -46,6 +46,10 @@ public class InvitationCode {
         return invitationCode;
     }
 
+    public boolean isExpired() {
+        return Boolean.TRUE.equals(this.isExpired);
+    }
+
     public void expire() {
         this.isExpired = true;
     }
