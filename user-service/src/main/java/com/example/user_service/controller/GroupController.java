@@ -16,7 +16,6 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -29,7 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/group")
+@RequestMapping("/groups")
 public class GroupController {
 
     private final GroupService groupService;
@@ -63,8 +62,7 @@ public class GroupController {
         List<GroupMember> members = groupService.members(groupId, userId);
         UUID ownerId = groupService.getOwnerId(groupId);
         List<GroupMemberSimple> body = members.stream()
-                .map(m -> new GroupMemberSimple(m.getUserId(), resolveRole(m.getUserId(), ownerId))).collect(
-                        Collectors.toList());
+                .map(m -> new GroupMemberSimple(m.getUserId(), resolveRole(m.getUserId(), ownerId))).toList();
         return ResponseEntity.ok(body);
     }
 
@@ -109,6 +107,14 @@ public class GroupController {
         GroupRule rule = groupService.getRule(groupId, userId);
         GroupRuleResponse body = new GroupRuleResponse(rule.getVoteQuorum(), rule.getVoteDurationHours());
         return ResponseEntity.ok(body);
+    }
+
+    @PostMapping("/invites/{code}/accept")
+    public ResponseEntity<Void> acceptInvite(@PathVariable UUID code,
+                                             Authentication authentication) {
+        UUID userId = (UUID) authentication.getPrincipal();
+        groupService.acceptInvite(code, userId);
+        return ResponseEntity.noContent().build();
     }
 
     private String resolveRole(UUID memberUserId, UUID ownerUserId) {

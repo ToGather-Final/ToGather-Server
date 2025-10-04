@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,35 +24,39 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+
         if (SecurityContextHolder.getContext().getAuthentication() != null) {
             chain.doFilter(request, response);
             return;
         }
-        UUID userId = resolveUserIdFromGateway(request);
-        if (userId != null) {
-            setAuthentication(userId);
+
+        UUID userIdFromGateway = resolveUserIdFromHeader(request);
+        if (userIdFromGateway != null) {
+            setAuthentication(userIdFromGateway);
             chain.doFilter(request, response);
             return;
         }
-        String token = resolveBearerToken(request);
-        if (token != null) {
-            UUID parsedUserId = parseUserIdFromToken(token);
-            if (parsedUserId != null) {
-                setAuthentication(parsedUserId);
-            }
+
+        UUID userIdFromBearer = resolveUserIdFromBearer(request);
+        if (userIdFromBearer != null) {
+            setAuthentication(userIdFromBearer);
         }
         chain.doFilter(request, response);
     }
 
-    private UUID resolveUserIdFromGateway(HttpServletRequest request) {
-        String header = request.getHeader("X-User-Id");
-        if (header == null) {
+    private UUID resolveUserIdFromHeader(HttpServletRequest request) {
+        String userIdHeader = request.getHeader("X-User-Id");
+        if (userIdHeader == null || userIdHeader.isBlank()) {
             return null;
         }
-        return parseUuid(header);
+        try {
+            return UUID.fromString(userIdHeader);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
-    private String resolveBearerToken(HttpServletRequest request) {
+    private UUID resolveUserIdFromBearer(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (header == null) {
             return null;
@@ -61,10 +64,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (!header.startsWith("Bearer ")) {
             return null;
         }
-        return header.substring(7);
-    }
-
-    private UUID parseUserIdFromToken(String token) {
+        String token = header.substring(7);
         try {
             return jwtUtil.verifyAndGetUserId(token);
         } catch (Exception e) {
@@ -72,19 +72,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
     }
 
-    private UUID parseUuid(String value) {
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
     private void setAuthentication(UUID userId) {
-        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                userId, null, List.of());
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        UsernamePasswordAuthenticationToken authentication = UsernamePasswordAuthenticationToken.authenticated(userId,
+                null, Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
-
-
 }
