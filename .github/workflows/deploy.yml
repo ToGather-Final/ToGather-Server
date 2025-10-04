@@ -114,12 +114,6 @@ jobs:
       run: |
         aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
 
-    - name: Install Nginx Ingress Controller
-      if: github.ref == 'refs/heads/main'
-      run: |
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/aws/deploy.yaml
-        kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=300s
-
     - name: Deploy to EKS
       if: github.ref == 'refs/heads/main'
       run: |
@@ -159,6 +153,7 @@ jobs:
         kubectl rollout status deployment/trading-service -n ${{ env.EKS_NAMESPACE }} --timeout=300s
         kubectl rollout status deployment/pay-service -n ${{ env.EKS_NAMESPACE }} --timeout=300s
         kubectl rollout status deployment/vote-service -n ${{ env.EKS_NAMESPACE }} --timeout=300s
+        kubectl rollout status deployment/nextjs-client -n ${{ env.EKS_NAMESPACE }} --timeout=300s
 
     - name: Verify deployment
       if: github.ref == 'refs/heads/main'
@@ -166,3 +161,13 @@ jobs:
         kubectl get pods -n ${{ env.EKS_NAMESPACE }}
         kubectl get services -n ${{ env.EKS_NAMESPACE }}
         kubectl get ingress -n ${{ env.EKS_NAMESPACE }}
+
+    - name: Force rollout restart to apply new images
+      if: github.ref == 'refs/heads/main'
+      run: |
+        kubectl rollout restart deployment api-gateway -n ${{ env.EKS_NAMESPACE }}
+        kubectl rollout restart deployment user-service -n ${{ env.EKS_NAMESPACE }}
+        kubectl rollout restart deployment trading-service -n ${{ env.EKS_NAMESPACE }}
+        kubectl rollout restart deployment pay-service -n ${{ env.EKS_NAMESPACE }}
+        kubectl rollout restart deployment vote-service -n ${{ env.EKS_NAMESPACE }}
+        kubectl rollout restart deployment nextjs-client -n ${{ env.EKS_NAMESPACE }}
