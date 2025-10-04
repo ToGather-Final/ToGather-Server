@@ -43,4 +43,8 @@ public class User {
         newUser.nickName = nickName;
         return newUser;
     }
+
+    public void changeNickname(String nickname) {
+        this.nickName = nickname;
+    }
 }
