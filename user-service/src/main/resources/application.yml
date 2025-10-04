@@ -3,12 +3,10 @@ server:
 spring:
   application:
     name: user-service
-
   datasource:
     url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
     username: admin
     password: togather1234
-
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,6 +14,11 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+  data:
+    redis:
+      host:
+      port:
+      password:
 
 jwt:
   issuer: togather
