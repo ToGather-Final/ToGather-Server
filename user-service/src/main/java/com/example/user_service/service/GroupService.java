@@ -104,6 +104,12 @@ public class GroupService {
         return group.getOwnerId();
     }
 
+    @Transactional(TxType.SUPPORTS)
+    public GroupRule getRule(UUID groupId, UUID requesterId) {
+        assertMember(groupId, requesterId);
+        return groupRuleRepository.findByGroupId(groupId).orElseThrow(() -> new NoSuchElementException("그룹 규칙이 없습니다."));
+    }
+
     private void assertMember(UUID groupId, UUID userId) {
         boolean ok = groupMemberRepository.existsByGroupIdAndUserId(groupId, userId);
         if (ok) {
