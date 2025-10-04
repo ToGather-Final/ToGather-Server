@@ -1,5 +1,6 @@
 package com.example.user_service.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Embedded;
 import java.io.Serializable;
@@ -11,7 +12,10 @@ import lombok.Getter;
 @Embeddable
 public class GroupMemberId implements Serializable {
 
+    @Column(name = "userId", columnDefinition = "BINARY(16)", nullable = false)
     private UUID userId;
+
+    @Column(name = "groupId", columnDefinition = "BINARY(16)", nullable = false)
     private UUID groupId;
 
     public GroupMemberId(){}
