@@ -1,5 +1,7 @@
 package com.example.user_service.config;
 
+import com.example.user_service.error.RestAccessDeniedHandler;
+import com.example.user_service.error.RestAuthEntryPoint;
 import com.example.user_service.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,9 +18,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig{
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RestAuthEntryPoint restAuthEntryPoint;
+    private final RestAccessDeniedHandler restAccessDeniedHandler;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, RestAuthEntryPoint restAuthEntryPoint,
+                          RestAccessDeniedHandler restAccessDeniedHandler) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.restAuthEntryPoint = restAuthEntryPoint;
+        this.restAccessDeniedHandler = restAccessDeniedHandler;
     }
 
     @Bean
@@ -31,6 +38,10 @@ public class SecurityConfig{
         http.csrf(csrf -> csrf.disable());
         http.cors(cors -> {});
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.exceptionHandling(ex -> {
+            ex.authenticationEntryPoint(restAuthEntryPoint);
+            ex.accessDeniedHandler(restAccessDeniedHandler);
+        });
         http.authorizeHttpRequests(reg -> {
             reg.requestMatchers("/auth/**").permitAll();
             reg.anyRequest().authenticated();
