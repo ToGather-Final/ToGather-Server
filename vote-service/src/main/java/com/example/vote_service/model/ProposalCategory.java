@@ -8,7 +8,6 @@ package com.example.vote_service.model;
  */
 public enum ProposalCategory {
     TRADE,      // 거래 (주식 매매)
-    PAY,        // 페이 머니 관련
-    GROUP_NAME  // 그룹 이름 변경
+    PAY         // 페이 머니 관련
 }
 
