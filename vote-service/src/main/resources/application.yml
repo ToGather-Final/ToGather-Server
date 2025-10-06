@@ -5,7 +5,7 @@ spring:
   application:
     name: vote-service
   datasource:
-    url: jdbc:mysql://together-database.cxs46swiy72b.ap-northeast-2.rds.amazonaws.com:3306/togather_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=true&requireSSL=true
+    url: jdbc:mysql://localhost:3307/togather_db
     username: admin
     password: togather1234
   jpa:

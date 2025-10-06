@@ -103,24 +103,28 @@ public class VoteController {
         UUID userId = (UUID) authentication.getPrincipal();
         Proposal proposal = proposalService.getProposal(proposalId);
         
-        long approveCount = voteService.countApproveVotes(proposalId);
-        long rejectCount = voteService.countRejectVotes(proposalId);
-        boolean hasVoted = voteService.hasVoted(proposalId, userId);
+        int approveCount = (int) voteService.countApproveVotes(proposalId);
+        int rejectCount = (int) voteService.countRejectVotes(proposalId);
+        var myVote = voteService.getUserVoteChoice(proposalId, userId);
+        
+        // TODO: 제안자 이름 가져오기 (user-service API 호출)
+        String proposerName = "제안자"; // 임시
+        
+        // 날짜 포맷팅 (yyyy-MM-dd)
+        String date = proposal.getOpenAt().toLocalDate().toString();
         
         ProposalResponse response = new ProposalResponse(
                 proposal.getProposalId(),
-                proposal.getGroupId(),
-                proposal.getUserId(),
                 proposal.getProposalName(),
+                proposerName,
                 proposal.getCategory(),
                 proposal.getAction(),
                 proposal.getPayload(),
                 proposal.getStatus(),
-                proposal.getOpenAt(),
-                proposal.getCloseAt(),
+                date,
                 approveCount,
                 rejectCount,
-                hasVoted
+                myVote
         );
         
         return ResponseEntity.ok(response);
