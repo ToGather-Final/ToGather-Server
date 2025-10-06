@@ -95,20 +95,6 @@ services:
     networks:
       - togather-network
 
-  # 4. Nginx
-  nginx:
-    image: nginx:latest
-    container_name: nginx
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./Togather-Client:/var/www/html
-    depends_on:
-      - api-gateway
-    networks:
-      - togather-network
-
 # 컨테이너 간 통신을 위한 가상 네트워크
 networks:
   togather-network:
