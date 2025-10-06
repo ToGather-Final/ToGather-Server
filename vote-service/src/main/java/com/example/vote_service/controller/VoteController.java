@@ -153,10 +153,27 @@ public class VoteController {
     /**
      * POST /vote/{proposalId}/tally - 투표 집계 및 종료
      * (관리자 또는 자동 스케줄러가 호출)
+     * 
+     * Query Parameters:
+     * - totalMembers: 그룹 전체 멤버 수 (필수)
+     * - voteQuorum: 투표 정족수 0.0~1.0 (필수, 예: 0.5 = 50%)
+     * 
+     * TODO: user-service에서 GroupRule과 멤버 수를 자동으로 조회하도록 개선
      */
     @PostMapping("/{proposalId}/tally")
-    public ResponseEntity<Void> tallyVotes(@PathVariable UUID proposalId) {
-        voteService.tallyVotes(proposalId);
+    public ResponseEntity<Void> tallyVotes(
+            @PathVariable UUID proposalId,
+            @RequestParam(required = false) Integer totalMembers,
+            @RequestParam(required = false) Double voteQuorum) {
+        
+        // 파라미터가 제공된 경우 정확한 집계 수행
+        if (totalMembers != null && voteQuorum != null) {
+            voteService.tallyVotes(proposalId, totalMembers, voteQuorum);
+        } else {
+            // 파라미터 없으면 간단 버전 사용 (임시)
+            voteService.tallyVotesSimple(proposalId);
+        }
+        
         return ResponseEntity.ok().build();
     }
 }

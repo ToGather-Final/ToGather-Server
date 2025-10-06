@@ -3,6 +3,7 @@ package com.example.vote_service.service;
 import com.example.vote_service.dto.VoteRequest;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.Vote;
+import com.example.vote_service.model.VoteChoice;
 import com.example.vote_service.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,14 +28,18 @@ public class VoteService {
      * 투표하기
      * - 이미 투표한 경우 투표 변경
      * - 처음 투표하는 경우 새로 생성
+     * - 투표만 저장하고, 가결/부결은 마감 시간에 집계 시 결정됨
      */
     @Transactional
     public UUID vote(UUID userId, UUID proposalId, VoteRequest request) {
         // TODO: 그룹 멤버인지 검증 필요
         
-        // 제안이 진행 중인지 확인
+        // 제안이 투표 가능한 상태인지 확인 (진행중 + 마감 전)
         Proposal proposal = proposalService.getProposal(proposalId);
-        if (!proposal.isOpen()) {
+        if (!proposal.canVote()) {
+            if (proposal.isExpired()) {
+                throw new IllegalStateException("투표 마감 시간이 지났습니다.");
+            }
             throw new IllegalStateException("종료된 제안에는 투표할 수 없습니다.");
         }
 
@@ -67,7 +72,7 @@ public class VoteService {
      */
     @Transactional(readOnly = true)
     public long countApproveVotes(UUID proposalId) {
-        return voteRepository.countByProposalIdAndChoice(proposalId, true);
+        return voteRepository.countByProposalIdAndChoice(proposalId, VoteChoice.AGREE);
     }
 
     /**
@@ -75,7 +80,7 @@ public class VoteService {
      */
     @Transactional(readOnly = true)
     public long countRejectVotes(UUID proposalId) {
-        return voteRepository.countByProposalIdAndChoice(proposalId, false);
+        return voteRepository.countByProposalIdAndChoice(proposalId, VoteChoice.DISAGREE);
     }
 
     /**
@@ -95,22 +100,78 @@ public class VoteService {
     }
 
     /**
+     * 사용자의 투표 선택 조회 (AGREE, DISAGREE, NEUTRAL)
+     */
+    @Transactional(readOnly = true)
+    public VoteChoice getUserVoteChoice(UUID proposalId, UUID userId) {
+        Optional<Vote> vote = voteRepository.findByProposalIdAndUserId(proposalId, userId);
+        return vote.map(Vote::getChoice).orElse(VoteChoice.NEUTRAL);
+    }
+
+    /**
      * 투표 결과 집계 및 제안 상태 업데이트
-     * TODO: GroupRule의 voteQuorum을 사용하여 정족수 체크
+     * - 투표 마감 시간에 호출됨 (스케줄러 또는 수동)
+     * - GroupRule의 voteQuorum(정족수)을 사용하여 가결/부결 결정
+     * 
+     * @param proposalId 제안 ID
+     * @param totalMembers 그룹 전체 멤버 수
+     * @param voteQuorum 투표 정족수 (0.0 ~ 1.0, 예: 0.5 = 50%)
      */
     @Transactional
-    public void tallyVotes(UUID proposalId) {
+    public void tallyVotes(UUID proposalId, int totalMembers, double voteQuorum) {
+        Proposal proposal = proposalService.getProposal(proposalId);
+        
+        // 이미 종료된 제안인지 확인
+        if (!proposal.isOpen()) {
+            throw new IllegalStateException("이미 종료된 제안입니다.");
+        }
+
+        // 투표 마감 시간 확인
+        if (!proposal.isExpired()) {
+            throw new IllegalStateException("아직 투표 마감 시간이 되지 않았습니다.");
+        }
+
+        // 투표 집계
+        long approveCount = countApproveVotes(proposalId);
+        long rejectCount = countRejectVotes(proposalId);
+        long totalVotes = approveCount + rejectCount;
+
+        // 정족수 계산
+        double requiredVotes = totalMembers * voteQuorum;
+        
+        // 가결 조건:
+        // 1. 찬성 투표 수가 정족수 이상
+        // 2. 찬성이 반대보다 많음
+        boolean isApproved = (approveCount >= requiredVotes) && (approveCount > rejectCount);
+
+        if (isApproved) {
+            proposalService.approveProposal(proposalId);
+        } else {
+            proposalService.rejectProposal(proposalId);
+        }
+    }
+
+    /**
+     * 투표 결과 집계 (간단 버전 - 정족수 정보 없이)
+     * TODO: user-service에서 GroupRule과 멤버 수를 가져와서 위의 메서드 호출
+     */
+    @Transactional
+    public void tallyVotesSimple(UUID proposalId) {
         Proposal proposal = proposalService.getProposal(proposalId);
         
         if (!proposal.isOpen()) {
             throw new IllegalStateException("이미 종료된 제안입니다.");
         }
 
+        if (!proposal.isExpired()) {
+            throw new IllegalStateException("아직 투표 마감 시간이 되지 않았습니다.");
+        }
+
         long approveCount = countApproveVotes(proposalId);
         long rejectCount = countRejectVotes(proposalId);
 
         // 임시: 찬성이 반대보다 많으면 승인
-        // TODO: 실제로는 GroupRule의 voteQuorum과 비교해야 함
+        // TODO: 실제로는 위의 tallyVotes(proposalId, totalMembers, voteQuorum) 사용
         if (approveCount > rejectCount) {
             proposalService.approveProposal(proposalId);
         } else {

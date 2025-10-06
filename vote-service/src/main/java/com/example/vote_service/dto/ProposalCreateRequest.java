@@ -15,7 +15,6 @@ public record ProposalCreateRequest(
         @NotBlank String proposalName,
         @NotNull ProposalCategory category,
         @NotNull ProposalAction action,
-        String payload // JSON 형태의 추가 데이터 (예수금, 마도, 수량, 가격 등)
+        String payload // JSON 형태의 추가 데이터 (제안 이유 등)
 ) {
 }
-

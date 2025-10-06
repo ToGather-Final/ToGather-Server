@@ -1,17 +1,13 @@
 package com.example.vote_service.dto;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
+import com.example.vote_service.model.VoteChoice;
 
 /**
  * 투표 응답 DTO
+ * - 제안 이름과 투표 선택만 반환
  */
 public record VoteResponse(
-        UUID voteId,
-        UUID proposalId,
-        UUID userId,
-        Boolean choice,
-        LocalDateTime createdAt
+        String proposalName,  // 투표한 제안의 이름
+        VoteChoice choice     // 찬성(AGREE) / 반대(DISAGREE)
 ) {
 }
-

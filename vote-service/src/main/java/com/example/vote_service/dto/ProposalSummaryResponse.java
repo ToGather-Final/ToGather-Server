@@ -12,10 +12,15 @@ import java.util.UUID;
 public record ProposalSummaryResponse(
         UUID proposalId,
         String proposalName,
+        String proposerName,
         ProposalCategory category,
+        ProposalAction action,
+        String payload,
         ProposalStatus status,
-        LocalDateTime openAt,
-        LocalDateTime closeAt
+        String date,  // yyyy-MM-dd 형태 문자열
+        Integer agreeCount,
+        Integer disagreeCount,
+        VoteChoice myVote  // AGREE, DISAGREE, NEUTRAL
 ) {
 }
 

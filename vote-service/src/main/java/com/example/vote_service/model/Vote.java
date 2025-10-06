@@ -12,7 +12,7 @@ import java.util.UUID;
  * Vote 엔티티
  * - 개별 투표를 나타냄
  * - 각 사용자가 특정 Proposal에 대해 찬성/반대 투표
- * - choice: true (찬성), false (반대)
+ * - choice: AGREE (찬성), DISAGREE (반대)
  */
 @Entity
 @Getter
@@ -31,8 +31,9 @@ public class Vote {
     @Column(name = "userId", columnDefinition = "BINARY(16)", nullable = false)
     private UUID userId; // 투표자
 
-    @Column(name = "choice", nullable = false)
-    private Boolean choice; // true: 찬성, false: 반대
+    @Enumerated(EnumType.STRING)
+    @Column(name = "choice", nullable = false, length = 20)
+    private VoteChoice choice; // AGREE: 찬성, DISAGREE: 반대
 
     @Column(name = "createdAt", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -45,7 +46,7 @@ public class Vote {
     /**
      * 정적 팩토리 메서드 - Vote 생성
      */
-    public static Vote create(UUID proposalId, UUID userId, Boolean choice) {
+    public static Vote create(UUID proposalId, UUID userId, VoteChoice choice) {
         Vote vote = new Vote();
         vote.proposalId = proposalId;
         vote.userId = userId;
@@ -54,9 +55,12 @@ public class Vote {
     }
 
     /**
-     * 투표 변경 (찬성 <-> 반대)
+     * 투표 변경
      */
-    public void changeChoice(Boolean newChoice) {
+    public void changeChoice(VoteChoice newChoice) {
+        if (newChoice == VoteChoice.NEUTRAL) {
+            throw new IllegalArgumentException("투표는 AGREE 또는 DISAGREE만 가능합니다.");
+        }
         this.choice = newChoice;
     }
 
@@ -64,14 +68,14 @@ public class Vote {
      * 찬성 투표인지 확인
      */
     public boolean isApproval() {
-        return this.choice;
+        return this.choice == VoteChoice.AGREE;
     }
 
     /**
      * 반대 투표인지 확인
      */
     public boolean isRejection() {
-        return !this.choice;
+        return this.choice == VoteChoice.DISAGREE;
     }
 }
 

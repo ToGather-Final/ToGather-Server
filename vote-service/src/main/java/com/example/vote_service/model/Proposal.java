@@ -37,14 +37,14 @@ public class Proposal {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 50)
-    private ProposalCategory category; // TRADE, PAY, GROUP_NAME 등
+    private ProposalCategory category; // TRADE, PAY
 
     @Enumerated(EnumType.STRING)
     @Column(name = "action", nullable = false, length = 50)
-    private ProposalAction action; // BUY, SELL, DEPOSIT, CHARGE, ENABLE 등
+    private ProposalAction action; // BUY, SELL, DEPOSIT, CHARGE
 
     @Column(name = "payload", columnDefinition = "JSON")
-    private String payload; // 제안 상세 데이터 (JSON 형태)
+    private String payload; // 제안 상세 데이터 (reason 등. JSON 형태)
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -89,25 +89,29 @@ public class Proposal {
     }
 
     /**
-     * 제안 승인 처리
+     * 제안 승인 처리 (투표 집계 후 호출)
      */
     public void approve() {
         if (this.status != ProposalStatus.OPEN) {
             throw new IllegalStateException("열린 제안만 승인할 수 있습니다.");
         }
         this.status = ProposalStatus.APPROVED;
-        this.closeAt = LocalDateTime.now();
+        if (this.closeAt == null) {
+            this.closeAt = LocalDateTime.now();
+        }
     }
 
     /**
-     * 제안 거부 처리
+     * 제안 거부 처리 (투표 집계 후 호출)
      */
     public void reject() {
         if (this.status != ProposalStatus.OPEN) {
             throw new IllegalStateException("열린 제안만 거부할 수 있습니다.");
         }
         this.status = ProposalStatus.REJECTED;
-        this.closeAt = LocalDateTime.now();
+        if (this.closeAt == null) {
+            this.closeAt = LocalDateTime.now();
+        }
     }
 
     /**
@@ -115,6 +119,23 @@ public class Proposal {
      */
     public boolean isOpen() {
         return this.status == ProposalStatus.OPEN;
+    }
+
+    /**
+     * 투표 마감 시간이 지났는지 확인
+     */
+    public boolean isExpired() {
+        if (this.closeAt == null) {
+            return false;
+        }
+        return LocalDateTime.now().isAfter(this.closeAt);
+    }
+
+    /**
+     * 투표가 진행 가능한 상태인지 확인 (진행중 + 마감 전)
+     */
+    public boolean canVote() {
+        return isOpen() && !isExpired();
     }
 }
 

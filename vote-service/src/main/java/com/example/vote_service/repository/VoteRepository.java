@@ -1,6 +1,7 @@
 package com.example.vote_service.repository;
 
 import com.example.vote_service.model.Vote;
+import com.example.vote_service.model.VoteChoice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -31,9 +32,9 @@ public interface VoteRepository extends JpaRepository<Vote, UUID> {
     long countByProposalId(UUID proposalId);
 
     /**
-     * 특정 제안의 찬성 투표 수 카운트
+     * 특정 제안의 특정 선택(AGREE/DISAGREE) 투표 수 카운트
      */
-    long countByProposalIdAndChoice(UUID proposalId, Boolean choice);
+    long countByProposalIdAndChoice(UUID proposalId, VoteChoice choice);
 
     /**
      * 특정 사용자의 투표 존재 여부 확인
