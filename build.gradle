@@ -33,7 +33,17 @@ allprojects {
 
 		// test
 		testImplementation 'org.springframework.boot:spring-boot-starter-test'
+		testImplementation 'org.springframework.security:spring-security-test'
+		testImplementation 'com.h2database:h2'
 		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	}
+
+	tasks.withType(Test) {
+		useJUnitPlatform()
+		testLogging {
+			events "passed", "skipped", "failed"
+			exceptionFormat "full"
+		}
 	}
 }
 
@@ -55,6 +65,10 @@ project(':user-service') {
 }
 
 
-//tasks.named('test') {
-//  useJUnitPlatform()
-//}
+tasks.named('test') {
+  useJUnitPlatform()
+  testLogging {
+    events "passed", "skipped", "failed"
+    exceptionFormat "full"
+  }
+}
