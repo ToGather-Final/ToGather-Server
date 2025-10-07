@@ -1,59 +1,130 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.6'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'org.springframework.boot' version '3.5.6' apply false // 👈 루트에서는 적용(apply)하지 않음
+    id 'io.spring.dependency-management' version '1.1.7'
 }
-repositories {
-	mavenCentral()
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+ext {
+    set('springCloudVersion', "2023.0.2") // Spring Boot 버전에 맞는 Spring Cloud 버전
 }
+
 allprojects {
-	group = 'com.example'
-	version = '0.0.1-SNAPSHOT'
-	sourceCompatibility = '17'
-
-	apply plugin: 'java'
-	apply plugin: 'org.springframework.boot'
-	apply plugin: 'io.spring.dependency-management'
-
-	repositories {
-		mavenCentral()
-	}
-
-	dependencies {
-		// 공통적으로 모든 모듈에서 사용할 dependency
-		implementation 'org.springframework.boot:spring-boot-starter-web'
-		implementation 'org.springframework.boot:spring-boot-starter-validation'
-		implementation 'org.springframework.boot:spring-boot-starter-security'
-		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-
-		compileOnly 'org.projectlombok:lombok'
-		annotationProcessor 'org.projectlombok:lombok'
-
-		runtimeOnly 'com.mysql:mysql-connector-j'
-
-		// test
-		testImplementation 'org.springframework.boot:spring-boot-starter-test'
-		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	}
+    repositories {
+        mavenCentral()
+    }
 }
 
-project(':user-service') {
-	dependencies{
-		implementation 'org.springframework.boot:spring-boot-starter-web'
-		implementation 'org.springframework.boot:spring-boot-starter-validation'
-		implementation 'org.springframework.boot:spring-boot-starter-security'
-		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-		compileOnly 'org.projectlombok:lombok'
-		annotationProcessor 'org.projectlombok:lombok'
-		implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-		runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-		runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-		runtimeOnly 'com.mysql:mysql-connector-j'
-		testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	}
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+
+    dependencies {
+        // 모든 모듈에 공통적으로 필요한 의존성
+        implementation 'org.springframework.boot:spring-boot-starter-validation'
+        implementation 'org.springframework.boot:spring-boot-starter-security'
+
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testImplementation 'org.springframework.security:spring-security-test'
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform()
+    }
 }
 
-//tasks.named('test') {
-//	useJUnitPlatform()
+// API Gateway 모듈 전용 의존성
+project(':api-gateway') {
+    dependencies {
+        implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+        implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+        implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+        runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+        runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    }
+}
+
+// API Gateway를 제외한 나머지 모든 백엔드 서비스 모듈
+[':user-service', ':pay-service', ':trading-service', ':vote-service'].each {
+    project(it) {
+        dependencies {
+            implementation 'org.springframework.boot:spring-boot-starter-web'
+            implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+            implementation 'org.springframework.boot:spring-boot-starter-data-redis' // Redis 사용하는 서비스에만
+            runtimeOnly 'com.mysql:mysql-connector-j'
+        }
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+//plugins {
+//	id 'java'
+//	id 'org.springframework.boot' version '3.5.6'
+//	id 'io.spring.dependency-management' version '1.1.7'
 //}
+//repositories {
+//	mavenCentral()
+//}
+//allprojects {
+//	group = 'com.example'
+//	version = '0.0.1-SNAPSHOT'
+//	sourceCompatibility = '17'
+//
+//	apply plugin: 'java'
+//	apply plugin: 'org.springframework.boot'
+//	apply plugin: 'io.spring.dependency-management'
+//
+//	repositories {
+//		mavenCentral()
+//	}
+//
+//	dependencies {
+//		// 공통적으로 모든 모듈에서 사용할 dependency
+//		implementation 'org.springframework.boot:spring-boot-starter-web'
+//		implementation 'org.springframework.boot:spring-boot-starter-validation'
+//		implementation 'org.springframework.boot:spring-boot-starter-security'
+//		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+//
+//		compileOnly 'org.projectlombok:lombok'
+//		annotationProcessor 'org.projectlombok:lombok'
+//
+//		runtimeOnly 'com.mysql:mysql-connector-j'
+//
+//		// test
+//		testImplementation 'org.springframework.boot:spring-boot-starter-test'
+//		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+//	}
+//}
+//
+//project(':user-service') {
+//	dependencies{
+//		implementation 'org.springframework.boot:spring-boot-starter-web'
+//		implementation 'org.springframework.boot:spring-boot-starter-validation'
+//		implementation 'org.springframework.boot:spring-boot-starter-security'
+//		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+//		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+//		compileOnly 'org.projectlombok:lombok'
+//		annotationProcessor 'org.projectlombok:lombok'
+//		implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+//		runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+//		runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+//		runtimeOnly 'com.mysql:mysql-connector-j'
+//		testImplementation 'org.springframework.boot:spring-boot-starter-test'
+//	}
+//}
+//
+////tasks.named('test') {
+////	useJUnitPlatform()
+////}
