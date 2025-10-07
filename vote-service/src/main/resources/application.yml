@@ -1,14 +1,13 @@
 server:
-  port: 8080
+  port: 8083
+
 spring:
   application:
     name: vote-service
-
   datasource:
-    url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
+    url: jdbc:mysql://localhost:3307/togather_db
     username: admin
     password: togather1234
-
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,3 +15,9 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+
+jwt:
+  issuer: togather
+  access-exp-seconds: 1800
+  refresh-exp-days: 7
+  secret: ${JWT_SECRET:change-this-secret-to-256bit-string}
