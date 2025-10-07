@@ -149,6 +149,7 @@ jobs:
         kubectl rollout status deployment/pay-service -n ${{ env.EKS_NAMESPACE }} --timeout=300s
         kubectl rollout status deployment/vote-service -n ${{ env.EKS_NAMESPACE }} --timeout=300s
         kubectl rollout status deployment/nextjs-client -n ${{ env.EKS_NAMESPACE }} --timeout=300s
+        kubectl rollout status deployment/redis -n ${{ env.EKS_NAMESPACE }} --timeout=300s
 
     - name: Verify deployment
       if: github.ref == 'refs/heads/main'
@@ -166,3 +167,4 @@ jobs:
         kubectl rollout restart deployment pay-service -n ${{ env.EKS_NAMESPACE }}
         kubectl rollout restart deployment vote-service -n ${{ env.EKS_NAMESPACE }}
         kubectl rollout restart deployment nextjs-client -n ${{ env.EKS_NAMESPACE }}
+        kubectl rollout restart deployment redis -n ${{ env.EKS_NAMESPACE }}
