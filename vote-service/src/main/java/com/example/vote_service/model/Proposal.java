@@ -137,5 +137,13 @@ public class Proposal {
     public boolean canVote() {
         return isOpen() && !isExpired();
     }
+
+    /**
+     * 테스트용 메서드 - proposalId 설정
+     * 실제 운영에서는 JPA가 자동으로 생성하므로 사용하지 않음
+     */
+    public void setProposalIdForTest(UUID proposalId) {
+        this.proposalId = proposalId;
+    }
 }
 

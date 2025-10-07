@@ -64,8 +64,12 @@ class VoteServiceTest {
         when(voteRepository.findByProposalIdAndUserId(proposalId, userId))
                 .thenReturn(Optional.empty());
 
-        Vote savedVote = Vote.create(proposalId, userId, VoteChoice.AGREE);
-        when(voteRepository.save(any(Vote.class))).thenReturn(savedVote);
+        when(voteRepository.save(any(Vote.class))).thenAnswer(invocation -> {
+            Vote vote = invocation.getArgument(0);
+            // JPA가 실제로 하는 것처럼 UUID 설정
+            vote.setVoteIdForTest(UUID.randomUUID());
+            return vote;
+        });
 
         // When
         UUID voteId = voteService.vote(userId, proposalId, request);
@@ -100,6 +104,7 @@ class VoteServiceTest {
         when(proposalService.getProposal(proposalId)).thenReturn(proposal);
 
         Vote existingVote = Vote.create(proposalId, userId, VoteChoice.AGREE);
+        existingVote.setVoteIdForTest(UUID.randomUUID()); // 기존 투표에 UUID 설정
         when(voteRepository.findByProposalIdAndUserId(proposalId, userId))
                 .thenReturn(Optional.of(existingVote));
 
@@ -151,10 +156,11 @@ class VoteServiceTest {
         // Given
         UUID userId = UUID.randomUUID();
         UUID proposalId = UUID.randomUUID();
+        UUID groupId = UUID.randomUUID();
         VoteRequest request = new VoteRequest(VoteChoice.AGREE);
 
         Proposal closedProposal = Proposal.create(
-                UUID.randomUUID(),
+                groupId,
                 userId,
                 "테스트 제안",
                 ProposalCategory.TRADE,
@@ -163,6 +169,8 @@ class VoteServiceTest {
                 LocalDateTime.now().minusHours(1) // 이미 마감
         );
 
+        // 그룹 멤버십 검증 모킹
+        when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(true);
         when(proposalService.getProposal(proposalId)).thenReturn(closedProposal);
 
         // When & Then

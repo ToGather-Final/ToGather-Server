@@ -62,7 +62,12 @@ class ProposalServiceTest {
 
         // 그룹 멤버십 검증 모킹
         when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(true);
-        when(proposalRepository.save(any(Proposal.class))).thenReturn(savedProposal);
+        when(proposalRepository.save(any(Proposal.class))).thenAnswer(invocation -> {
+            Proposal proposal = invocation.getArgument(0);
+            // JPA가 실제로 하는 것처럼 UUID 설정
+            proposal.setProposalIdForTest(UUID.randomUUID());
+            return proposal;
+        });
 
         // When
         UUID proposalId = proposalService.createProposal(userId, request);
@@ -113,6 +118,7 @@ class ProposalServiceTest {
                 "{}",
                 LocalDateTime.now().plusHours(24)
         );
+        proposal.setProposalIdForTest(proposalId); // 테스트용 ID 설정
 
         when(proposalRepository.findById(proposalId)).thenReturn(Optional.of(proposal));
 
@@ -152,6 +158,7 @@ class ProposalServiceTest {
                 "{}",
                 LocalDateTime.now().plusHours(24)
         );
+        proposal.setProposalIdForTest(proposalId); // 테스트용 ID 설정
 
         when(proposalRepository.findById(proposalId)).thenReturn(Optional.of(proposal));
 

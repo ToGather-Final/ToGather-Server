@@ -77,5 +77,13 @@ public class Vote {
     public boolean isRejection() {
         return this.choice == VoteChoice.DISAGREE;
     }
+
+    /**
+     * 테스트용 메서드 - voteId 설정
+     * 실제 운영에서는 JPA가 자동으로 생성하므로 사용하지 않음
+     */
+    public void setVoteIdForTest(UUID voteId) {
+        this.voteId = voteId;
+    }
 }
 
