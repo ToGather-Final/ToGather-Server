@@ -32,7 +32,7 @@ public class VoteController {
      * view 파라미터로 필터링 (view=TRADE, view=PAY 등)
      */
     @GetMapping
-    public ResponseEntity<List<ProposalSummaryResponse>> getProposals(
+    public ResponseEntity<List<ProposalResponse>> getProposals(
             @RequestParam(required = false) String view,
             @RequestParam UUID groupId,
             Authentication authentication) {
@@ -48,15 +48,32 @@ public class VoteController {
                     .collect(Collectors.toList());
         }
         
-        List<ProposalSummaryResponse> response = proposals.stream()
-                .map(p -> new ProposalSummaryResponse(
-                        p.getProposalId(),
-                        p.getProposalName(),
-                        p.getCategory(),
-                        p.getStatus(),
-                        p.getOpenAt(),
-                        p.getCloseAt()
-                ))
+        List<ProposalResponse> response = proposals.stream()
+                .map(p -> {
+                    int approveCount = (int) voteService.countApproveVotes(p.getProposalId());
+                    int rejectCount = (int) voteService.countRejectVotes(p.getProposalId());
+                    var myVote = voteService.getUserVoteChoice(p.getProposalId(), userId);
+                    
+                    // TODO: 제안자 이름 가져오기 (user-service API 호출)
+                    String proposerName = "제안자"; // 임시
+                    
+                    // 날짜 포맷팅 (yyyy-MM-dd)
+                    String date = p.getOpenAt().toLocalDate().toString();
+                    
+                    return new ProposalResponse(
+                            p.getProposalId(),
+                            p.getProposalName(),
+                            proposerName,
+                            p.getCategory(),
+                            p.getAction(),
+                            p.getPayload(),
+                            p.getStatus(),
+                            date,
+                            approveCount,
+                            rejectCount,
+                            myVote
+                    );
+                })
                 .collect(Collectors.toList());
         
         return ResponseEntity.ok(response);
@@ -92,67 +109,6 @@ public class VoteController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * GET /vote/{proposalId} - 특정 제안 상세 조회
-     */
-    @GetMapping("/{proposalId}")
-    public ResponseEntity<ProposalResponse> getProposal(
-            @PathVariable UUID proposalId,
-            Authentication authentication) {
-        
-        UUID userId = (UUID) authentication.getPrincipal();
-        Proposal proposal = proposalService.getProposal(proposalId);
-        
-        int approveCount = (int) voteService.countApproveVotes(proposalId);
-        int rejectCount = (int) voteService.countRejectVotes(proposalId);
-        var myVote = voteService.getUserVoteChoice(proposalId, userId);
-        
-        // TODO: 제안자 이름 가져오기 (user-service API 호출)
-        String proposerName = "제안자"; // 임시
-        
-        // 날짜 포맷팅 (yyyy-MM-dd)
-        String date = proposal.getOpenAt().toLocalDate().toString();
-        
-        ProposalResponse response = new ProposalResponse(
-                proposal.getProposalId(),
-                proposal.getProposalName(),
-                proposerName,
-                proposal.getCategory(),
-                proposal.getAction(),
-                proposal.getPayload(),
-                proposal.getStatus(),
-                date,
-                approveCount,
-                rejectCount,
-                myVote
-        );
-        
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * GET /vote/{proposalId}/result - 투표 결과 조회
-     */
-    @GetMapping("/{proposalId}/result")
-    public ResponseEntity<VoteResultResponse> getVoteResult(@PathVariable UUID proposalId) {
-        
-        long approveCount = voteService.countApproveVotes(proposalId);
-        long rejectCount = voteService.countRejectVotes(proposalId);
-        long totalVotes = voteService.countTotalVotes(proposalId);
-        
-        // 임시: 찬성이 반대보다 많으면 통과
-        boolean isPassed = approveCount > rejectCount;
-        
-        VoteResultResponse response = new VoteResultResponse(
-                proposalId,
-                totalVotes,
-                approveCount,
-                rejectCount,
-                isPassed
-        );
-        
-        return ResponseEntity.ok(response);
-    }
 
     /**
      * POST /vote/{proposalId}/tally - 투표 집계 및 종료
@@ -160,7 +116,7 @@ public class VoteController {
      * 
      * Query Parameters:
      * - totalMembers: 그룹 전체 멤버 수 (필수)
-     * - voteQuorum: 투표 정족수 0.0~1.0 (필수, 예: 0.5 = 50%)
+     * - voteQuorum: 투표 정족수 (정수, 예: 3 = 3명 이상 찬성 필요)
      * 
      * TODO: user-service에서 GroupRule과 멤버 수를 자동으로 조회하도록 개선
      */
@@ -168,7 +124,7 @@ public class VoteController {
     public ResponseEntity<Void> tallyVotes(
             @PathVariable UUID proposalId,
             @RequestParam(required = false) Integer totalMembers,
-            @RequestParam(required = false) Double voteQuorum) {
+            @RequestParam(required = false) Integer voteQuorum) {
         
         // 파라미터가 제공된 경우 정확한 집계 수행
         if (totalMembers != null && voteQuorum != null) {

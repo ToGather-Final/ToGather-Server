@@ -3,6 +3,7 @@ package com.example.vote_service.service;
 import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.model.*;
 import com.example.vote_service.repository.ProposalRepository;
+import com.example.vote_service.repository.GroupMembersRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,9 @@ class ProposalServiceTest {
 
     @Mock
     private ProposalRepository proposalRepository;
+
+    @Mock
+    private GroupMembersRepository groupMembersRepository;
 
     @InjectMocks
     private ProposalService proposalService;
@@ -53,9 +57,11 @@ class ProposalServiceTest {
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{\"stockCode\":\"005930\",\"quantity\":100}",
-                LocalDateTime.now().plusHours(24)
+                LocalDateTime.now().plusMinutes(5)
         );
 
+        // 그룹 멤버십 검증 모킹
+        when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(true);
         when(proposalRepository.save(any(Proposal.class))).thenReturn(savedProposal);
 
         // When
@@ -63,7 +69,34 @@ class ProposalServiceTest {
 
         // Then
         assertThat(proposalId).isNotNull();
+        verify(groupMembersRepository).existsByUserIdAndGroupId(userId, groupId);
         verify(proposalRepository).save(any(Proposal.class));
+    }
+
+    @Test
+    @DisplayName("제안 생성 실패 - 그룹 멤버가 아님")
+    void createProposal_Fail_NotGroupMember() {
+        // Given
+        UUID userId = UUID.randomUUID();
+        UUID groupId = UUID.randomUUID();
+        ProposalCreateRequest request = new ProposalCreateRequest(
+                groupId,
+                "삼성전자 100주 매수",
+                ProposalCategory.TRADE,
+                ProposalAction.BUY,
+                "{\"stockCode\":\"005930\",\"quantity\":100}"
+        );
+
+        // 그룹 멤버가 아님
+        when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(false);
+
+        // When & Then
+        assertThatThrownBy(() -> proposalService.createProposal(userId, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("해당 그룹의 멤버가 아닙니다.");
+
+        verify(groupMembersRepository).existsByUserIdAndGroupId(userId, groupId);
+        verify(proposalRepository, never()).save(any(Proposal.class));
     }
 
     @Test

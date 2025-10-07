@@ -17,7 +17,7 @@ class ProposalTest {
         // Given
         UUID groupId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        LocalDateTime closeAt = LocalDateTime.now().plusHours(24);
+        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
 
         // When
         Proposal proposal = Proposal.create(

@@ -5,6 +5,7 @@ import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.Vote;
 import com.example.vote_service.model.VoteChoice;
 import com.example.vote_service.repository.VoteRepository;
+import com.example.vote_service.repository.GroupMembersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ public class VoteService {
 
     private final VoteRepository voteRepository;
     private final ProposalService proposalService;
+    private final GroupMembersRepository groupMembersRepository;
 
     /**
      * 투표하기
@@ -32,10 +34,11 @@ public class VoteService {
      */
     @Transactional
     public UUID vote(UUID userId, UUID proposalId, VoteRequest request) {
-        // TODO: 그룹 멤버인지 검증 필요
-        
         // 제안이 투표 가능한 상태인지 확인 (진행중 + 마감 전)
         Proposal proposal = proposalService.getProposal(proposalId);
+        
+        // 그룹 멤버인지 검증
+        validateGroupMembership(userId, proposal.getGroupId());
         if (!proposal.canVote()) {
             if (proposal.isExpired()) {
                 throw new IllegalStateException("투표 마감 시간이 지났습니다.");
@@ -115,10 +118,10 @@ public class VoteService {
      * 
      * @param proposalId 제안 ID
      * @param totalMembers 그룹 전체 멤버 수
-     * @param voteQuorum 투표 정족수 (0.0 ~ 1.0, 예: 0.5 = 50%)
+     * @param voteQuorum 투표 정족수 (정수, 예: 3 = 3명 이상 찬성 필요)
      */
     @Transactional
-    public void tallyVotes(UUID proposalId, int totalMembers, double voteQuorum) {
+    public void tallyVotes(UUID proposalId, int totalMembers, int voteQuorum) {
         Proposal proposal = proposalService.getProposal(proposalId);
         
         // 이미 종료된 제안인지 확인
@@ -136,13 +139,10 @@ public class VoteService {
         long rejectCount = countRejectVotes(proposalId);
         long totalVotes = approveCount + rejectCount;
 
-        // 정족수 계산
-        double requiredVotes = totalMembers * voteQuorum;
-        
         // 가결 조건:
         // 1. 찬성 투표 수가 정족수 이상
         // 2. 찬성이 반대보다 많음
-        boolean isApproved = (approveCount >= requiredVotes) && (approveCount > rejectCount);
+        boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
 
         if (isApproved) {
             proposalService.approveProposal(proposalId);
@@ -176,6 +176,21 @@ public class VoteService {
             proposalService.approveProposal(proposalId);
         } else {
             proposalService.rejectProposal(proposalId);
+        }
+    }
+
+    /**
+     * 그룹 멤버십 검증
+     * - 사용자가 특정 그룹의 멤버인지 확인
+     * - Spring Data JPA가 자동으로 SQL 생성: SELECT COUNT(*) > 0 FROM group_members WHERE user_id = ? AND group_id = ?
+     * 
+     * @param userId 사용자 ID
+     * @param groupId 그룹 ID
+     * @throws IllegalArgumentException 그룹 멤버가 아닌 경우
+     */
+    private void validateGroupMembership(UUID userId, UUID groupId) {
+        if (!groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)) {
+            throw new IllegalArgumentException("해당 그룹의 멤버가 아닙니다.");
         }
     }
 }

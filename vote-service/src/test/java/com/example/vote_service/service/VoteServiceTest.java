@@ -3,6 +3,7 @@ package com.example.vote_service.service;
 import com.example.vote_service.dto.VoteRequest;
 import com.example.vote_service.model.*;
 import com.example.vote_service.repository.VoteRepository;
+import com.example.vote_service.repository.GroupMembersRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ class VoteServiceTest {
     @Mock
     private ProposalService proposalService;
 
+    @Mock
+    private GroupMembersRepository groupMembersRepository;
+
     @InjectMocks
     private VoteService voteService;
 
@@ -41,18 +45,21 @@ class VoteServiceTest {
         // Given
         UUID userId = UUID.randomUUID();
         UUID proposalId = UUID.randomUUID();
+        UUID groupId = UUID.randomUUID();
         VoteRequest request = new VoteRequest(VoteChoice.AGREE);
 
         Proposal proposal = Proposal.create(
-                UUID.randomUUID(),
+                groupId,
                 userId,
                 "테스트 제안",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{}",
-                LocalDateTime.now().plusHours(24)
+                LocalDateTime.now().plusMinutes(5)
         );
 
+        // 그룹 멤버십 검증 모킹
+        when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(true);
         when(proposalService.getProposal(proposalId)).thenReturn(proposal);
         when(voteRepository.findByProposalIdAndUserId(proposalId, userId))
                 .thenReturn(Optional.empty());
@@ -65,6 +72,7 @@ class VoteServiceTest {
 
         // Then
         assertThat(voteId).isNotNull();
+        verify(groupMembersRepository).existsByUserIdAndGroupId(userId, groupId);
         verify(voteRepository).save(any(Vote.class));
     }
 
@@ -74,21 +82,24 @@ class VoteServiceTest {
         // Given
         UUID userId = UUID.randomUUID();
         UUID proposalId = UUID.randomUUID();
+        UUID groupId = UUID.randomUUID();
         VoteRequest request = new VoteRequest(VoteChoice.DISAGREE);
 
         Proposal proposal = Proposal.create(
-                UUID.randomUUID(),
+                groupId,
                 userId,
                 "테스트 제안",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{}",
-                LocalDateTime.now().plusHours(24)
+                LocalDateTime.now().plusMinutes(5)
         );
 
-        Vote existingVote = Vote.create(proposalId, userId, VoteChoice.AGREE);
-
+        // 그룹 멤버십 검증 모킹
+        when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(true);
         when(proposalService.getProposal(proposalId)).thenReturn(proposal);
+
+        Vote existingVote = Vote.create(proposalId, userId, VoteChoice.AGREE);
         when(voteRepository.findByProposalIdAndUserId(proposalId, userId))
                 .thenReturn(Optional.of(existingVote));
 
@@ -98,7 +109,40 @@ class VoteServiceTest {
         // Then
         assertThat(voteId).isNotNull();
         assertThat(existingVote.getChoice()).isEqualTo(VoteChoice.DISAGREE);
+        verify(groupMembersRepository).existsByUserIdAndGroupId(userId, groupId);
         verify(voteRepository, never()).save(any()); // 기존 엔티티 수정이므로 save 호출 안함
+    }
+
+    @Test
+    @DisplayName("투표 실패 - 그룹 멤버가 아님")
+    void vote_Fail_NotGroupMember() {
+        // Given
+        UUID userId = UUID.randomUUID();
+        UUID proposalId = UUID.randomUUID();
+        UUID groupId = UUID.randomUUID();
+        VoteRequest request = new VoteRequest(VoteChoice.AGREE);
+
+        Proposal proposal = Proposal.create(
+                groupId,
+                userId,
+                "테스트 제안",
+                ProposalCategory.TRADE,
+                ProposalAction.BUY,
+                "{}",
+                LocalDateTime.now().plusMinutes(5)
+        );
+
+        // 그룹 멤버가 아님
+        when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(false);
+        when(proposalService.getProposal(proposalId)).thenReturn(proposal);
+
+        // When & Then
+        assertThatThrownBy(() -> voteService.vote(userId, proposalId, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("해당 그룹의 멤버가 아닙니다.");
+
+        verify(groupMembersRepository).existsByUserIdAndGroupId(userId, groupId);
+        verify(voteRepository, never()).save(any(Vote.class));
     }
 
     @Test
@@ -149,10 +193,10 @@ class VoteServiceTest {
                 .thenReturn(1L);
 
         // When
-        voteService.tallyVotes(proposalId, 5, 0.5); // 5명 중 50% = 2.5명
+        voteService.tallyVotes(proposalId, 5, 3); // 정족수 3명
 
         // Then
-        // 3명 찬성 >= 2.5명 정족수 && 3 > 1 → 승인
+        // 3명 찬성 >= 3명 정족수 && 3 > 1 → 승인
         verify(proposalService).approveProposal(proposalId);
     }
 
@@ -178,7 +222,7 @@ class VoteServiceTest {
                 .thenReturn(1L);
 
         // When
-        voteService.tallyVotes(proposalId, 5, 0.6); // 5명 중 60% = 3명 필요
+        voteService.tallyVotes(proposalId, 5, 3); // 정족수 3명
 
         // Then
         // 2명 찬성 < 3명 정족수 → 부결

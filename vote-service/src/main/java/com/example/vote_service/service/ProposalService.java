@@ -4,6 +4,7 @@ import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.ProposalStatus;
 import com.example.vote_service.repository.ProposalRepository;
+import com.example.vote_service.repository.GroupMembersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class ProposalService {
 
     private final ProposalRepository proposalRepository;
+    private final GroupMembersRepository groupMembersRepository;
 
     /**
      * 제안 생성
@@ -28,10 +30,12 @@ public class ProposalService {
      */
     @Transactional
     public UUID createProposal(UUID userId, ProposalCreateRequest request) {
-        // TODO: 그룹 멤버인지 검증 필요 (user-service API 호출)
+        // 1. 그룹 멤버인지 검증
+        validateGroupMembership(userId, request.groupId());
         
-        // 임시로 24시간 후로 설정
-        LocalDateTime closeAt = LocalDateTime.now().plusHours(24);
+        // 2. 투표 생성
+        // 투표 종료 시간은 임시로 5분 후로 설정
+        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
         
         Proposal proposal = Proposal.create(
                 request.groupId(),
@@ -97,6 +101,21 @@ public class ProposalService {
         Proposal proposal = getProposal(proposalId);
         if (!proposal.getGroupId().equals(groupId)) {
             throw new IllegalArgumentException("제안이 해당 그룹에 속하지 않습니다.");
+        }
+    }
+
+    /**
+     * 그룹 멤버십 검증
+     * - 사용자가 특정 그룹의 멤버인지 확인
+     * - Spring Data JPA가 자동으로 SQL 생성: SELECT COUNT(*) > 0 FROM group_members WHERE user_id = ? AND group_id = ?
+     * 
+     * @param userId 사용자 ID
+     * @param groupId 그룹 ID
+     * @throws IllegalArgumentException 그룹 멤버가 아닌 경우
+     */
+    private void validateGroupMembership(UUID userId, UUID groupId) {
+        if (!groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)) {
+            throw new IllegalArgumentException("해당 그룹의 멤버가 아닙니다.");
         }
     }
 }
