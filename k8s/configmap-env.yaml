@@ -4,12 +4,12 @@ metadata:
   name: togather-env-config
   namespace: togather
 data:
-  # 개발 환경 설정
+  # 개발 환경
   SPRING_PROFILES_ACTIVE: "dev"
   LOGGING_LEVEL_ROOT: "INFO"
   LOGGING_LEVEL_COM_EXAMPLE: "DEBUG"
   
-  # 프로덕션 환경 설정 (GitHub Actions에서 덮어쓰기)
+  # 프로덕션 환경
   SPRING_PROFILES_ACTIVE_PROD: "prod"
   LOGGING_LEVEL_ROOT_PROD: "WARN"
   LOGGING_LEVEL_COM_EXAMPLE_PROD: "INFO"

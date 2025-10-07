@@ -121,7 +121,6 @@ jobs:
         kubectl apply -f k8s/namespace.yaml
 
         # 2. Secret 생성 (모든 민감 정보를 GitHub Secrets에서 가져와 통합)
-        # DB 사용자 이름도 민감 정보이므로 Secret으로 관리하는 것이 더 안전합니다.
         kubectl apply -f - <<EOF
         apiVersion: v1
         kind: Secret
@@ -130,15 +129,11 @@ jobs:
           namespace: ${{ env.EKS_NAMESPACE }}
         type: Opaque
         stringData:
-          # DB 접속 비밀정보
           DB_USERNAME: "${{ secrets.DB_USERNAME }}"
           DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
-
-          # JWT 시크릿 키
           JWT_SECRET_KEY: "${{ secrets.JWT_SECRET_KEY }}"
-
-          # RabbitMQ 비밀번호 (필요하다면 GitHub Secret으로 관리)
           RABBITMQ_PASSWORD: "${{ secrets.RABBITMQ_PASSWORD }}"
+          SPRING_DATA_REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
         EOF
 
         # 3. 나머지 모든 리소스(ConfigMap, Deployment, Service, Ingress 등) 배포

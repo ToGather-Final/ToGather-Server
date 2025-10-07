@@ -1,17 +1,18 @@
-# k8s/configmaps.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: togather-db-config
   namespace: togather
 data:
-  # Spring Boot가 자동으로 조합할 수 있도록 개별 정보로 분리
-  SPRING_DATASOURCE_URL: jdbc:mysql://togather-database.cxs46swiy72b.ap-northeast-2.rds.amazonaws.com:3306/togather_db
+  SPRING_DATASOURCE_URL: "jdbc:mysql://togather-database.cxs46swiy72b.ap-northeast-2.rds.amazonaws.com:3306/togather_db"
+
 ---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: togather-config
   namespace: togather
 data:
-  SPRING_RABBITMQ_HOST: rabbitmq
+  SPRING_RABBITMQ_HOST: "rabbitmq"
+  SPRING_DATA_REDIS_HOST: "redis"

@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: PersistentVolumeClaim # 영구 저장 공간, Pod가 사라져도 데이터가 보존될 디스크 공간(AWS EBS 볼륨)을 요청합니다.
+metadata:
+  name: redis-pvc
+  namespace: togather
+spec:
+  accessModes:
+    - ReadWriteOnce # 하나의 노드에서만 마운트
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: togather
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-pvc # PVC와 연결, 영구 저장 공간 사용
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: togather
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP
