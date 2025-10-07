@@ -25,7 +25,8 @@ public class GroupFlowTest extends BaseIntegrationTest {
 
     private String loginFlow(String email) throws Exception {
         signup(email, "P@ssw0rd!", email.split("@")[0]);
-        login(email, "P@ssw0rd!")
+        String login = login(email, "P@ssw0rd!");
+        return login;
     }
 
     private void signup(String e, String p, String n) throws Exception{
@@ -72,7 +73,7 @@ public class GroupFlowTest extends BaseIntegrationTest {
                 .andExpect(status().isNoContent());
     }
 
-    private void listMembers(String at,, long gid) throws Exception {
+    private void listMembers(String at, long gid) throws Exception {
         mockMvc.perform(get("/groups/{id}/members", gid)
                         .header("Authorization", "Bearer " + at))
                 .andExpect(status().isOk())

@@ -35,3 +35,36 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# 환경 설정 파일들
+.env
+.env.local
+.env.production
+.env.staging
+application-local.yml
+application-prod.yml
+application-staging.yml
+
+# 로그 파일들
+*.log
+logs/
+
+# 임시 파일들
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE 설정
+.vscode/settings.json
+.idea/workspace.xml
+.idea/tasks.xml
+
+# Spring boot
+application-*.yml
+!application.yml
+!application-test.yml
+
+# 민감한 정보가 포함된 파일들
+**/secrets/
+**/config/local/

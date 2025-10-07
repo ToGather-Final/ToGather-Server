@@ -23,7 +23,6 @@ public class AuthFlowTest extends BaseIntegrationTest {
         String newAt = refresh(rt);
         me(newAt);
         logout(rt);
-
     }
 
     private void signup(String e, String p, String n) throws Exception {
@@ -45,7 +44,7 @@ public class AuthFlowTest extends BaseIntegrationTest {
     }
 
     private void me(String at) throws Exception {
-        mockMvc.perform(get("/users.me").header("Authorization", "Bearer " + at))
+        mockMvc.perform(get("/users/me").header("Authorization", "Bearer " + at))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").exists());
     }
