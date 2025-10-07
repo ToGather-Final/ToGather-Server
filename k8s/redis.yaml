@@ -9,6 +9,7 @@ spec:
   resources:
     requests:
       storage: 1Gi
+  storageClassName: gp2
 
 ---
 
@@ -30,6 +31,12 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: togather-secrets
+                  key: REDIS_PASSWORD
           ports:
             - containerPort: 6379
           volumeMounts:
