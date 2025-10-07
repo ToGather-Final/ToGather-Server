@@ -36,7 +36,6 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
-        validateRegister(request);
         UUID userId = authService.register(request);
         if (userId == null) {
             throw new IllegalArgumentException("등록 실패");
@@ -55,17 +54,17 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public LoginResponse refresh(@RequestBody RefreshRequest request,
-                                 @RequestHeader("X-Device-Id") String deviceId,
-                                 @RequestHeader("Authorization") String authorizationHeader) {
+    public LoginResponse refresh(
+            @RequestHeader("X-Refresh-Token") String refreshToken,
+            @RequestHeader("X-Device-Id") String deviceId) {
         validateDeviceId(deviceId);
-        UUID subject = extractSubjectFromAccessToken(authorizationHeader);
-        boolean valid = refreshTokenService.validate(subject, deviceId, request.refreshToken());
-        if (!valid) {
-            throw new IllegalArgumentException("리프레시 토큰이 유효하지 않습니다.");
-        }
-        String newAccessToken = jwtUtil.issue(subject);
-        String newRefreshToken = refreshTokenService.issue(subject, deviceId);
+        validateRefreshToken(refreshToken);
+
+        UUID userId = refreshTokenService.getUserIdFromToken(refreshToken, deviceId);
+
+        String newAccessToken = jwtUtil.issue(userId);
+        String newRefreshToken = refreshTokenService.issue(userId, deviceId);
+
         return new LoginResponse(newAccessToken, newRefreshToken);
     }
 
@@ -81,6 +80,12 @@ public class AuthController {
     private void validateDeviceId(String deviceId) {
         if (deviceId == null || deviceId.isBlank()) {
             throw new IllegalArgumentException("deviceId 가 필요합니다.");
+        }
+    }
+
+    private void validateRefreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new IllegalArgumentException("리프레시 토큰이 필요합니다.");
         }
     }
 

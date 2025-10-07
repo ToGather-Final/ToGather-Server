@@ -3,6 +3,7 @@ package com.example.user_service.service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -53,6 +54,22 @@ public class RefreshTokenService {
         validateDeviceId(deviceId);
         String key = buildKey(userId, deviceId);
         redisTemplate.delete(key);
+    }
+
+    public UUID getUserIdFromToken(String refreshToken, String deviceId) {
+        validateDeviceId(deviceId);
+
+        Set<String> keys = redisTemplate.keys("rt:user:*:" + deviceId);
+
+        for (String key : keys) {
+            String storedHash = redisTemplate.opsForValue().get(key);
+            if (storedHash != null && storedHash.equals(sha256(refreshToken))) {
+                String userIdStr = key.substring(8, key.length() - deviceId.length() - 1);
+                return UUID.fromString(userIdStr);
+            }
+        }
+
+        throw new IllegalArgumentException("유효하지 않은 리프레시 토큰입니다.");
     }
 
     private void validateDeviceId(String deviceId) {

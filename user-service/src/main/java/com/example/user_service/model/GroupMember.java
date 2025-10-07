@@ -20,12 +20,6 @@ public class GroupMember {
     @EmbeddedId
     private GroupMemberId id;
 
-    @Column(name = "userId", columnDefinition = "BINARY(16)", nullable = false, insertable = false, updatable = false)
-    private UUID userId;
-
-    @Column(name = "groupId", columnDefinition = "BINARY(16)", nullable = false, insertable = false, updatable = false)
-    private UUID groupId;
-
     @Column(name = "joinedAt", nullable = false, updatable = false)
     private LocalDateTime joinedAt;
 
@@ -37,8 +31,14 @@ public class GroupMember {
     public static GroupMember join(UUID groupId, UUID userId) {
         GroupMember member = new GroupMember();
         member.id = new GroupMemberId(userId, groupId);
-        member.userId = userId;
-        member.groupId = groupId;
         return member;
+    }
+
+    public UUID getUserId() {
+        return id.getUserId();
+    }
+
+    public UUID getGroupId() {
+        return id.getGroupId();
     }
 }
