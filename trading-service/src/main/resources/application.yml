@@ -2,13 +2,18 @@ server:
   port: 8080
 spring:
   application:
-    name: trading-service
-
+    name: pay-service
+  profiles:
+    include: common
   datasource:
-    url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
-    username: admin
-    password: togather1234
-
+    url: ${app.database.url}
+    username: ${app.database.username}
+    password: ${app.database.password}
+  data:
+    redis:
+      host: ${app.redis.host}
+      port: ${app.redis.port}
+      password: ${app.redis.password}
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,3 +21,6 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+
+jwt:
+  secret: ${app.jwt.secret}
