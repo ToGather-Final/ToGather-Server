@@ -11,6 +11,6 @@ public interface GroupRepository extends JpaRepository<Group, UUID> {
     List<Group> findByOwnerId(UUID ownerId);
 
     @Query("select g from Group g where g.groupId in "
-            + "(select gm.groupId from GroupMember gm where gm.userId=:userId)")
+            + "(select gm.id.groupId from GroupMember gm where gm.id.userId=:userId)")
     List<Group> findAllByMember(@Param("userId") UUID userId);
 }

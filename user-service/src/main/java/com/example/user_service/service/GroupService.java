@@ -95,7 +95,7 @@ public class GroupService {
     @Transactional(TxType.SUPPORTS)
     public List<GroupMember> members(UUID groupId, UUID userId) {
         assertMember(groupId, userId);
-        return groupMemberRepository.findByGroupId(groupId);
+        return groupMemberRepository.findByIdGroupId(groupId);
     }
 
     @Transactional(TxType.SUPPORTS)
@@ -111,7 +111,7 @@ public class GroupService {
     }
 
     private void assertMember(UUID groupId, UUID userId) {
-        boolean ok = groupMemberRepository.existsByGroupIdAndUserId(groupId, userId);
+        boolean ok = groupMemberRepository.existsByIdGroupIdAndIdUserId(groupId, userId);
         if (ok) {
             return;
         }
