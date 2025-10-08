@@ -39,6 +39,10 @@ public class LedgerEntry {
     @Column(name = "credit_account_id", columnDefinition = "BINARY(16)")
     private UUID creditAccountId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private TransactionStatus status = TransactionStatus.PENDING;
+
     @Column(nullable = false)
     @Check(constraints = "amount > 0")
     private long amount;
@@ -95,6 +99,17 @@ public class LedgerEntry {
         return entry;
     }
 
+    public void markAsCompleted() {
+        this.status = TransactionStatus.COMPLETED;
+    }
+
+    public void markAsFailed() {
+        this.status = TransactionStatus.FAILED;
+    }
+
+    public boolean isCompleted() {
+        return this.status == TransactionStatus.COMPLETED;
+    }
 
 
 }
