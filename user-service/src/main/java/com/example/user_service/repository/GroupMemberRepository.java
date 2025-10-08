@@ -1,7 +1,7 @@
 package com.example.user_service.repository;
 
-import com.example.user_service.model.GroupMember;
-import com.example.user_service.model.GroupMemberId;
+import com.example.user_service.domain.GroupMember;
+import com.example.user_service.domain.GroupMemberId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

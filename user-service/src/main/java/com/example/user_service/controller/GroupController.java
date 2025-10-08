@@ -8,14 +8,14 @@ import com.example.user_service.dto.GroupRuleResponse;
 import com.example.user_service.dto.GroupRuleUpdateRequest;
 import com.example.user_service.dto.GroupSummaryResponse;
 import com.example.user_service.dto.InvitationCodeResponse;
-import com.example.user_service.model.Group;
-import com.example.user_service.model.GroupMember;
-import com.example.user_service.model.GroupRule;
+import com.example.user_service.domain.Group;
+import com.example.user_service.domain.GroupMember;
+import com.example.user_service.domain.GroupRule;
 import com.example.user_service.service.GroupService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

@@ -1,6 +1,6 @@
 package com.example.user_service.repository;
 
-import com.example.user_service.model.Group;
+import com.example.user_service.domain.Group;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
