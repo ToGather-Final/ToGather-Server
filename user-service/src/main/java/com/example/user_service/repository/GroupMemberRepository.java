@@ -9,9 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupMemberId> {
 
-    List<GroupMember> findByGroupId(UUID groupId);
+    List<GroupMember> findByIdGroupId(UUID groupId);
 
-    Optional<GroupMember> findByGroupIdAndUserId(UUID groupId, UUID userId);
+    Optional<GroupMember> findByIdGroupIdAndIdUserId(UUID groupId, UUID userId);
 
-    boolean existsByGroupIdAndUserId(UUID groupId, UUID userId);
+    boolean existsByIdGroupIdAndIdUserId(UUID groupId, UUID userId);
 }

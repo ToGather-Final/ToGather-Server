@@ -20,7 +20,9 @@ public class AuthService {
 
     @Transactional
     public UUID register(RegisterRequest request) {
+        validatePassword(request.password());
         validatePasswordConfirm(request.password(), request.passwordConfirm());
+
         if (isDuplicate(request.username())) {
             throw new IllegalArgumentException("이미 존재하는 아이디입니다.");
         }
@@ -32,7 +34,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public UUID login(LoginRequest request) {
-        User user = userRepository.findByUserName(request.username())
+        User user = userRepository.findByUsername(request.username())
                 .orElseThrow(() -> new IllegalArgumentException("해당 이름으로 계정을 찾을 수 없습니다."));
         if (!isPasswordMatch(user, request.password())) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
@@ -40,13 +42,24 @@ public class AuthService {
         return user.getUserId();
     }
 
-    private boolean isDuplicate(String userName) {
-        Optional<User> user = userRepository.findByUserName(userName);
-        return user.isPresent();
+    private boolean isDuplicate(String username) {
+        return userRepository.existsByUsername(username);
     }
 
     private boolean isPasswordMatch(User user, String rawPassword) {
         return passwordEncoder.matches(rawPassword, user.getPassword());
+    }
+
+    private void validatePassword(String password){
+        if (password == null || password.length() < 8){
+            throw new IllegalArgumentException("비밀번호는 8자 이상이어야 합니다.");
+        }
+        if (!password.matches(".*[A-Za-z].*")) {
+            throw new IllegalArgumentException("비밀번호는 영문자를 포함해야 합니다.");
+        }
+        if (!password.matches(".*[0-9].*")) {
+            throw new IllegalArgumentException("비밀번호는 숫자를 포함해야 합니다.");
+        }
     }
 
     private void validatePasswordConfirm(String password, String confirm) {
