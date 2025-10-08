@@ -2,9 +2,9 @@ package com.example.user_service.service;
 
 import com.example.user_service.dto.LoginRequest;
 import com.example.user_service.dto.RegisterRequest;
-import com.example.user_service.model.User;
+import com.example.user_service.domain.User;
 import com.example.user_service.repository.UserRepository;
-import java.util.Optional;
+
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;

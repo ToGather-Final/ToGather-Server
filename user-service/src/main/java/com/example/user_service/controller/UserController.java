@@ -2,9 +2,8 @@ package com.example.user_service.controller;
 
 import com.example.user_service.dto.MeResponse;
 import com.example.user_service.dto.NicknameUpdateRequest;
-import com.example.user_service.model.User;
+import com.example.user_service.domain.User;
 import com.example.user_service.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 
 import java.util.Map;
