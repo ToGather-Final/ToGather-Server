@@ -31,6 +31,9 @@ class VoteServiceTest {
     @Mock
     private GroupMembersRepository groupMembersRepository;
 
+    @Mock
+    private HistoryService historyService;
+
     @InjectMocks
     private VoteService voteService;
 
@@ -206,6 +209,16 @@ class VoteServiceTest {
         // Then
         // 3명 찬성 >= 3명 정족수 && 3 > 1 → 승인
         verify(proposalService).approveProposal(proposalId);
+        verify(historyService).createVoteApprovedHistory(
+                eq(proposal.getGroupId()),
+                eq(proposalId),
+                eq("2024-01-01 15:00:00"),
+                eq("BUY"),
+                eq("삼성전자"),
+                eq(100),
+                eq(70000),
+                eq("KRW")
+        );
     }
 
     @Test
@@ -235,6 +248,11 @@ class VoteServiceTest {
         // Then
         // 2명 찬성 < 3명 정족수 → 부결
         verify(proposalService).rejectProposal(proposalId);
+        verify(historyService).createVoteRejectedHistory(
+                eq(proposal.getGroupId()),
+                eq(proposalId),
+                eq("테스트 제안")
+        );
     }
 
     @Test
