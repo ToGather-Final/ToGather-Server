@@ -25,6 +25,7 @@ public class VoteService {
     private final VoteRepository voteRepository;
     private final ProposalService proposalService;
     private final GroupMembersRepository groupMembersRepository;
+    private final HistoryService historyService;
 
     /**
      * 투표하기
@@ -146,8 +147,26 @@ public class VoteService {
 
         if (isApproved) {
             proposalService.approveProposal(proposalId);
+            // 히스토리 생성 (VOTE_APPROVED)
+            // TODO: 실제 매매 정보를 payload에 포함해야 함
+            historyService.createVoteApprovedHistory(
+                proposal.getGroupId(),
+                proposalId,
+                "2024-01-01 15:00:00", // scheduledAt - TODO: 실제 실행 예정 시간
+                "BUY", // side - TODO: 실제 매매 방향
+                "삼성전자", // stockName - TODO: 실제 주식명
+                100, // shares - TODO: 실제 주식 수량
+                70000, // unitPrice - TODO: 실제 주가
+                "KRW" // currency - TODO: 실제 통화
+            );
         } else {
             proposalService.rejectProposal(proposalId);
+            // 히스토리 생성 (VOTE_REJECTED)
+            historyService.createVoteRejectedHistory(
+                proposal.getGroupId(),
+                proposalId,
+                proposal.getProposalName()
+            );
         }
     }
 

@@ -23,6 +23,7 @@ public class ProposalService {
 
     private final ProposalRepository proposalRepository;
     private final GroupMembersRepository groupMembersRepository;
+    private final HistoryService historyService;
 
     /**
      * 제안 생성
@@ -48,6 +49,15 @@ public class ProposalService {
         );
         
         Proposal saved = proposalRepository.save(proposal);
+        
+        // 3. 히스토리 생성 (VOTE_CREATED)
+        historyService.createVoteCreatedHistory(
+            userId,
+            saved.getProposalId(),
+            request.proposalName(),
+            "제안자" // TODO: 실제 사용자 이름 조회
+        );
+        
         return saved.getProposalId();
     }
 
