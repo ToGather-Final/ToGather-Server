@@ -16,3 +16,4 @@ metadata:
 data:
   SPRING_RABBITMQ_HOST: "rabbitmq"
   SPRING_DATA_REDIS_HOST: "redis"
+  SPRING_DATA_REDIS_PORT: "6379"

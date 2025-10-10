@@ -77,7 +77,7 @@ spring:
     password: ${app.rabbitmq.password:togather1234}
 
 jwt:
-  secret-key: ${app.jwt.secret:TogatherSecretkey}
+  secret: ${app.jwt.secret:TogatherSecretkey}
   access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
   refresh-exp-days: ${app.jwt.refresh-exp-days:7}
 
@@ -109,6 +109,11 @@ spring:
 
 server:
   port: 8080
+
+jwt:
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
+  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
 
 pay:
   demo-mode: false # 운영 환경에서는 데모 모드 비활성화

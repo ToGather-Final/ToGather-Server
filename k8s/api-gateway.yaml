@@ -17,9 +17,12 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: ${ECR_REGISTRY}/togather/api-gateway:latest
+        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/api-gateway:latest
         ports:
         - containerPort: 8000
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "main"
         envFrom:
           - configMapRef:
               name: togather-config    # RabbitMQ 정보가 담긴 ConfigMap

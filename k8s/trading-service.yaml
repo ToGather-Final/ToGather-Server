@@ -17,9 +17,12 @@ spec:
     spec:
       containers:
       - name: trading-service
-        image: ${ECR_REGISTRY}/togather/trading-service:latest
+        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/trading-service:latest
         ports:
         - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "main"
         envFrom:
           - configMapRef:
               name: togather-config

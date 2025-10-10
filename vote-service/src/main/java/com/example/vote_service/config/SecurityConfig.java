@@ -45,6 +45,7 @@ public class SecurityConfig {
             ex.accessDeniedHandler(restAccessDeniedHandler);
         });
         http.authorizeHttpRequests(reg -> {
+            reg.requestMatchers("/actuator/**").permitAll();
             reg.anyRequest().authenticated();
         });
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

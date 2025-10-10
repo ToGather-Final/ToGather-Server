@@ -22,9 +22,9 @@ spring:
     password: ${RABBITMQ_PASSWORD:}
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
   management:
     endpoints:
       web:
@@ -69,7 +69,7 @@ spring:
       com.example.user_service: DEBUG
 
 jwt:
-  secret-key: ${app.jwt.secret:TogatherSecretkey}
+  secret: ${app.jwt.secret:TogatherSecretkey}
   access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
   refresh-exp-days: ${app.jwt.refresh-exp-days:7}
 
@@ -88,12 +88,22 @@ spring:
     hibernate:
       ddl-auto: validate # ❗ 운영에서는 스키마 변경 없이 검증만 수행
     show-sql: false # 성능을 위해 SQL 로그 비활성화
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
   logging:
     level:
       com.example.user_service: INFO # 운영에서는 INFO 레벨 이상만 기록
 
 server:
   port: 8080
+
+jwt:
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
+  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
 
 #server:
 #  port: 8080

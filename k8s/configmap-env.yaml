@@ -4,12 +4,6 @@ metadata:
   name: togather-env-config
   namespace: togather
 data:
-  # 개발 환경
-  SPRING_PROFILES_ACTIVE: "dev"
+  # 로깅 설정 (프로파일별로 각 서비스에서 관리)
   LOGGING_LEVEL_ROOT: "INFO"
   LOGGING_LEVEL_COM_EXAMPLE: "DEBUG"
-  
-  # 프로덕션 환경
-  SPRING_PROFILES_ACTIVE_PROD: "prod"
-  LOGGING_LEVEL_ROOT_PROD: "WARN"
-  LOGGING_LEVEL_COM_EXAMPLE_PROD: "INFO"
