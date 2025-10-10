@@ -52,7 +52,7 @@ public class ProposalService {
         
         // 3. 히스토리 생성 (VOTE_CREATED)
         historyService.createVoteCreatedHistory(
-            request.groupId(),
+            userId,
             saved.getProposalId(),
             request.proposalName(),
             "제안자" // TODO: 실제 사용자 이름 조회

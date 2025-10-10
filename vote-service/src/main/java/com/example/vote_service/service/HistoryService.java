@@ -2,6 +2,8 @@ package com.example.vote_service.service;
 
 import com.example.vote_service.model.*;
 import com.example.vote_service.repository.HistoryRepository;
+import com.example.vote_service.repository.GroupMembersRepository;
+import com.example.vote_service.security.JwtUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -21,14 +25,24 @@ import java.util.UUID;
 public class HistoryService {
 
     private final HistoryRepository historyRepository;
+    private final GroupMembersRepository groupMembersRepository;
+    private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
 
     /**
-     * 투표 생성 히스토리 생성
+     * 투표 생성 히스토리 생성 (사용자 ID 기반)
      */
     @Transactional
-    public void createVoteCreatedHistory(UUID groupId, UUID proposalId, String proposalName, String proposerName) {
+    public void createVoteCreatedHistory(UUID userId, UUID proposalId, String proposalName, String proposerName) {
         try {
+            // 사용자가 속한 그룹 ID 조회 (단일 그룹)
+            Optional<UUID> groupIdOpt = groupMembersRepository.findFirstGroupIdByUserId(userId);
+            if (groupIdOpt.isEmpty()) {
+                throw new IllegalArgumentException("사용자가 속한 그룹이 없습니다.");
+            }
+            
+            UUID groupId = groupIdOpt.get();
+            
             Map<String, Object> payload = new HashMap<>();
             payload.put("proposalId", proposalId.toString());
             payload.put("proposalName", proposalName);
