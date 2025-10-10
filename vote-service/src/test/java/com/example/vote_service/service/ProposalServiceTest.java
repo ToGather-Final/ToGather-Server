@@ -1,5 +1,6 @@
 package com.example.vote_service.service;
 
+import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.model.*;
 import com.example.vote_service.repository.ProposalRepository;
@@ -27,6 +28,12 @@ class ProposalServiceTest {
 
     @Mock
     private GroupMembersRepository groupMembersRepository;
+
+    @Mock
+    private HistoryService historyService;
+
+    @Mock
+    private UserServiceClient userServiceClient;
 
     @InjectMocks
     private ProposalService proposalService;
@@ -62,6 +69,10 @@ class ProposalServiceTest {
 
         // 그룹 멤버십 검증 모킹
         when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(true);
+        
+        // 사용자 닉네임 조회 모킹
+        when(userServiceClient.getUserNickname(userId)).thenReturn("테스트 사용자");
+        
         when(proposalRepository.save(any(Proposal.class))).thenAnswer(invocation -> {
             Proposal proposal = invocation.getArgument(0);
             // JPA가 실제로 하는 것처럼 UUID 설정
@@ -75,6 +86,7 @@ class ProposalServiceTest {
         // Then
         assertThat(proposalId).isNotNull();
         verify(groupMembersRepository).existsByUserIdAndGroupId(userId, groupId);
+        verify(userServiceClient).getUserNickname(userId);
         verify(proposalRepository).save(any(Proposal.class));
     }
 
@@ -113,6 +125,7 @@ class ProposalServiceTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 "테스트 제안",
+                "테스트 사용자",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{}",
@@ -153,6 +166,7 @@ class ProposalServiceTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 "테스트 제안",
+                "테스트 사용자",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{}",

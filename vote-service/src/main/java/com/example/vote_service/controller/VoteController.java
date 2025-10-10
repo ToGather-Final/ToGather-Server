@@ -54,8 +54,8 @@ public class VoteController {
                     int rejectCount = (int) voteService.countRejectVotes(p.getProposalId());
                     var myVote = voteService.getUserVoteChoice(p.getProposalId(), userId);
                     
-                    // TODO: 제안자 이름 가져오기 (user-service API 호출)
-                    String proposerName = "제안자"; // 임시
+                    // 제안자 이름은 Proposal 엔티티에서 가져오기
+                    String proposerName = p.getProposerName();
                     
                     // 날짜 포맷팅 (yyyy-MM-dd)
                     String date = p.getOpenAt().toLocalDate().toString();

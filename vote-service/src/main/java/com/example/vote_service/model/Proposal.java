@@ -35,6 +35,9 @@ public class Proposal {
     @Column(name = "proposalName", nullable = false, length = 255)
     private String proposalName; // 제안 이름
 
+    @Column(name = "proposerName", nullable = false, length = 100)
+    private String proposerName; // 제안자 닉네임
+
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 50)
     private ProposalCategory category; // TRADE, PAY
@@ -73,13 +76,14 @@ public class Proposal {
     /**
      * 정적 팩토리 메서드 - Proposal 생성
      */
-    public static Proposal create(UUID groupId, UUID userId, String proposalName, 
+    public static Proposal create(UUID groupId, UUID userId, String proposalName, String proposerName,
                                    ProposalCategory category, ProposalAction action, 
                                    String payload, LocalDateTime closeAt) {
         Proposal proposal = new Proposal();
         proposal.groupId = groupId;
         proposal.userId = userId;
         proposal.proposalName = proposalName;
+        proposal.proposerName = proposerName;
         proposal.category = category;
         proposal.action = action;
         proposal.payload = payload;

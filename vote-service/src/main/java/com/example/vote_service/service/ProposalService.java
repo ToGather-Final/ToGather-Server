@@ -1,5 +1,6 @@
 package com.example.vote_service.service;
 
+import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.ProposalStatus;
@@ -24,6 +25,7 @@ public class ProposalService {
     private final ProposalRepository proposalRepository;
     private final GroupMembersRepository groupMembersRepository;
     private final HistoryService historyService;
+    private final UserServiceClient userServiceClient;
 
     /**
      * 제안 생성
@@ -34,7 +36,10 @@ public class ProposalService {
         // 1. 그룹 멤버인지 검증
         validateGroupMembership(userId, request.groupId());
         
-        // 2. 투표 생성
+        // 2. 사용자 닉네임 조회
+        String proposerName = userServiceClient.getUserNickname(userId);
+        
+        // 3. 투표 생성
         // 투표 종료 시간은 임시로 5분 후로 설정
         LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
         
@@ -42,6 +47,7 @@ public class ProposalService {
                 request.groupId(),
                 userId,
                 request.proposalName(),
+                proposerName,
                 request.category(),
                 request.action(),
                 request.payload(),
@@ -50,12 +56,12 @@ public class ProposalService {
         
         Proposal saved = proposalRepository.save(proposal);
         
-        // 3. 히스토리 생성 (VOTE_CREATED)
+        // 4. 히스토리 생성 (VOTE_CREATED)
         historyService.createVoteCreatedHistory(
             userId,
             saved.getProposalId(),
             request.proposalName(),
-            "제안자" // TODO: 실제 사용자 이름 조회
+            proposerName
         );
         
         return saved.getProposalId();

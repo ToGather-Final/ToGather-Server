@@ -16,6 +16,10 @@ spring:
         format_sql: true
     show-sql: true
 
+# 외부 서비스 URL 설정
+user-service:
+  url: ${USER_SERVICE_URL:http://localhost:8080}
+
 jwt:
   issuer: togather
   access-exp-seconds: 1800
