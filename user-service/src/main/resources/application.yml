@@ -1,49 +1,127 @@
-server:
-  port: 8080
-
+# ===============================================
+# ✅ 공통 설정 (모든 프로파일에 적용)
+# ===============================================
 spring:
   application:
     name: user-service
-
   datasource:
+    # 운영 환경에서는 환경 변수를 통해 주입받습니다.
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
-
   jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
-
   rabbitmq:
-    host: rabbitmq
+    host: ${RABBITMQ_HOST:rabbitmq}
     port: 5672
-    username: ${SPRING_RABBITMQ_USERNAME:admin} # Secret에서 주입받지만, 없을 경우 기본값 'admin' 사용
-    password: ${SPRING_RABBITMQ_PASSWORD}
-
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:}
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
-      port: 6379
-      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics
+    endpoint:
+      health:
+        show-details: always
 
+# JWT 설정 키를 'secret-key'로 통일합니다.
 jwt:
   secret-key: ${JWT_SECRET_KEY}
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: always
+---
+# ===============================================
+# 🌳 dev 프로파일 (개발 환경)
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "dev"
+  jpa:
+    hibernate:
+      ddl-auto: update # 개발 시에는 스키마 자동 변경
+    show-sql: true # SQL 쿼리 로그 활성화
+  logging:
+    level:
+      com.example.user_service: DEBUG
 
-logging:
-  level:
-    com.example.pay_service: DEBUG
+server:
+  port: 8082 # main과 다른 포트 사용
+
+---
+# ===============================================
+# 🚀 main 프로파일 (운영 환경)
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "main"
+  jpa:
+    hibernate:
+      ddl-auto: validate # ❗ 운영에서는 스키마 변경 없이 검증만 수행
+    show-sql: false # 성능을 위해 SQL 로그 비활성화
+  logging:
+    level:
+      com.example.user_service: INFO # 운영에서는 INFO 레벨 이상만 기록
+
+server:
+  port: 8080
+
+#server:
+#  port: 8080
+#
+#spring:
+#  application:
+#    name: user-service
+#
+#  datasource:
+#    url: ${DB_URL}
+#    username: ${DB_USERNAME}
+#    password: ${DB_PASSWORD}
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#
+#  jpa:
+#    hibernate:
+#      ddl-auto: update
+#    show-sql: true
+#    properties:
+#      hibernate:
+#        dialect: org.hibernate.dialect.MySQL8Dialect
+#        format_sql: true
+#
+#  rabbitmq:
+#    host: rabbitmq
+#    port: 5672
+#    username: ${SPRING_RABBITMQ_USERNAME:admin} # Secret에서 주입받지만, 없을 경우 기본값 'admin' 사용
+#    password: ${SPRING_RABBITMQ_PASSWORD}
+#
+#  data:
+#    redis:
+#      host: ${SPRING_DATA_REDIS_HOST:localhost}
+#      port: 6379
+#      password: ${SPRING_DATA_REDIS_PASSWORD:}
+#
+#jwt:
+#  secret-key: ${JWT_SECRET_KEY}
+#
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics
+#  endpoint:
+#    health:
+#      show-details: always
+#
+#logging:
+#  level:
+#    com.example.pay_service: DEBUG

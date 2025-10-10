@@ -1,43 +1,130 @@
-server:
-  port: 8080
-
+# ===============================================
+# ✅ 공통 설정 (모든 프로파일에 적용)
+# ===============================================
 spring:
   application:
     name: vote-service
-
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    # DB 접속 정보는 각 프로파일에서 정의합니다.
     driver-class-name: com.mysql.cj.jdbc.Driver
-
   jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
-
   rabbitmq:
-    host: rabbitmq
+    host: ${RABBITMQ_HOST:rabbitmq}
     port: 5672
-    username: ${SPRING_RABBITMQ_USERNAME:admin} # Secret에서 주입받지만, 없을 경우 기본값 'admin' 사용
-    password: ${SPRING_RABBITMQ_PASSWORD}
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:}
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics
+    endpoint:
+      health:
+        show-details: always
 
+# JWT 설정을 하나로 통합합니다. dev와 main에서 구조가 동일해야 합니다.
 jwt:
+  issuer: ${JWT_ISSUER:togather}
   secret-key: ${JWT_SECRET_KEY}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800} # 30분
+  refresh-exp-days: ${JWT_REFRESH_EXP:7} # 7일
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: always
+---
+# ===============================================
+# 🌳 dev 프로파일 (개발 환경)
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "dev"
+  datasource:
+    # dev 환경에서는 기본값을 제공하여 로컬 실행을 쉽게 합니다.
+    url: ${DB_URL:jdbc:mysql://localhost:3307/togather_db}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:togather1234}
+  jpa:
+    hibernate:
+      ddl-auto: update # 개발 시에는 스키마 자동 변경
+    show-sql: true # SQL 쿼리 로그 활성화
+  logging:
+    level:
+      com.example.vote_service: DEBUG # 서비스 이름에 맞게 수정
 
-logging:
-  level:
-    com.example.pay_service: DEBUG
+# dev 환경에서는 JWT 시크릿 키에 대한 기본값을 제공합니다.
+jwt:
+  secret-key: ${JWT_SECRET_KEY:change-this-secret-to-256bit-string-for-dev}
+
+server:
+  port: 8083
+
+---
+# ===============================================
+# 🚀 main 프로파일 (운영 환경)
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "main"
+  datasource:
+    # 운영 환경에서는 환경 변수를 통해 주입받습니다.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate # ❗ 운영에서는 스키마 변경 없이 검증만 수행
+    show-sql: false # 성능을 위해 SQL 로그 비활성화
+  logging:
+    level:
+      com.example.vote_service: INFO # 운영에서는 INFO 레벨 이상만 기록
+
+server:
+  port: 8080
+
+#server:
+#  port: 8080
+#
+#spring:
+#  application:
+#    name: vote-service
+#
+#  datasource:
+#    url: ${DB_URL}
+#    username: ${DB_USERNAME}
+#    password: ${DB_PASSWORD}
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#
+#  jpa:
+#    hibernate:
+#      ddl-auto: update
+#    show-sql: true
+#    properties:
+#      hibernate:
+#        dialect: org.hibernate.dialect.MySQL8Dialect
+#        format_sql: true
+#
+#  rabbitmq:
+#    host: rabbitmq
+#    port: 5672
+#    username: ${SPRING_RABBITMQ_USERNAME:admin} # Secret에서 주입받지만, 없을 경우 기본값 'admin' 사용
+#    password: ${SPRING_RABBITMQ_PASSWORD}
+#
+#jwt:
+#  secret-key: ${JWT_SECRET_KEY}
+#
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics
+#  endpoint:
+#    health:
+#      show-details: always
+#
+#logging:
+#  level:
+#    com.example.pay_service: DEBUG

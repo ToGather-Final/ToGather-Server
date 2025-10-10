@@ -1,22 +1,34 @@
-server:
-  port: 8080
-
+# ===============================================
+# ✅ (1) 공통 프로파일: 모든 환경에 공통으로 적용
+# ===============================================
 spring:
   application:
     name: pay-service
 
-  datasource:
-    # url, username, password 값은 k8s의 ConfigMap과 Secret에서 환경 변수로 주입됨
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
-  rabbitmq:
-    host: rabbitmq
+  rabbitmq: # RabbitMQ 설정은 dev, main 동일하다고 가정
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: 5672
-    username: ${SPRING_RABBITMQ_USERNAME:admin} # Secret에서 주입받지만, 없을 경우 기본값 'admin' 사용
+    username: ${SPRING_RABBITMQ_USERNAME:admin}
     password: ${SPRING_RABBITMQ_PASSWORD}
 
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: 6379
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+
+
+
+# JWT 설정 (키 구조 통일)
 jwt:
-  secret-key: ${JWT_SECRET_KEY}
+  secret-key: ${JWT_SECRET_KEY:togather-jwt-secret-key-2024-default} # 기본값 제공
+  expiration-in-ms: 86400000 # 24시간
+
+# Pay Service 공통 설정
+pay:
+  limits:
+    min-amount: 1
+    max-amount: 10000000
 
 management:
   endpoints:
@@ -30,3 +42,91 @@ management:
 logging:
   level:
     com.example.pay_service: DEBUG
+    org.springframework.security: DEBUG
+
+---
+# ===============================================
+# 🌳 (2) dev 프로파일: 개발 환경 전용 설정
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "dev"
+  datasource:
+    url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
+    username: admin
+    password: ${DB_PASSWORD:togather1234} # 환경 변수가 없으면 기본값 사용
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update # dev에서는 update 사용
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    show-sql: true
+
+server:
+  port: 8083
+
+pay:
+  demo-mode: true
+  qr:
+    secret-key: ${QR_SECRET_KEY:togather-qr-secret-key-2024}
+    token-expiry: 900
+  session:
+    ttl: 900
+
+---
+# ===============================================
+# 🚀 (3) main 프로파일: 운영 환경 전용 설정
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "main"
+  datasource:
+    # url, username, password는 K8s ConfigMap/Secret으로 주입
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate # main에서는 보통 validate 또는 none 사용
+
+server:
+  port: 8080
+
+pay:
+  demo-mode: false # 운영 환경에서는 데모 모드 비활성화
+
+#server:
+#  port: 8080
+#
+#spring:
+#  application:
+#    name: pay-service
+#
+#  datasource:
+#    # url, username, password 값은 k8s의 ConfigMap과 Secret에서 환경 변수로 주입됨
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#
+#  rabbitmq:
+#    host: rabbitmq
+#    port: 5672
+#    username: ${SPRING_RABBITMQ_USERNAME:admin} # Secret에서 주입받지만, 없을 경우 기본값 'admin' 사용
+#    password: ${SPRING_RABBITMQ_PASSWORD}
+#
+#jwt:
+#  secret-key: ${JWT_SECRET_KEY}
+#
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics
+#  endpoint:
+#    health:
+#      show-details: always
+#
+#logging:
+#  level:
+#    com.example.pay_service: DEBUG
