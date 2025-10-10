@@ -8,6 +8,8 @@ jwt:
 spring:
   application:
     name: api-gateway
+  main:
+    allow-bean-definition-overriding: true
   cloud:
     gateway:
       default-filters:
