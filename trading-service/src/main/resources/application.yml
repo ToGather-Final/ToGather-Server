@@ -44,16 +44,31 @@ spring:
     activate:
       on-profile: "dev"
   datasource:
-    url: ${DB_URL:jdbc:h2:mem:devdb} # 기본값으로 로컬 H2 DB 사용
-    username: ${DB_USERNAME:sa}
-    password: ${DB_PASSWORD:}
+    url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
+    username: ${app.database.username:admin}
+    password: ${app.database.password:togather1234}
   jpa:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
     show-sql: true # SQL 로그 활성화
+  data:
+    redis:
+      host: ${app.redis.host:localhost}
+      port: ${app.redis.port:6379}
+      password: ${app.redis.password:togather1234}
+  rabbitmq:
+    host: ${app.rabbitmq.host:localhost}
+    port: ${app.rabbitmq.port:5672}
+    username: ${app.rabbitmq.username:guest}
+    password: ${app.rabbitmq.password:togather1234}
   logging:
     level:
       com.example.trading_service: DEBUG
+
+jwt:
+  secret-key: ${app.jwt.secret:TogatherSecretkey}
+  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
+  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
 
 server:
   port: 8081

@@ -42,24 +42,34 @@ spring:
     activate:
       on-profile: "dev"
   datasource:
-    # dev 환경에서는 기본값을 제공하여 로컬 실행을 쉽게 합니다.
-    url: ${DB_URL:jdbc:mysql://localhost:3307/togather_db}
-    username: ${DB_USERNAME:admin}
-    password: ${DB_PASSWORD:togather1234}
+    url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
+    username: ${app.database.username:admin}
+    password: ${app.database.password:togather1234}
   jpa:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
     show-sql: true # SQL 쿼리 로그 활성화
+  data:
+    redis:
+      host: ${app.redis.host:localhost}
+      port: ${app.redis.port:6379}
+      password: ${app.redis.password:togather1234}
+  rabbitmq:
+    host: ${app.rabbitmq.host:localhost}
+    port: ${app.rabbitmq.port:5672}
+    username: ${app.rabbitmq.username:guest}
+    password: ${app.rabbitmq.password:togather1234}
   logging:
     level:
       com.example.vote_service: DEBUG # 서비스 이름에 맞게 수정
 
-# dev 환경에서는 JWT 시크릿 키에 대한 기본값을 제공합니다.
 jwt:
-  secret-key: ${JWT_SECRET_KEY:change-this-secret-to-256bit-string-for-dev}
+  secret-key: ${app.jwt.secret:TogatherSecretkey}
+  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
+  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
 
 server:
-  port: 8083
+  port: 8084
 
 ---
 # ===============================================

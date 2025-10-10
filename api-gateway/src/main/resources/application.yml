@@ -43,3 +43,23 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: 6379
       password: ${SPRING_DATA_REDIS_PASSWORD:}
+
+---
+# ===============================================
+# 🌳 dev 프로파일 (개발 환경)
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "dev"
+  data:
+    redis:
+      host: ${app.redis.host:localhost}
+      port: ${app.redis.port:6379}
+      password: ${app.redis.password:togather1234}
+
+jwt:
+  secret: ${app.jwt.secret:TogatherSecretkey}
+
+server:
+  port: 8000

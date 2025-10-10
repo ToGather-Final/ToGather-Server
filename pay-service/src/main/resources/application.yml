@@ -53,9 +53,9 @@ spring:
     activate:
       on-profile: "dev"
   datasource:
-    url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
-    username: admin
-    password: ${DB_PASSWORD:togather1234} # 환경 변수가 없으면 기본값 사용
+    url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
+    username: ${app.database.username:admin}
+    password: ${app.database.password:togather1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -65,6 +65,21 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
     show-sql: true
+  data:
+    redis:
+      host: ${app.redis.host:localhost}
+      port: ${app.redis.port:6379}
+      password: ${app.redis.password:togather1234}
+  rabbitmq:
+    host: ${app.rabbitmq.host:localhost}
+    port: ${app.rabbitmq.port:5672}
+    username: ${app.rabbitmq.username:guest}
+    password: ${app.rabbitmq.password:togather1234}
+
+jwt:
+  secret-key: ${app.jwt.secret:TogatherSecretkey}
+  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
+  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
 
 server:
   port: 8083

@@ -65,11 +65,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return null;
         }
         String token = header.substring(7);
-        try {
-            return jwtUtil.verifyAndGetUserId(token);
-        } catch (Exception e) {
-            return null;
-        }
+//        try {
+//            return jwtUtil.verifyAndGetUserId(token);
+//        } catch (Exception e) {
+//            return null;
+//        }
+        return null;
     }
 
     private void setAuthentication(UUID userId) {

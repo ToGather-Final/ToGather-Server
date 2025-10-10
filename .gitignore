@@ -68,3 +68,19 @@ application-*.yml
 # 민감한 정보가 포함된 파일들
 **/secrets/
 **/config/local/
+
+# module-common의 민감한 설정 파일
+module-common/src/main/resources/application.yml
+module-common/src/main/resources/application-*.yml
+!module-common/src/main/resources/application-dev.yml
+!module-common/src/main/resources/application-main.yml
+
+# 민감한 설정 파일들
+**/application-local.yml
+**/application-prod.yml
+**/application-secret.yml
+**/application-private.yml
+
+# 환경변수 파일들
+.env*
+!.env.example

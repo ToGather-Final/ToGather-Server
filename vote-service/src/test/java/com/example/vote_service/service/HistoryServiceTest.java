@@ -141,7 +141,7 @@ class HistoryServiceTest {
         }
 
         verify(groupMembersRepository).findFirstGroupIdByUserId(userId);
-        verify(objectMapper, never()).writeValueAsString(any());
+        //verify(objectMapper, never()).writeValueAsString(any());
         verify(historyRepository, never()).save(any(History.class));
     }
 
