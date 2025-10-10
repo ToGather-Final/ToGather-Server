@@ -9,13 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * History 서비스
- * - 히스토리 생성, 조회 등의 비즈니스 로직 처리
+ * - 히스토리 생성 비즈니스 로직 처리
  */
 @Service
 @RequiredArgsConstructor
@@ -113,19 +112,4 @@ public class HistoryService {
         }
     }
 
-    /**
-     * 특정 그룹의 히스토리 조회
-     */
-    @Transactional(readOnly = true)
-    public List<History> getGroupHistory(UUID groupId) {
-        return historyRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
-    }
-
-    /**
-     * 특정 그룹의 특정 카테고리 히스토리 조회
-     */
-    @Transactional(readOnly = true)
-    public List<History> getGroupHistoryByCategory(UUID groupId, HistoryCategory category) {
-        return historyRepository.findByGroupIdAndHistoryCategoryOrderByCreatedAtDesc(groupId, category.name());
-    }
 }

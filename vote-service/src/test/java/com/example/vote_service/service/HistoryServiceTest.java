@@ -10,7 +10,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -109,47 +108,6 @@ class HistoryServiceTest {
     }
 
     @Test
-    @DisplayName("그룹 히스토리 조회 - 성공")
-    void getGroupHistory_Success() {
-        // Given
-        UUID groupId = UUID.randomUUID();
-        List<History> expectedHistory = List.of(
-            createTestHistory(groupId, HistoryCategory.VOTE, HistoryType.VOTE_CREATED, "투표 생성"),
-            createTestHistory(groupId, HistoryCategory.VOTE, HistoryType.VOTE_APPROVED, "투표 가결")
-        );
-        when(historyRepository.findByGroupIdOrderByCreatedAtDesc(groupId)).thenReturn(expectedHistory);
-
-        // When
-        List<History> result = historyService.getGroupHistory(groupId);
-
-        // Then
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).getTitle()).isEqualTo("투표 생성");
-        assertThat(result.get(1).getTitle()).isEqualTo("투표 가결");
-        verify(historyRepository).findByGroupIdOrderByCreatedAtDesc(groupId);
-    }
-
-    @Test
-    @DisplayName("카테고리별 히스토리 조회 - 성공")
-    void getGroupHistoryByCategory_Success() {
-        // Given
-        UUID groupId = UUID.randomUUID();
-        HistoryCategory category = HistoryCategory.VOTE;
-        List<History> expectedHistory = List.of(
-            createTestHistory(groupId, HistoryCategory.VOTE, HistoryType.VOTE_CREATED, "투표 생성")
-        );
-        when(historyRepository.findByGroupIdAndHistoryCategoryOrderByCreatedAtDesc(groupId, category.name())).thenReturn(expectedHistory);
-
-        // When
-        List<History> result = historyService.getGroupHistoryByCategory(groupId, category);
-
-        // Then
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getHistoryCategory()).isEqualTo(HistoryCategory.VOTE);
-        verify(historyRepository).findByGroupIdAndHistoryCategoryOrderByCreatedAtDesc(groupId, category.name());
-    }
-
-    @Test
     @DisplayName("JSON 직렬화 오류 - 예외 발생")
     void createVoteCreatedHistory_JsonProcessingException_ThrowsException() throws Exception {
         // Given
@@ -169,11 +127,5 @@ class HistoryServiceTest {
 
         verify(objectMapper).writeValueAsString(any());
         verify(historyRepository, never()).save(any(History.class));
-    }
-
-    private History createTestHistory(UUID groupId, HistoryCategory category, HistoryType type, String title) {
-        History history = History.create(groupId, category, type, title, "{}");
-        history.setHistoryIdForTest(UUID.randomUUID());
-        return history;
     }
 }
