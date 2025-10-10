@@ -36,8 +36,8 @@ USER nobody
 COPY --from=builder /build/api-gateway/build/libs/*.jar app.jar
 
 # 애플리케이션 실행
-# Spring Boot의 기본 포트인 8080을 노출
-EXPOSE 8080
+# API Gateway는 8000 포트 사용
+EXPOSE 8000
 
 # 최종 실행 명령어
 ENTRYPOINT ["java", "-jar", "app.jar"]

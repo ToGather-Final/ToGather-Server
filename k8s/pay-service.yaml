@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: pay-service
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/pay-service:latest
+        image: ${ECR_REGISTRY}/togather/pay-service:latest
         ports:
         - containerPort: 8080
         envFrom:

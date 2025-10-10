@@ -133,12 +133,26 @@ jobs:
           DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
           JWT_SECRET_KEY: "${{ secrets.JWT_SECRET_KEY }}"
           RABBITMQ_PASSWORD: "${{ secrets.RABBITMQ_PASSWORD }}"
+          REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
           SPRING_DATA_REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
         EOF
 
-        # 3. 나머지 모든 리소스(ConfigMap, Deployment, Service, Ingress 등) 배포
-        # k8s 폴더의 모든 .yaml 파일을 togather 네임스페이스에 적용
-        kubectl apply -f k8s/ -n ${{ env.EKS_NAMESPACE }}    
+        # 3. 환경변수 치환 후 나머지 모든 리소스 배포
+        # ECR_REGISTRY 환경변수를 k8s 파일들에 치환
+        envsubst < k8s/api-gateway.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/user-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/trading-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/pay-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/vote-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        
+        # 나머지 리소스들 (ConfigMap, Service, Ingress 등) 배포
+        kubectl apply -f k8s/configmap.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/configmap-env.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/redis.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/rabbitmq.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/ingress.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/nextjs-client.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}    
 
     - name: Wait for deployment to complete
       if: github.ref == 'refs/heads/main'
