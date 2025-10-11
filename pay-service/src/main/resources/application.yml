@@ -105,7 +105,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: validate # main에서는 보통 validate 또는 none 사용
+      ddl-auto: update # main에서는 보통 validate 또는 none 사용
 
 server:
   port: 8080

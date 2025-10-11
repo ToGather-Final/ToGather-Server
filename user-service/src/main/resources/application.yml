@@ -86,7 +86,7 @@ spring:
       on-profile: "main"
   jpa:
     hibernate:
-      ddl-auto: validate # ❗ 운영에서는 스키마 변경 없이 검증만 수행
+      ddl-auto: update # ❗ 운영에서는 스키마 변경 없이 검증만 수행
     show-sql: false # 성능을 위해 SQL 로그 비활성화
   data:
     redis:
