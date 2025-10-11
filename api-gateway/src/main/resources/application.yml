@@ -14,39 +14,41 @@ spring:
     compatibility-verifier:
       enabled: false
     gateway:
-      default-filters:
-        - StripPrefix=1
-      routes:
-        - id: auth-service-route
-          uri: lb://user-service
-          predicates:
-            - Path=/api/auth/**
-          filters:
+      server:
+        webflux:
+          default-filters:
             - StripPrefix=1
-        - id: user-service-route
-          uri: lb://user-service
-          predicates:
-            - Path=/api/user/**
-          filters:
-            - StripPrefix=1
-        - id: vote-service-route
-          uri: lb://vote-service
-          predicates:
-            - Path=/api/vote/**
-          filters:
-            - StripPrefix=1
-        - id: trading-service-route
-          uri: lb://trading-service
-          predicates:
-            - Path=/api/trading/**
-          filters:
-            - StripPrefix=1
-        - id: pay-service-route
-          uri: lb://pay-service
-          predicates:
-            - Path=/api/pay/**
-          filters:
-            - StripPrefix=1
+          routes:
+            - id: auth-service-route
+              uri: lb://user-service
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - StripPrefix=1
+            - id: user-service-route
+              uri: lb://user-service
+              predicates:
+                - Path=/api/user/**
+              filters:
+                - StripPrefix=1
+            - id: vote-service-route
+              uri: lb://vote-service
+              predicates:
+                - Path=/api/vote/**
+              filters:
+                - StripPrefix=1
+            - id: trading-service-route
+              uri: lb://trading-service
+              predicates:
+                - Path=/api/trading/**
+              filters:
+                - StripPrefix=1
+            - id: pay-service-route
+              uri: lb://pay-service
+              predicates:
+                - Path=/api/pay/**
+              filters:
+                - StripPrefix=1
 
   autoconfigure:
     exclude:
