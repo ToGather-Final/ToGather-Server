@@ -8,23 +8,20 @@ group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '17'
 
-// 💡 Spring Cloud 버전 관리를 위한 블록 추가
 ext {
-    set('springCloudVersion', "2024.0.0") // Spring Boot 3.5.6과 호환되는 Spring Cloud 버전
+    set('springBootVersion', "3.5.6")
+    set('springCloudVersion', "2025.0.0")
+    set('jjwtVersion', "0.11.5")
 }
 
-repositories {
-    mavenCentral()
-}
-
-// 루트 프로젝트 의존성
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    
-    // 테스트 의존성
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation "org.springframework.boot:spring-boot-starter"
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 allprojects {
@@ -33,31 +30,32 @@ allprojects {
     }
 }
 
-// 모든 하위 모듈(subprojects)에 대한 공통 설정
 subprojects {
     apply plugin: 'java'
-    apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
 
-    // API Gateway가 아닌 서비스들에만 Web MVC 적용
-    if (project.name != 'api-gateway') {
-        dependencies {
-            implementation 'org.springframework.boot:spring-boot-starter-web'
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
         }
     }
 
     dependencies {
-        // 모든 하위 모듈에 공통적으로 필요한 의존성
-        implementation 'org.springframework.boot:spring-boot-starter-validation'
-        implementation 'org.springframework.boot:spring-boot-starter-security'
-        implementation 'org.springframework.boot:spring-boot-starter-actuator'
+        implementation "org.springframework.boot:spring-boot-starter-validation"
+        implementation "org.springframework.boot:spring-boot-starter-security"
+        implementation "org.springframework.boot:spring-boot-starter-actuator"
 
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
+        implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+        runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+        runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
-        testImplementation 'org.springframework.security:spring-security-test'
-        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        compileOnly "org.projectlombok:lombok"
+        annotationProcessor "org.projectlombok:lombok"
+
+        testImplementation "org.springframework.boot:spring-boot-starter-test"
+        testImplementation "org.springframework.security:spring-security-test"
+        testRuntimeOnly "org.junit.platform:junit-platform-launcher"
     }
 
     tasks.withType(Test) {
@@ -69,62 +67,25 @@ subprojects {
     }
 }
 
+project(":api-gateway") {
+    apply plugin: 'org.springframework.boot'
+
+    dependencies {
+        implementation "org.springframework.cloud:spring-cloud-starter-gateway"
+        implementation("org.springframework.boot:spring-boot-starter-webflux") {
+            exclude group: "org.springframework.boot", module: "spring-boot-starter-web"
+        }
+        implementation "org.springframework.boot:spring-boot-starter-data-redis-reactive"
+    }
+}
+
 project(':module-common') {
     // 공통 모듈은 별도 설정 필요 없음
 }
 
-project(':api-gateway') {
-    ext {
-        set('springCloudVersion', "2024.0.0")
-    }
-    
-    dependencyManagement {
-        imports {
-            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
-        }
-    }
-    
-    dependencies {
-        // ✅ Spring Cloud Gateway (WebFlux 기반)
-        implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
-
-        // ✅ WebFlux (Gateway 필수) - Web MVC 제외
-        implementation('org.springframework.boot:spring-boot-starter-webflux') {
-            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
-        }
-
-        // ✅ Spring Security WebFlux (WebMVC 제외)
-        implementation('org.springframework.boot:spring-boot-starter-security') {
-            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
-        }
-
-        // ✅ JWT
-        implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-        runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-        runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-
-        // ✅ Redis (Lettuce 사용) - JPA 의존성 제거
-        implementation('org.springframework.boot:spring-boot-starter-data-redis-reactive') {
-            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-data-jpa'
-        }
-
-        // ✅ Actuator (Health Check용) - Web MVC 제외
-        implementation('org.springframework.boot:spring-boot-starter-actuator') {
-            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
-        }
-
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
-
-        // Test
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
-        testImplementation 'org.springframework.security:spring-security-test'
-        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    }
-}
-
 project(':user-service') {
     dependencies {
+        implementation "org.springframework.boot:spring-boot-starter-web"
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
@@ -143,8 +104,8 @@ project(':user-service') {
 
 project(':vote-service') {
     dependencies {
+        implementation "org.springframework.boot:spring-boot-starter-web"
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-
         implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
         runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
         runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
@@ -160,6 +121,7 @@ project(':vote-service') {
 
 project(':pay-service') {
     dependencies {
+        implementation "org.springframework.boot:spring-boot-starter-web"
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
@@ -175,6 +137,7 @@ project(':pay-service') {
 
 project(':trading-service') {
     dependencies {
+        implementation "org.springframework.boot:spring-boot-starter-web"
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
