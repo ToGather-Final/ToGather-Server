@@ -23,11 +23,37 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "main"
+        - name: SPRING_DATASOURCE_URL
+          value: ""  # 데이터소스 URL 비활성화
+        - name: SPRING_DATASOURCE_USERNAME
+          value: ""  # 데이터소스 사용자명 비활성화
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: ""  # 데이터소스 비밀번호 비활성화
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "none"  # JPA DDL 비활성화
+        - name: SPRING_JPA_SHOW_SQL
+          value: "false"  # SQL 로그 비활성화
+        # Debug 로깅 활성화
+        - name: LOGGING_LEVEL_COM_EXAMPLE_API_GATEWAY
+          value: "DEBUG"
+        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY
+          value: "DEBUG"
+        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_REACTIVE
+          value: "DEBUG"
+        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
+          value: "DEBUG"
+        - name: LOGGING_LEVEL_REACTOR_NETTY
+          value: "DEBUG"
+        # Redis 연결 설정
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_PASSWORD
+          value: ""  # Redis 비밀번호 (필요시 설정)
         envFrom:
           - configMapRef:
               name: togather-config    # RabbitMQ 정보가 담긴 ConfigMap
-          - configMapRef:
-              name: togather-db-config # DB 정보가 담긴 ConfigMap
           - secretRef:
               name: togather-secrets   # 비밀번호가 담긴 Secret
         resources:

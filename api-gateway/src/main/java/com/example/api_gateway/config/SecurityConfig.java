@@ -16,16 +16,17 @@ public class SecurityConfig {
 
     @Bean
     public SecurityWebFilterChain filterChain(ServerHttpSecurity http) {
-        http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+        return http
+                .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers("/actuator/**").permitAll() // AWS Health Check
                         .pathMatchers("/api/auth/**").permitAll() // 비회원 일 때 권한체크 안하고 api 열어줌
+                        .pathMatchers("/api/health").permitAll() // 헬스체크 엔드포인트
+                        .pathMatchers("/health").permitAll() // 헬스체크 엔드포인트
                         .anyExchange().authenticated()
-                );
-
-        return http.build();
+                )
+                .build();
     }
 
     @Bean

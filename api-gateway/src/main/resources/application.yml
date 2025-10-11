@@ -10,41 +10,115 @@ spring:
     name: api-gateway
   main:
     allow-bean-definition-overriding: true
+    web-application-type: reactive  # WebFlux 명시적 설정
+  # JPA 및 데이터베이스 자동 설정 완전 비활성화
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.JpaRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration
+  # 데이터베이스 설정 완전 제거 (API Gateway는 데이터베이스 불필요)
+  datasource:
+    url: ""
+    username: ""
+    password: ""
+    driver-class-name: ""
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    database-platform: ""
+  # Redis 설정 (WebFlux용)
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+# 로깅 설정 - 상세한 디버깅을 위한 로그 레벨
+logging:
+  level:
+    root: DEBUG
+    com.example.api_gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.reactive: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.boot.autoconfigure: DEBUG
+    org.springframework.boot.autoconfigure.jdbc: DEBUG
+    org.springframework.boot.autoconfigure.orm: DEBUG
+    org.springframework.boot.autoconfigure.data: DEBUG
+    org.springframework.data: DEBUG
+    org.springframework.data.redis: DEBUG
+    reactor.netty: DEBUG
+    io.netty: DEBUG
+    io.lettuce: DEBUG
+    org.springframework.boot.context.config: DEBUG
+    org.springframework.boot.context.properties: DEBUG
+    org.springframework.context.annotation: DEBUG
+    org.springframework.beans.factory: DEBUG
+
   cloud:
     gateway:
       default-filters:
         - StripPrefix=1
-
       routes:
-        # 1. User Service 라우팅
+        # 인증 서비스 (공개 API)
+        - id: auth-service-route
+          uri: lb://user-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1  # /api 제거
+            
+        # 사용자 서비스
         - id: user-service-route
           uri: lb://user-service
           predicates:
             - Path=/api/user/**
-
-        # 2. Vote Service 라우팅
+          filters:
+            - StripPrefix=1  # /api 제거
+            
+        # 투표 서비스
         - id: vote-service-route
           uri: lb://vote-service
           predicates:
             - Path=/api/vote/**
-
-        # 3. Trading Service 라우팅
+          filters:
+            - StripPrefix=1  # /api 제거
+            
+        # 트레이딩 서비스
         - id: trading-service-route
           uri: lb://trading-service
           predicates:
             - Path=/api/trading/**
-
-        # 4. Pay Service 라우팅
+          filters:
+            - StripPrefix=1  # /api 제거
+            
+        # 결제 서비스
         - id: pay-service-route
           uri: lb://pay-service
           predicates:
             - Path=/api/pay/**
-
-  data:
-    redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
-      port: 6379
-      password: ${SPRING_DATA_REDIS_PASSWORD:}
+          filters:
+            - StripPrefix=1  # /api 제거
 
 ---
 # ===============================================
@@ -74,6 +148,22 @@ spring:
   config:
     activate:
       on-profile: "main"
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: 6379
+      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+
+logging:
+  level:
+    root: DEBUG
+    com.example.api_gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.reactive: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.data.redis: DEBUG
+    reactor.netty: DEBUG
+    io.netty: DEBUG
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
