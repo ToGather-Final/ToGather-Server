@@ -15,7 +15,7 @@ public interface IdempotencyKeyRepository extends JpaRepository<IdempotencyKey, 
 
     Optional<IdempotencyKey> findByIdempotencyKeyAndPayerAccountId(String idempotencyKey, UUID payerAccountId);
 
-    boolean existsIdempotencyKeyAndPayerAccountId(String idempotencyKey, UUID payerAccountId);
+    boolean existsByIdempotencyKeyAndPayerAccountId(String idempotencyKey, UUID payerAccountId);
 
     @Query("SELECT ik FROM IdempotencyKey ik WHERE ik.idempotencyKey = :idempotencyKey " +
             "AND ik.payerAccountId = :payerAccountId " +
