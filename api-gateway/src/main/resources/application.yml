@@ -11,6 +11,10 @@ spring:
   main:
     allow-bean-definition-overriding: true
     web-application-type: reactive  # WebFlux 명시적 설정
+  # Spring Cloud 호환성 검사 비활성화 (임시)
+  cloud:
+    compatibility-verifier:
+      enabled: false
   # JPA 및 데이터베이스 자동 설정 완전 비활성화
   autoconfigure:
     exclude:

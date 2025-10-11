@@ -10,7 +10,7 @@ sourceCompatibility = '17'
 
 // 💡 Spring Cloud 버전 관리를 위한 블록 추가
 ext {
-    set('springCloudVersion', "2023.0.3") // Spring Boot 버전에 맞는 Spring Cloud 버전
+    set('springCloudVersion', "2024.0.0") // Spring Boot 3.5.6과 호환되는 Spring Cloud 버전
 }
 
 repositories {
@@ -75,7 +75,7 @@ project(':module-common') {
 
 project(':api-gateway') {
     ext {
-        set('springCloudVersion', "2023.0.3")
+        set('springCloudVersion', "2024.0.0")
     }
     
     dependencyManagement {

@@ -117,36 +117,3 @@ jwt:
 
 pay:
   demo-mode: false # 운영 환경에서는 데모 모드 비활성화
-
-#server:
-#  port: 8080
-#
-#spring:
-#  application:
-#    name: pay-service
-#
-#  datasource:
-#    # url, username, password 값은 k8s의 ConfigMap과 Secret에서 환경 변수로 주입됨
-#    driver-class-name: com.mysql.cj.jdbc.Driver
-#
-#  rabbitmq:
-#    host: rabbitmq
-#    port: 5672
-#    username: ${SPRING_RABBITMQ_USERNAME:admin} # Secret에서 주입받지만, 없을 경우 기본값 'admin' 사용
-#    password: ${SPRING_RABBITMQ_PASSWORD}
-#
-#jwt:
-#  secret-key: ${JWT_SECRET_KEY}
-#
-#management:
-#  endpoints:
-#    web:
-#      exposure:
-#        include: health,info,metrics
-#  endpoint:
-#    health:
-#      show-details: always
-#
-#logging:
-#  level:
-#    com.example.pay_service: DEBUG
