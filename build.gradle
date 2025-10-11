@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.6' apply false // 👈 루트에서는 적용(apply)하지 않음
+    id 'org.springframework.boot' version '3.5.6'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -11,6 +11,20 @@ sourceCompatibility = '17'
 // 💡 Spring Cloud 버전 관리를 위한 블록 추가
 ext {
     set('springCloudVersion', "2023.0.3") // Spring Boot 버전에 맞는 Spring Cloud 버전
+}
+
+repositories {
+    mavenCentral()
+}
+
+// 루트 프로젝트 의존성
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    
+    // 테스트 의존성
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 allprojects {
@@ -24,6 +38,13 @@ subprojects {
     apply plugin: 'java'
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
+
+    // API Gateway가 아닌 서비스들에만 Web MVC 적용
+    if (project.name != 'api-gateway') {
+        dependencies {
+            implementation 'org.springframework.boot:spring-boot-starter-web'
+        }
+    }
 
     dependencies {
         // 모든 하위 모듈에 공통적으로 필요한 의존성
@@ -67,8 +88,10 @@ project(':api-gateway') {
         // ✅ Spring Cloud Gateway (WebFlux 기반)
         implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
 
-        // ✅ WebFlux (Gateway 필수)
-        implementation 'org.springframework.boot:spring-boot-starter-webflux'
+        // ✅ WebFlux (Gateway 필수) - Web MVC 제외
+        implementation('org.springframework.boot:spring-boot-starter-webflux') {
+            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
+        }
 
         // ✅ Spring Security WebFlux (WebMVC 제외)
         implementation('org.springframework.boot:spring-boot-starter-security') {
@@ -85,8 +108,10 @@ project(':api-gateway') {
             exclude group: 'org.springframework.boot', module: 'spring-boot-starter-data-jpa'
         }
 
-        // ✅ Actuator (Health Check용)
-        implementation 'org.springframework.boot:spring-boot-starter-actuator'
+        // ✅ Actuator (Health Check용) - Web MVC 제외
+        implementation('org.springframework.boot:spring-boot-starter-actuator') {
+            exclude group: 'org.springframework.boot', module: 'spring-boot-starter-web'
+        }
 
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
@@ -100,23 +125,14 @@ project(':api-gateway') {
 
 project(':user-service') {
     dependencies {
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-validation'
-        implementation 'org.springframework.boot:spring-boot-starter-security'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
 
         implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
         runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
         runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
         runtimeOnly 'com.mysql:mysql-connector-j'
-
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
-        testImplementation 'org.springframework.security:spring-security-test'
 
         // ✅ Testcontainers
         testImplementation 'org.testcontainers:testcontainers'
@@ -127,21 +143,12 @@ project(':user-service') {
 
 project(':vote-service') {
     dependencies {
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-validation'
-        implementation 'org.springframework.boot:spring-boot-starter-security'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
 
         implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
         runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
         runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
         runtimeOnly 'com.mysql:mysql-connector-j'
-
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
-        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
         // ✅ Redis (Jedis 사용)
         implementation('org.springframework.boot:spring-boot-starter-data-redis') {
@@ -153,14 +160,8 @@ project(':vote-service') {
 
 project(':pay-service') {
     dependencies {
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-validation'
-        implementation 'org.springframework.boot:spring-boot-starter-security'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
 
         implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
         runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -168,23 +169,14 @@ project(':pay-service') {
 
         runtimeOnly 'com.mysql:mysql-connector-j'
 
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
-        testImplementation 'org.springframework.security:spring-security-test'
         testImplementation 'com.h2database:h2'
-        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 }
 
 project(':trading-service') {
     dependencies {
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-validation'
-        implementation 'org.springframework.boot:spring-boot-starter-security'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
 
         implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
         runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -192,10 +184,7 @@ project(':trading-service') {
 
         runtimeOnly 'com.mysql:mysql-connector-j'
 
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
-        testImplementation 'org.springframework.security:spring-security-test'
         testImplementation 'com.h2database:h2'
-        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 }
 

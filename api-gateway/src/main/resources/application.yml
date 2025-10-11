@@ -39,19 +39,7 @@ spring:
       ddl-auto: none
     show-sql: false
     database-platform: ""
-  # Redis 설정 (WebFlux용)
-  data:
-    redis:
-      host: ${REDIS_HOST:redis}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      timeout: 2000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1ms
+  # Redis 설정은 프로파일별로 관리
 
 # 로깅 설정 - 상세한 디버깅을 위한 로그 레벨
 logging:
@@ -153,6 +141,13 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST:redis}
       port: ${SPRING_DATA_REDIS_PORT:6379}
       password: ${SPRING_DATA_REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
 
 logging:
   level:
