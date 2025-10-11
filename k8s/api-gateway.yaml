@@ -45,12 +45,15 @@ spec:
         - name: LOGGING_LEVEL_REACTOR_NETTY
           value: "DEBUG"
         # Redis 연결 설정
-        - name: REDIS_HOST
+        - name: SPRING_DATA_REDIS_HOST
           value: "redis"
-        - name: REDIS_PORT
+        - name: SPRING_DATA_REDIS_PORT
           value: "6379"
-        - name: REDIS_PASSWORD
-          value: ""  # Redis 비밀번호 (필요시 설정)
+        - name: SPRING_DATA_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: togather-secrets
+              key: REDIS_PASSWORD
         envFrom:
           - configMapRef:
               name: togather-config    # RabbitMQ 정보가 담긴 ConfigMap
