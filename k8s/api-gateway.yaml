@@ -33,17 +33,17 @@ spec:
           value: "none"  # JPA DDL 비활성화
         - name: SPRING_JPA_SHOW_SQL
           value: "false"  # SQL 로그 비활성화
-        # Debug 로깅 활성화
+        # 로깅 설정 (INFO 레벨로 변경)
         - name: LOGGING_LEVEL_COM_EXAMPLE_API_GATEWAY
           value: "DEBUG"
         - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY
-          value: "DEBUG"
+          value: "INFO"
         - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_REACTIVE
-          value: "DEBUG"
+          value: "INFO"
         - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
-          value: "DEBUG"
+          value: "INFO"
         - name: LOGGING_LEVEL_REACTOR_NETTY
-          value: "DEBUG"
+          value: "INFO"
         # Redis 연결 설정
         - name: SPRING_DATA_REDIS_HOST
           value: "redis"
