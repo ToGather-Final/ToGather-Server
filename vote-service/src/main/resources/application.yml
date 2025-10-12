@@ -93,110 +93,99 @@ spring:
     host: rabbitmq # k8s 서비스 이름
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
-
+#
 ## ===============================================
 ## ✅ 공통 설정 (모든 프로파일에 적용)
 ## ===============================================
+#server:
+#  port: 8080
+#
 #spring:
 #  application:
 #    name: vote-service
-#  datasource:
-#    # 운영 환경에서는 환경 변수를 통해 주입받습니다.
-#    url: ${DB_URL}
-#    username: ${DB_USERNAME}
-#    password: ${DB_PASSWORD}
-#    driver-class-name: com.mysql.cj.jdbc.Driver
+#  # 💡 기본 프로파일을 'local'로 지정
+#  profiles:
+#    active: local
 #  jpa:
 #    properties:
 #      hibernate:
-#        dialect: org.hibernate.dialect.MySQL8Dialect
 #        format_sql: true
+#    # 💡 ddl-auto와 show-sql은 프로파일별로 다르게 설정하므로 공통에서 제거
 #  rabbitmq:
-#    host: ${RABBITMQ_HOST:rabbitmq}
 #    port: 5672
-#    username: ${RABBITMQ_USERNAME:admin}
-#    password: ${RABBITMQ_PASSWORD:}
 #  data:
 #    redis:
-#      host: ${SPRING_DATA_REDIS_HOST:redis}
-#      port: ${SPRING_DATA_REDIS_PORT:6379}
-#      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
-#  management:
-#    endpoints:
-#      web:
-#        exposure:
-#          include: health,info,metrics
-#    endpoint:
-#      health:
-#        show-details: always
+#      port: 6379
 #
-## JWT 설정 키를 'secret-key'로 통일합니다.
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics
+#  endpoint:
+#    health:
+#      show-details: always
+#
 #jwt:
-#  secret-key: ${JWT_SECRET_KEY}
+#  # 💡 secret-key -> secret으로 통일하고, 값은 프로파일별로 지정
+#  secret: ${JWT_SECRET_KEY}
 #
 #---
 ## ===============================================
-## 🌳 dev 프로파일 (개발 환경)
+## 🌳 local 프로파일 (로컬 개발 환경)
 ## ===============================================
 #spring:
 #  config:
 #    activate:
-#      on-profile: "dev"
+#      on-profile: "local"
 #  datasource:
-#    url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
-#    username: ${app.database.username:admin}
-#    password: ${app.database.password:togather1234}
+#    url: jdbc:mysql://localhost:3306/togather_db
+#    username: root
+#    password: your_local_db_password # 👈 로컬 DB 비밀번호로 수정하세요
+#    driver-class-name: com.mysql.cj.jdbc.Driver
 #  jpa:
 #    hibernate:
 #      ddl-auto: update # 개발 시에는 스키마 자동 변경
 #    show-sql: true # SQL 쿼리 로그 활성화
 #  data:
 #    redis:
-#      host: ${app.redis.host:localhost}
-#      port: ${app.redis.port:6379}
-#      password: ${app.redis.password:togather1234}
+#      host: localhost
+#      # 💡 로컬 Redis에 비밀번호가 없다면 이 라인을 삭제하거나 비워두세요.
+#      password: your_local_redis_password
 #  rabbitmq:
-#    host: ${app.rabbitmq.host:localhost}
-#    port: ${app.rabbitmq.port:5672}
-#    username: ${app.rabbitmq.username:guest}
-#    password: ${app.rabbitmq.password:togather1234}
-#  logging:
-#    level:
-#      com.example.vote_service: DEBUG # 서비스 이름에 맞게 수정
-#
-#jwt:
-#  secret: ${app.jwt.secret:TogatherSecretkey}
-#  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
-#  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
-#
-#server:
-#  port: 8084
+#    host: localhost
+#    username: guest
+#    password: guest
 #
 #---
 ## ===============================================
-## 🚀 main 프로파일 (운영 환경)
+## 🚀 main 프로파일 (EKS 운영 환경)
 ## ===============================================
 #spring:
 #  config:
 #    activate:
 #      on-profile: "main"
+#  datasource:
+#    # url, username, password는 k8s의 ConfigMap/Secret에서 환경 변수로 주입됨
+#    driver-class-name: com.mysql.cj.jdbc.Driver
 #  jpa:
 #    hibernate:
-#      ddl-auto: update # ❗ 운영에서는 스키마 변경 없이 검증만 수행
+#      ddl-auto: update # 👈 DB 테이블이 아직 없다면 'update', 안정화되면 'validate'로 변경
 #    show-sql: false # 성능을 위해 SQL 로그 비활성화
 #  data:
 #    redis:
-#      host: ${SPRING_DATA_REDIS_HOST:redis}
-#      port: ${SPRING_DATA_REDIS_PORT:6379}
+#      host: redis # k8s 서비스 이름
+#      port: 6379
+#      # 💡 비밀번호는 Secret을 통해서만 주입받도록 기본값을 비워둡니다.
 #      password: ${SPRING_DATA_REDIS_PASSWORD:}
-#  logging:
-#    level:
-#      com.example.user_service: INFO # 운영에서는 INFO 레벨 이상만 기록
-#
-#server:
-#  port: 8080
-#
-#jwt:
-#  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-#  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
-#  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
+#      timeout: 2000ms
+#      lettuce:
+#        pool:
+#          max-active: 8
+#          max-idle: 8
+#          min-idle: 0
+#          max-wait: -1ms
+#  rabbitmq:
+#    host: rabbitmq # k8s 서비스 이름
+#    username: ${RABBITMQ_USERNAME}
+#    password: ${RABBITMQ_PASSWORD}
