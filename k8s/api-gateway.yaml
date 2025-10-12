@@ -19,6 +19,7 @@ spec:
       containers:
       - name: api-gateway
         image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/api-gateway:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         env:
@@ -71,14 +72,18 @@ spec:
           httpGet:
             path: /actuator/health/liveness
             port: 8000
-          initialDelaySeconds: 180
-          periodSeconds: 30
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
         readinessProbe:
           httpGet:
             path: /actuator/health/readiness
             port: 8000
-          initialDelaySeconds: 120
-          periodSeconds: 10
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 12
 ---
 apiVersion: v1
 kind: Service
