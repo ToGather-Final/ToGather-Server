@@ -32,4 +32,6 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     boolean existsByIdAndOwnerUserIdAndIsActiveTrue(UUID id, UUID ownerUserId);
 
     boolean existsByOwnerUserIdAndTypeAndIsActiveTrue(UUID ownerUserId, AccountType type);
+
+    boolean existsByGroupIdAndTypeAndIsActiveTrue(UUID groupId, AccountType type);
 }
