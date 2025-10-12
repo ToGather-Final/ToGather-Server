@@ -100,6 +100,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         // 필터의 실행 순서, 낮은 숫자가 먼저 실행됨
-        return -1;
+        // Spring Security 필터보다 나중에 실행되도록 1로 설정
+        return 1;
     }
 }

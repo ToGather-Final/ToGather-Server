@@ -31,6 +31,7 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -42,6 +43,28 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /data
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - --no-auth-warning
+                - -a
+                - $(REDIS_PASSWORD)
+                - ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - --no-auth-warning
+                - -a
+                - $(REDIS_PASSWORD)
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
       volumes:
         - name: redis-data
           persistentVolumeClaim:

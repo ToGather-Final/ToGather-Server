@@ -79,8 +79,16 @@ spring:
   data:
     redis:
       host: redis # k8s 서비스 이름
+      port: 6379
       # 💡 비밀번호는 Secret을 통해서만 주입받도록 기본값을 비워둡니다.
       password: ${SPRING_DATA_REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
   rabbitmq:
     host: rabbitmq # k8s 서비스 이름
     username: ${RABBITMQ_USERNAME}

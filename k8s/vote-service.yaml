@@ -23,6 +23,16 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "main"
+        # Redis 연결 설정
+        - name: SPRING_DATA_REDIS_HOST
+          value: "redis"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
+        - name: SPRING_DATA_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: togather-secrets
+              key: REDIS_PASSWORD
         envFrom:
           - configMapRef:
               name: togather-config
