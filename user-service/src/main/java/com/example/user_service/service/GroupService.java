@@ -57,7 +57,7 @@ public class GroupService {
     }
 
     @Transactional
-    public UUID issueInvitation(UUID groupId, UUID operatorId) {
+    public String issueInvitation(UUID groupId, UUID operatorId) {
         assertOperatorIsOwner(groupId, operatorId);
         InvitationCode invitation = InvitationCode.issue(groupId);
         InvitationCode saved = invitationCodeRepository.save(invitation);
@@ -65,7 +65,7 @@ public class GroupService {
     }
 
     @Transactional
-    public void acceptInvite(UUID code, UUID userId) {
+    public void acceptInvite(String code, UUID userId) {
         InvitationCode invitationCode = invitationCodeRepository.findByCode(code)
                 .orElseThrow(() -> new NoSuchElementException("초대 코드를 찾을 수 없습니다."));
 

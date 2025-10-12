@@ -2,6 +2,7 @@ package com.example.user_service.controller;
 
 import com.example.user_service.dto.LoginRequest;
 import com.example.user_service.dto.LoginResponse;
+import com.example.user_service.dto.RefreshTokenRequest;
 import com.example.user_service.dto.RegisterRequest;
 import com.example.user_service.security.JwtUtil;
 import com.example.user_service.service.AuthService;
@@ -52,12 +53,12 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public LoginResponse refresh(
-            @RequestHeader("X-Refresh-Token") String refreshToken,
+            @Valid @RequestBody RefreshTokenRequest request,
             @RequestHeader("X-Device-Id") String deviceId) {
         validateDeviceId(deviceId);
-        validateRefreshToken(refreshToken);
+        validateRefreshToken(request.refreshToken());
 
-        UUID userId = refreshTokenService.getUserIdFromToken(refreshToken, deviceId);
+        UUID userId = refreshTokenService.getUserIdFromToken(request.refreshToken(), deviceId);
 
         String newAccessToken = jwtUtil.issue(userId);
         String newRefreshToken = refreshTokenService.issue(userId, deviceId);

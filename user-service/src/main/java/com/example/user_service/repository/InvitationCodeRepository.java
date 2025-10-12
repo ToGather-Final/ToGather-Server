@@ -6,5 +6,5 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface InvitationCodeRepository extends JpaRepository<InvitationCode, UUID> {
-    Optional<InvitationCode> findByCode(UUID code);
+    Optional<InvitationCode> findByCode(String code);
 }
