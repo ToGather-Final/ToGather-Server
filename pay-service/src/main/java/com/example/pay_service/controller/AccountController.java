@@ -2,15 +2,15 @@ package com.example.pay_service.controller;
 
 import com.example.pay_service.domain.Account;
 import com.example.pay_service.domain.AccountType;
+import com.example.pay_service.dto.GroupPayAccountCreateRequest;
 import com.example.pay_service.service.AccountService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -60,5 +60,26 @@ public class AccountController {
         return accountService.getGroupPayAccountByGroupId(groupId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/group-pay/{groupId}")
+    public ResponseEntity<Account> createGroupPayAccount(
+            @PathVariable UUID groupId,
+            @Valid @RequestBody GroupPayAccountCreateRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        log.info("그룹 페이 계좌 생성: userId={}, groupId={}", userId, groupId);
+
+        Account account = accountService.createGroupPayAccount(groupId, userId, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(account);
+    }
+
+    @GetMapping("/group-pay/exists/{groupId}")
+    public ResponseEntity<Boolean> hasGroupPayAccount(@PathVariable UUID groupId) {
+        log.info("그룹 페이 계좌 존재 확인: groupId={}", groupId);
+
+        boolean exists = accountService.hasGroupPayAccount(groupId);
+        return ResponseEntity.ok(exists);
     }
 }
