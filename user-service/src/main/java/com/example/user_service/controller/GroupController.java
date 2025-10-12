@@ -35,16 +35,28 @@ public class GroupController {
                                                          Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
         Group group = groupService.getDetail(groupId, userId);
-        GroupSummaryResponse body = new GroupSummaryResponse(group.getGroupId(), group.getGroupName());
+
+        List<GroupMember> members = groupService.members(groupId, userId);
+        int currentMembers = members.size();
+
+        GroupSummaryResponse body = new GroupSummaryResponse(
+                group.getGroupId(),
+                group.getGroupName(),
+                group.getMaxMembers(),
+                currentMembers,
+                group.getGoalAmount(),
+                group.getInitialAmount()
+        );
+
         return ResponseEntity.ok(body);
     }
 
     @GetMapping("/mine")
-    public ResponseEntity<List<GroupSummaryResponse>> getMyGroups(Authentication authentication) {
+    public ResponseEntity<List<GroupSimpleResponse>> getMyGroups(Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
         List<Group> groups = groupService.findMyGroups(userId);
-        List<GroupSummaryResponse> body = groups.stream()
-                .map(g -> new GroupSummaryResponse(g.getGroupId(), g.getGroupName())).toList();
+        List<GroupSimpleResponse> body = groups.stream()
+                .map(g -> new GroupSimpleResponse(g.getGroupId(), g.getGroupName())).toList();
         return ResponseEntity.ok(body);
     }
 
