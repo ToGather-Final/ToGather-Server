@@ -62,7 +62,7 @@ public class Group {
         group.initialAmount = initialAmount;
         group.maxMembers = maxMembers;
         group.dissolutionQuorum = dissolutionQuorum;
-        group.status = GroupStatus.WATING;
+        group.status = GroupStatus.WAITING;
         group.currentMembers = 1;
         return group;
     }

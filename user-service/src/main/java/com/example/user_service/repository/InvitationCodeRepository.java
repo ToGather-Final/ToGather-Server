@@ -5,6 +5,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface InvitationCodeRepository extends JpaRepository<InvitationCode, UUID> {
+public interface InvitationCodeRepository extends JpaRepository<InvitationCode, String> {
     Optional<InvitationCode> findByCode(String code);
 }

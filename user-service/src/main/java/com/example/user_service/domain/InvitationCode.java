@@ -19,8 +19,7 @@ import lombok.NoArgsConstructor;
 public class InvitationCode {
 
     @Id
-    @org.hibernate.annotations.UuidGenerator
-    @Column(name = "code", columnDefinition = "BINARY(16)")
+    @Column(name = "code", length = 4, nullable = false, unique = true)
     private String code;
 
     @Column(name = "groupId", columnDefinition = "BINARY(16)", nullable = false)
@@ -63,8 +62,8 @@ public class InvitationCode {
 
         for (int i = 0; i < 4; i++) {
             code.append(chars.charAt(random.nextInt(chars.length())));
-
-            return code.toString();
         }
+        return code.toString();
     }
 }
+
