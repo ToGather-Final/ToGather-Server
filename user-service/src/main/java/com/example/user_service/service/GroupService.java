@@ -33,10 +33,20 @@ public class GroupService {
     @Transactional
     public UUID createGroup(UUID ownerId, GroupCreateRequest request) {
         validateCreate(request);
-        Group group = Group.create(request.groupName(), ownerId, request.goalAmount());
+
+        Group group = Group.create(
+                request.groupName(),
+                ownerId,
+                request.goalAmount(),
+                request.initialAmount(),
+                request.maxMembers(),
+                request.dissolutionQuorum()
+        );
         Group saved = groupRepository.save(group);
+
         GroupMember leader = GroupMember.join(saved.getGroupId(), ownerId);
         groupMemberRepository.save(leader);
+
         return saved.getGroupId();
     }
 
@@ -52,7 +62,7 @@ public class GroupService {
     public void updateRule(UUID groupId, GroupRuleUpdateRequest request, UUID operatorId) {
         assertOperatorIsOwner(groupId, operatorId);
         validateRule(request);
-        GroupRule rule = GroupRule.of(groupId, request.voteQuorum(), request.voteDurationHours());
+        GroupRule rule = GroupRule.of(groupId, request.voteQuorum());
         groupRuleRepository.save(rule);
     }
 
@@ -131,6 +141,22 @@ public class GroupService {
         if (request.initialAmount() != null && request.initialAmount() < 0) {
             throw new IllegalArgumentException("초기 금액이 올바르지 않습니다.");
         }
+        if(request.maxMembers() == null || request.maxMembers() <= 0) {
+            throw new IllegalArgumentException("그룹 인원은 최대 1명 이상이어야 합니다.");
+        }
+        if (request.voteQuorum() == null || request.voteQuorum() <= 0) {
+            throw new IllegalArgumentException("투표 가결 인원수는 1명 이상이어야 합니다.");
+        }
+        if (request.dissolutionQuorum() == null || request.dissolutionQuorum() <= 0) {
+            throw new IllegalArgumentException("그룹 해체 동의 인원수는 1명 이상이어야 합니다.");
+        }
+
+        if (request.voteQuorum() > request.maxMembers()) {
+            throw new IllegalArgumentException("투표 가결 인원수는 그룹 최대 인원을 초과할 수 없습니다.");
+        }
+        if (request.dissolutionQuorum() > request.maxMembers()) {
+            throw new IllegalArgumentException("그룹 해체 동의 인원수는 그룹 최대 인원을 초과할 수 없습니다.");
+        }
     }
 
     private void validateRule(GroupRuleUpdateRequest request) {
@@ -138,10 +164,7 @@ public class GroupService {
             throw new IllegalArgumentException("요청이 비었습니다.");
         }
         if (request.voteQuorum() == null || request.voteQuorum() <= 0) {
-            throw new IllegalArgumentException("투표 찬성 인원수는 0 이상이여야 합니다.");
-        }
-        if (request.voteDurationHours() == null || request.voteDurationHours() <= 0) {
-            throw new IllegalArgumentException("투표 가능 시간은 0 이상이여야 합니다.");
+            throw new IllegalArgumentException("투표 찬성 인원수는 1 이상이여야 합니다.");
         }
     }
 
