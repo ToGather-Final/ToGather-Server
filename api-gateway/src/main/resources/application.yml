@@ -11,6 +11,15 @@ spring:
     allow-bean-definition-overriding: true
     web-application-type: reactive
   cloud:
+    kubernetes:
+      discovery:
+        enabled: true
+        all-namespaces: false
+    loadbalancer:
+      enabled: true
+      health-check:
+        initial-delay: 0
+        interval: 1s
     compatibility-verifier:
       enabled: false
     gateway:

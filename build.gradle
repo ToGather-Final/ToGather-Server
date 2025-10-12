@@ -77,6 +77,8 @@ project(":api-gateway") {
             exclude group: "org.springframework.boot", module: "spring-boot-starter-web"
         }
         implementation "org.springframework.boot:spring-boot-starter-data-redis-reactive"
+        // api-gateway/build.gradle
+        implementation 'org.springframework.cloud:spring-cloud-starter-kubernetes-client'
     }
 }
 

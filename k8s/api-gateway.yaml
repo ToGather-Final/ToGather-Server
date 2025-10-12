@@ -15,6 +15,7 @@ spec:
       labels:
         app: api-gateway
     spec:
+      serviceAccountName: api-gateway
       containers:
       - name: api-gateway
         image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/api-gateway:latest
