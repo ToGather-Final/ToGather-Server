@@ -31,7 +31,7 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
-          command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
+          command: ["sh", "-c", "redis-server --requirepass $REDIS_PASSWORD"]
           env:
             - name: REDIS_PASSWORD
               valueFrom:
