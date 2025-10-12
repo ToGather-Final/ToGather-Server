@@ -16,7 +16,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException exception) throws IOException {
-        ApiError body = new ApiError("FORBIDDEN", exception.getMessage(), request.getRequestURI(), LocalDateTime.now());
+        ApiError body = new ApiError("FORBIDDEN", exception.getMessage(), request.getRequestURI(), LocalDateTime.now().toString());
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType("application/json");
         response.getWriter().write(objectMapper.writeValueAsString(body));

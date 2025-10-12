@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -20,6 +21,7 @@ import reactor.core.publisher.Mono;
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final JwtUtil jwtUtil;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -47,6 +49,19 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         log.debug("🔑 JWT Filter - Extracted token: {}...", jwtToken.substring(0, Math.min(20, jwtToken.length())));
 
         try {
+            // Redis에서 토큰 블랙리스트 확인 (Redis 연결 실패 시 무시)
+            try {
+                String blacklistKey = "blacklist:" + jwtToken;
+                Boolean isBlacklisted = redisTemplate.hasKey(blacklistKey);
+                
+                if (Boolean.TRUE.equals(isBlacklisted)) {
+                    log.warn("❌ JWT Filter - Token is blacklisted for path: {}", path);
+                    return handleUnauthorized(exchange, "Token has been revoked");
+                }
+            } catch (Exception redisException) {
+                log.warn("⚠️ JWT Filter - Redis connection failed, continuing without blacklist check: {}", redisException.getMessage());
+            }
+
             if (jwtUtil.validateToken(jwtToken)) {
                 Claims claims = jwtUtil.extractAllClaims(jwtToken);
                 String userId = claims.get("userId", String.class);
@@ -56,6 +71,16 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
                 log.debug("✅ JWT Filter - Token valid. User: {} (ID: {}), Email: {}, Roles: {}", 
                          username, userId, email, roles);
+
+                // Redis에 토큰 정보 저장 (선택적 - 세션 관리용)
+                try {
+                    if (userId != null) {
+                        String tokenKey = "user:token:" + userId;
+                        redisTemplate.opsForValue().set(tokenKey, jwtToken, 3600); // 1시간 TTL
+                    }
+                } catch (Exception redisException) {
+                    log.warn("⚠️ JWT Filter - Failed to store token in Redis: {}", redisException.getMessage());
+                }
 
                 // JWT 정보를 헤더에 추가하여 백엔드 서비스로 전달
                 ServerHttpRequest newRequest = request.mutate()

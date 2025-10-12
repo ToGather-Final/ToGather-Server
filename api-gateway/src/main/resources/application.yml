@@ -101,13 +101,15 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST:redis}
       port: ${SPRING_DATA_REDIS_PORT:6379}
       password: ${SPRING_DATA_REDIS_PASSWORD:}
-      timeout: 2000ms
+      timeout: 5000ms
+      connect-timeout: 5000ms
       lettuce:
         pool:
           max-active: 8
           max-idle: 8
           min-idle: 0
-          max-wait: -1ms
+          max-wait: 5000ms
+        shutdown-timeout: 100ms
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}

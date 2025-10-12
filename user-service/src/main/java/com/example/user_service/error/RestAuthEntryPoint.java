@@ -16,7 +16,7 @@ public class RestAuthEntryPoint implements AuthenticationEntryPoint {
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException {
-        ApiError body = new ApiError("UNAUTHORIZED", "인증이 필요합니다.", request.getRequestURI(), LocalDateTime.now());
+        ApiError body = new ApiError("UNAUTHORIZED", "인증이 필요합니다.", request.getRequestURI(), LocalDateTime.now().toString());
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType("application/json");
         response.getWriter().write(objectMapper.writeValueAsString(body));
