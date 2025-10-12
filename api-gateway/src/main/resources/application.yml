@@ -89,11 +89,11 @@ logging:
   level:
     root: INFO
     org.springframework.cloud.gateway: INFO
-    org.springframework.cloud.kubernetes: DEBUG
-    org.springframework.cloud.loadbalancer: DEBUG
+    org.springframework.cloud.kubernetes: INFO
+    org.springframework.cloud.loadbalancer: INFO
     org.springframework.web.reactive: INFO
     reactor.netty: INFO
-    com.example.api_gateway: DEBUG
+    com.example.api_gateway: INFO
 
 ---
 

@@ -33,12 +33,10 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
-        System.out.println("🔍 AuthController.register() called with request: " + request);
         UUID userId = authService.register(request);
         if (userId == null) {
             throw new IllegalArgumentException("등록 실패");
         }
-        System.out.println("✅ User registered successfully with ID: " + userId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
