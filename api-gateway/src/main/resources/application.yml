@@ -21,17 +21,6 @@ spring:
     allow-bean-definition-overriding: true
     web-application-type: reactive
   cloud:
-    kubernetes:
-      discovery:
-        enabled: true
-        all-namespaces: false
-    loadbalancer:
-      enabled: true
-      health-check:
-        initial-delay: 0
-        interval: 1s
-    compatibility-verifier:
-      enabled: false
     gateway:
       routes:
         - id: auth-service-route
@@ -64,6 +53,22 @@ spring:
             - Path=/api/pay/**
           filters:
             - StripPrefix=1
+    kubernetes:
+      discovery:
+        enabled: true
+        all-namespaces: false
+      reload:
+        enabled: false
+      config:
+        enabled: false
+    loadbalancer:
+      enabled: true
+      health-check:
+        initial-delay: 0
+        interval: 1s
+    compatibility-verifier:
+      enabled: false
+
 
   autoconfigure:
     exclude:
@@ -84,6 +89,8 @@ logging:
   level:
     root: INFO
     org.springframework.cloud.gateway: INFO
+    org.springframework.cloud.kubernetes: DEBUG
+    org.springframework.cloud.loadbalancer: DEBUG
     org.springframework.web.reactive: INFO
     reactor.netty: INFO
     com.example.api_gateway: DEBUG
