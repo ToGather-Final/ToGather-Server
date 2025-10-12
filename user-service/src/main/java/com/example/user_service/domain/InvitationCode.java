@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.Random;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -18,9 +19,8 @@ import lombok.NoArgsConstructor;
 public class InvitationCode {
 
     @Id
-    @org.hibernate.annotations.UuidGenerator
-    @Column(name = "code", columnDefinition = "BINARY(16)")
-    private UUID code;
+    @Column(name = "code", length = 4, nullable = false, unique = true)
+    private String code;
 
     @Column(name = "groupId", columnDefinition = "BINARY(16)", nullable = false)
     private UUID groupId;
@@ -41,6 +41,7 @@ public class InvitationCode {
 
     public static InvitationCode issue(UUID groupId) {
         InvitationCode invitationCode = new InvitationCode();
+        invitationCode.code = generateCode();
         invitationCode.groupId = groupId;
         invitationCode.isExpired = false;
         return invitationCode;
@@ -53,4 +54,16 @@ public class InvitationCode {
     public void expire() {
         this.isExpired = true;
     }
+
+    private static String generateCode() {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        Random random = new Random();
+        StringBuilder code = new StringBuilder();
+
+        for (int i = 0; i < 4; i++) {
+            code.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return code.toString();
+    }
 }
+

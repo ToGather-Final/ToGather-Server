@@ -24,14 +24,44 @@ public class UserController {
 
     @GetMapping("/me")
     public MeResponse me(Authentication authentication) {
-        UUID userId = (UUID) authentication.getPrincipal();
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        if (authentication == null) {
+            throw new IllegalArgumentException("인증이 필요합니다.");
+        }
+
+        UUID userId;
+
+        if (authentication.getPrincipal() instanceof String) {
+            userId = UUID.fromString((String) authentication.getPrincipal());
+        } else if (authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.User) {
+            // @WithMockUser에서 생성된 Spring Security User 객체인 경우
+            String username = ((org.springframework.security.core.userdetails.User) authentication.getPrincipal()).getUsername();
+            userId = UUID.fromString(username);
+        } else {
+            userId = (UUID) authentication.getPrincipal();
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         return new MeResponse(user.getUserId(), user.getUsername(), user.getNickname());
     }
 
     @PatchMapping("/me/nickname")
     public ResponseEntity<MeResponse> updateNickname(@Valid @RequestBody NicknameUpdateRequest request, Authentication authentication) {
-        UUID userId = (UUID) authentication.getPrincipal();
+        if (authentication == null) {
+            throw new IllegalArgumentException("인증이 필요합니다.");
+        }
+
+        UUID userId;
+
+        if (authentication.getPrincipal() instanceof String) {
+            userId = UUID.fromString((String) authentication.getPrincipal());
+        } else if (authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.User) {
+            String username = ((org.springframework.security.core.userdetails.User) authentication.getPrincipal()).getUsername();
+            userId = UUID.fromString(username);
+        } else {
+            userId = (UUID) authentication.getPrincipal();
+        }
+
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         validateNickname(request.nickname());
         user.changeNickname(request.nickname());

@@ -20,12 +20,13 @@ public class AuthService {
 
     @Transactional
     public UUID register(RegisterRequest request) {
-        validatePassword(request.password());
-        validatePasswordConfirm(request.password(), request.passwordConfirm());
-
         if (isDuplicate(request.username())) {
             throw new IllegalArgumentException("이미 존재하는 아이디입니다.");
         }
+
+        validatePassword(request.password());
+        validatePasswordConfirm(request.password(), request.passwordConfirm());
+
         String encoded = passwordEncoder.encode(request.password());
         User newUser = User.create(encoded, request.username(), request.nickname());
         User saved = userRepository.save(newUser);
