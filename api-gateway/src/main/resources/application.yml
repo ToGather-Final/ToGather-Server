@@ -20,31 +20,31 @@ spring:
             - StripPrefix=1
           routes:
             - id: auth-service-route
-              uri: http://user-service:8080
+              uri: lb://user-service
               predicates:
                 - Path=/api/auth/**
               filters:
                 - StripPrefix=1
             - id: user-service-route
-              uri: http://user-service:8080
+              uri: lb://user-service
               predicates:
                 - Path=/api/user/**
               filters:
                 - StripPrefix=1
             - id: vote-service-route
-              uri: http://vote-service:8080
+              uri: lb://vote-service
               predicates:
                 - Path=/api/vote/**
               filters:
                 - StripPrefix=1
             - id: trading-service-route
-              uri: http://trading-service:8080
+              uri: lb://trading-service
               predicates:
                 - Path=/api/trading/**
               filters:
                 - StripPrefix=1
             - id: pay-service-route
-              uri: http://pay-service:8080
+              uri: lb://pay-service
               predicates:
                 - Path=/api/pay/**
               filters:

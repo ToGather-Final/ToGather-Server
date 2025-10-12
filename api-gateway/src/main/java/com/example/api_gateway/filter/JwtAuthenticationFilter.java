@@ -33,7 +33,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         
         // 인증이 필요없는 경로들 (헬스체크, 공개 API 등)
         if (isPublicPath(path)) {
-            log.debug("✅ JWT Filter - Public path, skipping authentication: {}", path);
+            log.info("✅ JWT Filter - Public path, skipping authentication: {}", path);
+            log.info("🚀 JWT Filter - Forwarding request to backend service: {} {}", method, path);
             return chain.filter(exchange);
         }
 

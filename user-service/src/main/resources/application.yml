@@ -9,6 +9,11 @@ spring:
       write-dates-as-timestamps: false
     deserialization:
       fail-on-unknown-properties: false
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   datasource:
     # 운영 환경에서는 환경 변수를 통해 주입받습니다.
     url: ${DB_URL}
