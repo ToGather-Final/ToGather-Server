@@ -1,25 +1,21 @@
 package com.example.user_service.service;
 
+import com.example.user_service.domain.*;
 import com.example.user_service.dto.GroupCreateRequest;
 import com.example.user_service.dto.GroupMemberAddRequest;
 import com.example.user_service.dto.GroupRuleUpdateRequest;
-import com.example.user_service.domain.Group;
-import com.example.user_service.domain.GroupMember;
-import com.example.user_service.domain.GroupMemberId;
-import com.example.user_service.domain.GroupRule;
-import com.example.user_service.domain.InvitationCode;
+import com.example.user_service.dto.GroupStatusResponse;
 import com.example.user_service.repository.GroupMemberRepository;
 import com.example.user_service.repository.GroupRepository;
 import com.example.user_service.repository.GroupRuleRepository;
 import com.example.user_service.repository.InvitationCodeRepository;
-import jakarta.transaction.Transactional;
-import jakarta.transaction.Transactional.TxType;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -48,14 +44,6 @@ public class GroupService {
         groupMemberRepository.save(leader);
 
         return saved.getGroupId();
-    }
-
-    @Transactional
-    public void addMember(UUID groupId, GroupMemberAddRequest request, UUID operatorId) {
-        assertOperatorIsOwner(groupId, operatorId);
-        assertNotDuplicate(groupId, request.userId());
-        GroupMember member = GroupMember.join(groupId, request.userId());
-        groupMemberRepository.save(member);
     }
 
     @Transactional
@@ -91,33 +79,79 @@ public class GroupService {
         invitationCodeRepository.save(invitationCode);
     }
 
-    @Transactional(TxType.SUPPORTS)
+    @Transactional(readOnly = true)
     public Group getDetail(UUID groupId, UUID userId) {
         assertMember(groupId, userId);
         return groupRepository.findById(groupId).orElseThrow(() -> new NoSuchElementException("그룹이 없습니다."));
     }
 
-    @Transactional(TxType.SUPPORTS)
+    @Transactional(readOnly = true)
     public List<Group> findMyGroups(UUID userId) {
         return groupRepository.findAllByMember(userId);
     }
 
-    @Transactional(TxType.SUPPORTS)
+    @Transactional(readOnly = true)
     public List<GroupMember> members(UUID groupId, UUID userId) {
         assertMember(groupId, userId);
         return groupMemberRepository.findByIdGroupId(groupId);
     }
 
-    @Transactional(TxType.SUPPORTS)
+    @Transactional(readOnly = true)
     public UUID getOwnerId(UUID groupId) {
         Group group = groupRepository.findById(groupId).orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
         return group.getOwnerId();
     }
 
-    @Transactional(TxType.SUPPORTS)
+    @Transactional(readOnly = true)
     public GroupRule getRule(UUID groupId, UUID requesterId) {
         assertMember(groupId, requesterId);
         return groupRuleRepository.findByGroupId(groupId).orElseThrow(() -> new NoSuchElementException("그룹 규칙이 없습니다."));
+    }
+
+    @Transactional
+    public void addMember(UUID groupId, GroupMemberAddRequest request, UUID operatorId) {
+        assertOperatorIsOwner(groupId, operatorId);
+        assertNotDuplicate(groupId, request.userId());
+
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
+
+        if (group.getStatus() == GroupStatus.ACTIVE) {
+            throw new IllegalArgumentException("그룹이 이미 활성화되어 더 이상 멤버를 추가할 수 없습니다.");
+        }
+
+        GroupMember member = GroupMember.join(groupId, request.userId());
+        groupMemberRepository.save(member);
+
+        group.addMember();
+        groupRepository.save(group);
+    }
+
+    @Transactional(readOnly = true)
+    public GroupStatusResponse getGroupStatus(UUID groupId, UUID userId) {
+        assertMember(groupId, userId);
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
+
+        return new GroupStatusResponse(
+                group.getStatus(),
+                group.getCurrentMembers(),
+                group.getMaxMembers(),
+                group.isFull()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<GroupStatusResponse> getMyGroupsStatus(UUID userId) {
+        List<Group> groups = groupRepository.findAllByMember(userId);
+        return groups.stream()
+                .map(g -> new GroupStatusResponse(
+                        g.getStatus(),
+                        g.getCurrentMembers(),
+                        g.getMaxMembers(),
+                        g.isFull()
+                ))
+                .toList();
     }
 
     private void assertMember(UUID groupId, UUID userId) {
