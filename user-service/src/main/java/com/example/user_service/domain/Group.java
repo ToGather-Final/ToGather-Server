@@ -33,6 +33,15 @@ public class Group {
     @Column(name = "goalAmount", nullable = false)
     private Integer goalAmount;
 
+    @Column(name = "initialAmount", nullable = false)
+    private Integer initialAmount;
+
+    @Column(name = "maxMembers", nullable = false)
+    private Integer maxMembers;
+
+    @Column(name = "dissolutionQuorum",nullable = false)
+    private Integer dissolutionQuorum;
+
     @Column(name = "createdAt", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -41,11 +50,14 @@ public class Group {
         this.createdAt = LocalDateTime.now();
     }
 
-    public static Group create(String groupName, UUID ownerId, Integer goalAmount) {
+    public static Group create(String groupName, UUID ownerId, Integer goalAmount, Integer initialAmount, Integer maxMembers, Integer dissolutionQuorum) {
         Group group = new Group();
         group.groupName = groupName;
         group.ownerId = ownerId;
         group.goalAmount = goalAmount;
+        group.initialAmount = initialAmount;
+        group.maxMembers = maxMembers;
+        group.dissolutionQuorum = dissolutionQuorum;
         return group;
     }
 }

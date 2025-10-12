@@ -105,7 +105,7 @@ public class GroupController {
                                                      Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
         GroupRule rule = groupService.getRule(groupId, userId);
-        GroupRuleResponse body = new GroupRuleResponse(rule.getVoteQuorum(), rule.getVoteDurationHours());
+        GroupRuleResponse body = new GroupRuleResponse(rule.getVoteQuorum());
         return ResponseEntity.ok(body);
     }
 
