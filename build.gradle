@@ -81,7 +81,12 @@ project(":api-gateway") {
 }
 
 project(':module-common') {
-    // 공통 모듈은 별도 설정 필요 없음
+    apply plugin: 'org.springframework.boot'
+
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    }
+
 }
 
 project(':user-service') {
