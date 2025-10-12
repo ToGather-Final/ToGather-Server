@@ -16,19 +16,41 @@ public class RefreshTokenService {
     private final long refreshExpireDays;
 
     public RefreshTokenService(StringRedisTemplate redisTemplate,
-                               @Value("${jwt.refresh-exp-days:7}") long refreshExpireDays) {
+                               @Value("${app.jwt.refresh-exp-days:7}") long refreshExpireDays) {
         this.redisTemplate = redisTemplate;
         this.refreshExpireDays = refreshExpireDays;
     }
 
+//    public String issue(UUID userId, String deviceId) {
+//        validateDeviceId(deviceId);
+//        String refreshToken = newTokenString();
+//        String key = buildKey(userId, deviceId);
+//        String value = sha256(refreshToken);
+//        Duration ttl = Duration.ofDays(refreshExpireDays);
+//        redisTemplate.opsForValue().set(key, value, ttl);
+//        return refreshToken;
+//    }
     public String issue(UUID userId, String deviceId) {
-        validateDeviceId(deviceId);
-        String refreshToken = newTokenString();
-        String key = buildKey(userId, deviceId);
-        String value = sha256(refreshToken);
-        Duration ttl = Duration.ofDays(refreshExpireDays);
-        redisTemplate.opsForValue().set(key, value, ttl);
-        return refreshToken;
+        System.out.println("=== RefreshToken 생성 시작 ===");
+        System.out.println("userId: " + userId);
+        System.out.println("deviceId: " + deviceId);
+        System.out.println("refreshExpireDays: " + refreshExpireDays);
+
+        try {
+            validateDeviceId(deviceId);
+            String refreshToken = newTokenString();
+            String key = buildKey(userId, deviceId);
+            String value = sha256(refreshToken);
+            Duration ttl = Duration.ofDays(refreshExpireDays);
+            redisTemplate.opsForValue().set(key, value, ttl);
+
+            System.out.println("RefreshToken 생성 성공: " + refreshToken);
+            return refreshToken;
+        } catch (Exception e) {
+            System.out.println("RefreshToken 생성 실패: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     public boolean validate(UUID userId, String deviceId, String providedToken) {

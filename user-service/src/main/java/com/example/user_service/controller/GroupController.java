@@ -96,7 +96,7 @@ public class GroupController {
     public ResponseEntity<InvitationCodeResponse> issueInvite(@PathVariable UUID groupId,
                                                               Authentication authentication) {
         UUID operatorId = (UUID) authentication.getPrincipal();
-        UUID code = groupService.issueInvitation(groupId, operatorId);
+        String code = groupService.issueInvitation(groupId, operatorId);
         return ResponseEntity.status(HttpStatus.CREATED).body(new InvitationCodeResponse(code));
     }
 
@@ -110,7 +110,7 @@ public class GroupController {
     }
 
     @PostMapping("/invites/{code}/accept")
-    public ResponseEntity<Void> acceptInvite(@PathVariable UUID code,
+    public ResponseEntity<Void> acceptInvite(@PathVariable String code,
                                              Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
         groupService.acceptInvite(code, userId);
