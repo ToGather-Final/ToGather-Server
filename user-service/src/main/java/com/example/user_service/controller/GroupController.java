@@ -1,13 +1,6 @@
 package com.example.user_service.controller;
 
-import com.example.user_service.dto.GroupCreateRequest;
-import com.example.user_service.dto.GroupIdResponse;
-import com.example.user_service.dto.GroupMemberAddRequest;
-import com.example.user_service.dto.GroupMemberSimple;
-import com.example.user_service.dto.GroupRuleResponse;
-import com.example.user_service.dto.GroupRuleUpdateRequest;
-import com.example.user_service.dto.GroupSummaryResponse;
-import com.example.user_service.dto.InvitationCodeResponse;
+import com.example.user_service.dto.*;
 import com.example.user_service.domain.Group;
 import com.example.user_service.domain.GroupMember;
 import com.example.user_service.domain.GroupRule;
@@ -115,6 +108,20 @@ public class GroupController {
         UUID userId = (UUID) authentication.getPrincipal();
         groupService.acceptInvite(code, userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{groupId}/status")
+    public ResponseEntity<GroupStatusResponse> getGroupStatus(@PathVariable UUID groupId, Authentication authentication) {
+        UUID userId = (UUID) authentication.getPrincipal();
+        GroupStatusResponse response = groupService.getGroupStatus(groupId, userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/mine/status")
+    public ResponseEntity<List<GroupStatusResponse>> getMyGroupStatus(Authentication authentication) {
+        UUID userId = (UUID) authentication.getPrincipal();
+        List<GroupStatusResponse> response = groupService.getMyGroupsStatus(userId);
+        return ResponseEntity.ok(response);
     }
 
     private String resolveRole(UUID memberUserId, UUID ownerUserId) {
