@@ -22,7 +22,7 @@ spring:
     web-application-type: reactive
   cloud:
     gateway:
-      routes:
+      routes: #deprecated전에 server: webflux: routes: 형태로 수정해야함.
         - id: auth-service-route
           uri: lb://user-service
           predicates:
