@@ -1,6 +1,6 @@
-package com.example.trading_service.repository;
+package com.example.pay_service.repository;
 
-import com.example.trading_service.domain.LedgerEntry;
+import com.example.pay_service.domain.LedgerEntry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

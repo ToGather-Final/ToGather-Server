@@ -1,7 +1,7 @@
-package com.example.trading_service.repository;
+package com.example.pay_service.repository;
 
-import com.example.trading_service.domain.Account;
-import com.example.trading_service.domain.AccountType;
+import com.example.pay_service.domain.Account;
+import com.example.pay_service.domain.AccountType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

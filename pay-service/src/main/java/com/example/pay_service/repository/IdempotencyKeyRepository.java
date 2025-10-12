@@ -1,6 +1,6 @@
-package com.example.trading_service.repository;
+package com.example.pay_service.repository;
 
-import com.example.trading_service.domain.IdempotencyKey;
+import com.example.pay_service.domain.IdempotencyKey;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

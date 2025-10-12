@@ -1,4 +1,4 @@
-package com.example.trading_service.dto;
+package com.example.pay_service.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

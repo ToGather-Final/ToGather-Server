@@ -1,4 +1,4 @@
-package com.example.trading_service.domain;
+package com.example.pay_service.domain;
 
 public enum EntrySide {
     DEBIT,

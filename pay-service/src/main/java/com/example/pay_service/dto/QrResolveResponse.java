@@ -1,6 +1,6 @@
-package com.example.trading_service.dto;
+package com.example.pay_service.dto;
 
-import com.example.trading_service.domain.AccountType;
+import com.example.pay_service.domain.AccountType;
 
 import java.time.LocalDateTime;
 import java.util.List;

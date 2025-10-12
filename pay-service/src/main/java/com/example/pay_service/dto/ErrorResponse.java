@@ -1,4 +1,4 @@
-package com.example.trading_service.dto;
+package com.example.pay_service.dto;
 
 import java.util.List;
 
