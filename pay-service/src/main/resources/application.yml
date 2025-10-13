@@ -111,13 +111,14 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
-    hibernate:
-      ddl-auto: update
-    show-sql: false
   # Redis와 RabbitMQ 설정은 module-common에서 상속받음
   logging:
     level:

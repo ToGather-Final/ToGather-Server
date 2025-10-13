@@ -19,7 +19,6 @@ spring:
     name: api-gateway
   profiles:
     active: dev
-    include: common
   main:
     allow-bean-definition-overriding: true
     web-application-type: reactive
@@ -88,6 +87,14 @@ spring:
     password: ""
     driver-class-name: ""
 
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+
 logging:
   level:
     root: INFO
@@ -104,7 +111,6 @@ spring:
   config:
     activate:
       on-profile: "dev"
-    include: common  # module-common의 설정 포함
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
@@ -117,8 +123,6 @@ spring:
   config:
     activate:
       on-profile: "main"
-    include: common  # module-common의 설정 포함
-  # Redis 설정은 module-common에서 상속받음
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
