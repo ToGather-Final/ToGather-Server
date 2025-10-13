@@ -1,26 +1,8 @@
 server:
   port: 8080
+
 spring:
   application:
-    name: pay-service
+    name: trading-service
   profiles:
     include: common
-  datasource:
-    url: ${app.database.url}
-    username: ${app.database.username}
-    password: ${app.database.password}
-  data:
-    redis:
-      host: ${app.redis.host}
-      port: ${app.redis.port}
-      password: ${app.redis.password}
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        format_sql: true
-    show-sql: true
-
-jwt:
-  secret: ${app.jwt.secret}
