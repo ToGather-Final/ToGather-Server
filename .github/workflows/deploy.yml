@@ -175,20 +175,21 @@ jobs:
         export ECR_REGISTRY=${{ env.ECR_REGISTRY }}
         export EKS_NAMESPACE=${{ env.EKS_NAMESPACE }}
         
-        envsubst < k8s/api-gateway.yaml | kubectl apply -f -
-        envsubst < k8s/user-service.yaml | kubectl apply -f -
-        envsubst < k8s/trading-service.yaml | kubectl apply -f -
-        envsubst < k8s/pay-service.yaml | kubectl apply -f -
-        envsubst < k8s/vote-service.yaml | kubectl apply -f -
+        # envsubst로 환경변수 치환 (${VARIABLE} 형태 지원)
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/api-gateway.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/user-service.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/trading-service.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/pay-service.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/vote-service.yaml | kubectl apply -f -
         
         # 나머지 리소스들 (ConfigMap, Service, Ingress 등) 배포
-        envsubst < k8s/configmap.yaml | kubectl apply -f -
-        envsubst < k8s/configmap-env.yaml | kubectl apply -f -
-        envsubst < k8s/redis.yaml | kubectl apply -f -
-        envsubst < k8s/rabbitmq.yaml | kubectl apply -f -
-        envsubst < k8s/ingress.yaml | kubectl apply -f -
-        envsubst < k8s/nextjs-client.yaml | kubectl apply -f -
-        envsubst < k8s/hpa.yaml | kubectl apply -f -    
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/configmap.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/configmap-env.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/redis.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/rabbitmq.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/ingress.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/nextjs-client.yaml | kubectl apply -f -
+        envsubst '$ECR_REGISTRY $EKS_NAMESPACE' < k8s/hpa.yaml | kubectl apply -f -    
 
         # 5. 각 디플로이먼트에 브랜치별 이미지 설정 (롤아웃 트리거)
         if [ "${{ github.ref }}" = "refs/heads/main" ]; then
