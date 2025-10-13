@@ -20,12 +20,13 @@ public class AuthService {
 
     @Transactional
     public UUID register(RegisterRequest request) {
-        validatePassword(request.password());
-        validatePasswordConfirm(request.password(), request.passwordConfirm());
-
         if (isDuplicate(request.username())) {
             throw new IllegalArgumentException("이미 존재하는 아이디입니다.");
         }
+
+        validatePassword(request.password());
+        validatePasswordConfirm(request.password(), request.passwordConfirm());
+
         String encoded = passwordEncoder.encode(request.password());
         User newUser = User.create(encoded, request.username(), request.nickname());
         User saved = userRepository.save(newUser);
@@ -35,9 +36,10 @@ public class AuthService {
     @Transactional(readOnly = true)
     public UUID login(LoginRequest request) {
         User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new IllegalArgumentException("해당 이름으로 계정을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 올바르지 않습니다."));
+
         if (!isPasswordMatch(user, request.password())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new IllegalArgumentException("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
         return user.getUserId();
     }

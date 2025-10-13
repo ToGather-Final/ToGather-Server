@@ -7,11 +7,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+@Slf4j
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
@@ -32,6 +34,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         UUID userIdFromGateway = resolveUserIdFromHeader(request);
         if (userIdFromGateway != null) {
+            log.info("인증 성공 - X-User-Id 헤더: {}", userIdFromGateway);
             setAuthentication(userIdFromGateway);
             chain.doFilter(request, response);
             return;
@@ -39,7 +42,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         UUID userIdFromBearer = resolveUserIdFromBearer(request);
         if (userIdFromBearer != null) {
+            log.info("인증 성공 - JWT 토큰: {}", userIdFromBearer);
             setAuthentication(userIdFromBearer);
+        } else {
+            log.warn("인증 실패 - Authorization 헤더: {}", request.getHeader("Authorization"));
         }
         chain.doFilter(request, response);
     }
@@ -65,12 +71,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return null;
         }
         String token = header.substring(7);
-//        try {
-//            return jwtUtil.verifyAndGetUserId(token);
-//        } catch (Exception e) {
-//            return null;
-//        }
-        return null;
+        try {
+            return jwtUtil.verifyAndGetUserId(token);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void setAuthentication(UUID userId) {
@@ -79,4 +84,3 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }
-

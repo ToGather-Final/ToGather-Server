@@ -37,7 +37,6 @@ spring:
       health:
         show-details: always
 
-# JWT 설정 키를 'secret-key'로 통일합니다.
 jwt:
   secret-key: ${JWT_SECRET_KEY}
 

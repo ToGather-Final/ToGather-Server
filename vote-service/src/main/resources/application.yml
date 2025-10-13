@@ -27,8 +27,7 @@ spring:
         show-details: always
 
 jwt:
-  # 💡 secret-key -> secret으로 통일하고, 값은 프로파일별로 지정
-  secret: ${JWT_SECRET_KEY}
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
 
 ---
 # ===============================================
@@ -42,6 +41,7 @@ spring:
     url: ${app.database.url:jdbc:mysql://localhost:3307/togather_db}
     username: ${app.database.username:admin}
     password: ${app.database.password:togather1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
@@ -51,10 +51,10 @@ spring:
     level:
       com.example.user_service: DEBUG
 
-  jwt:
-    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-    access-exp-seconds: ${JWT_ACCESS_EXP:1800}
-    refresh-exp-days: ${JWT_REFRESH_EXP:7}
+jwt:
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 server:
   port: 8080

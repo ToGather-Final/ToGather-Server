@@ -1,13 +1,6 @@
 package com.example.user_service.controller;
 
-import com.example.user_service.dto.GroupCreateRequest;
-import com.example.user_service.dto.GroupIdResponse;
-import com.example.user_service.dto.GroupMemberAddRequest;
-import com.example.user_service.dto.GroupMemberSimple;
-import com.example.user_service.dto.GroupRuleResponse;
-import com.example.user_service.dto.GroupRuleUpdateRequest;
-import com.example.user_service.dto.GroupSummaryResponse;
-import com.example.user_service.dto.InvitationCodeResponse;
+import com.example.user_service.dto.*;
 import com.example.user_service.domain.Group;
 import com.example.user_service.domain.GroupMember;
 import com.example.user_service.domain.GroupRule;
@@ -42,16 +35,28 @@ public class GroupController {
                                                          Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
         Group group = groupService.getDetail(groupId, userId);
-        GroupSummaryResponse body = new GroupSummaryResponse(group.getGroupId(), group.getGroupName());
+
+        List<GroupMember> members = groupService.members(groupId, userId);
+        int currentMembers = members.size();
+
+        GroupSummaryResponse body = new GroupSummaryResponse(
+                group.getGroupId(),
+                group.getGroupName(),
+                group.getMaxMembers(),
+                currentMembers,
+                group.getGoalAmount(),
+                group.getInitialAmount()
+        );
+
         return ResponseEntity.ok(body);
     }
 
     @GetMapping("/mine")
-    public ResponseEntity<List<GroupSummaryResponse>> getMyGroups(Authentication authentication) {
+    public ResponseEntity<List<GroupSimpleResponse>> getMyGroups(Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
         List<Group> groups = groupService.findMyGroups(userId);
-        List<GroupSummaryResponse> body = groups.stream()
-                .map(g -> new GroupSummaryResponse(g.getGroupId(), g.getGroupName())).toList();
+        List<GroupSimpleResponse> body = groups.stream()
+                .map(g -> new GroupSimpleResponse(g.getGroupId(), g.getGroupName())).toList();
         return ResponseEntity.ok(body);
     }
 
@@ -96,7 +101,7 @@ public class GroupController {
     public ResponseEntity<InvitationCodeResponse> issueInvite(@PathVariable UUID groupId,
                                                               Authentication authentication) {
         UUID operatorId = (UUID) authentication.getPrincipal();
-        UUID code = groupService.issueInvitation(groupId, operatorId);
+        String code = groupService.issueInvitation(groupId, operatorId);
         return ResponseEntity.status(HttpStatus.CREATED).body(new InvitationCodeResponse(code));
     }
 
@@ -105,16 +110,30 @@ public class GroupController {
                                                      Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
         GroupRule rule = groupService.getRule(groupId, userId);
-        GroupRuleResponse body = new GroupRuleResponse(rule.getVoteQuorum(), rule.getVoteDurationHours());
+        GroupRuleResponse body = new GroupRuleResponse(rule.getVoteQuorum());
         return ResponseEntity.ok(body);
     }
 
     @PostMapping("/invites/{code}/accept")
-    public ResponseEntity<Void> acceptInvite(@PathVariable UUID code,
+    public ResponseEntity<Void> acceptInvite(@PathVariable String code,
                                              Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
         groupService.acceptInvite(code, userId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{groupId}/status")
+    public ResponseEntity<GroupStatusResponse> getGroupStatus(@PathVariable UUID groupId, Authentication authentication) {
+        UUID userId = (UUID) authentication.getPrincipal();
+        GroupStatusResponse response = groupService.getGroupStatus(groupId, userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/mine/status")
+    public ResponseEntity<List<GroupStatusResponse>> getMyGroupStatus(Authentication authentication) {
+        UUID userId = (UUID) authentication.getPrincipal();
+        List<GroupStatusResponse> response = groupService.getMyGroupsStatus(userId);
+        return ResponseEntity.ok(response);
     }
 
     private String resolveRole(UUID memberUserId, UUID ownerUserId) {

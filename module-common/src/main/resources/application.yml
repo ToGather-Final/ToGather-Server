@@ -16,7 +16,7 @@ app:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:togather1234}
+    password: ${RABBITMQ_PASSWORD:guest}
   jwt:
     secret: ${JWT_SECRET_KEY:TogatherSecretkey}
     issuer: ${JWT_ISSUER:togather}
