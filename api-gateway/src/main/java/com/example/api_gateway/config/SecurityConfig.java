@@ -20,7 +20,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchange -> exchange
-                        .pathMatchers("/actuator/**").permitAll() // AWS Health Check
+                        .pathMatchers("/actuator/health", "/actuator/health/**").permitAll() // AWS Health Check
                         .pathMatchers("/health").permitAll() // Health Check
                         .pathMatchers("/api/health").permitAll() // Health Check
                         .pathMatchers("/api/auth/**").permitAll() // 비회원 일 때 권한체크 안하고 api 열어줌
