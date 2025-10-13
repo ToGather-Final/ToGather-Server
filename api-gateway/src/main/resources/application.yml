@@ -14,8 +14,7 @@ management:
     health:
       probes:
         enabled: true
-      show-details: always
-      show-components: always
+      show-details: when-authorized
 
 spring:
   application:
