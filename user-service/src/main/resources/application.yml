@@ -21,6 +21,12 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+  logging:
+    level:
+      com.example.user_service: DEBUG
+      org.springframework.data.redis: DEBUG
 
 jwt:
   secret: ${app.jwt.secret}
+  issuer: ${app.jwt.issuer:togather}
+  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}

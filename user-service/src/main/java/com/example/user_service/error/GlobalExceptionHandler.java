@@ -23,9 +23,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException e, HttpServletRequest request) {
-        ApiError body = new ApiError("BUSINESS_ERROR", e.getMessage(), request.getRequestURI(),
+        String code = "BUSINESS_ERROR";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+
+        if (isAuthenticationError(e.getMessage())) {
+            code = "AUTHENTICATION_ERROR";
+            status = HttpStatus.UNAUTHORIZED;
+        }
+
+        ApiError body = new ApiError(code, e.getMessage(), request.getRequestURI(),
                 LocalDateTime.now());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return ResponseEntity.status(status).body(body);
     }
 
     @ExceptionHandler(Exception.class)
@@ -45,5 +53,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleNotFound(NoSuchElementException e, HttpServletRequest request) {
         ApiError body = new ApiError("NOT_FOUND", e.getMessage(), request.getRequestURI(), LocalDateTime.now());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    private boolean isAuthenticationError(String message) {
+        return message.contains("아이디 또는 비밀번호") ||
+                message.contains("인증") ||
+                message.contains("토큰") ||
+                message.contains("로그인");
     }
 }

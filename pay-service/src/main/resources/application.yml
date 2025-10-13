@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  port: 8083
+
 spring:
   application:
     name: pay-service
@@ -8,6 +9,7 @@ spring:
     url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
     username: admin
     password: togather1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
@@ -15,4 +17,37 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
     show-sql: true
+
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+
+# Pay Service 설정
+pay:
+  demo-mode: true
+  qr:
+    secret-key: ${QR_SECRET_KEY:togather-qr-secret-key-2024}
+    token-expiry: 900 # 15분 (초)
+  session:
+    ttl: 900 # 15분 (초)
+  limits:
+    min-amount: 1
+    max-amount: 10000000 # 1천만원
+
+# JWT 설정 (user-service와 동일한 키 사용)
+jwt:
+  secret: ${JWT_SECRET:togather-jwt-secret-key-2024}
+  expiration: 86400000 # 24시간 (밀리초)
+
+logging:
+  level:
+    com.example.pay_service: DEBUG
+    org.springframework.security: DEBUG
