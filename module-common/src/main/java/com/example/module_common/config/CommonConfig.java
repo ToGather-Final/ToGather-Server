@@ -9,12 +9,12 @@ import org.springframework.context.annotation.Configuration;
 import javax.sql.DataSource;
 
 @Configuration
-@EnableConfigurationProperties(CommonProperties.class)
+//@EnableConfigurationProperties(CommonProperties.class)
 public class CommonConfig {
 
-    @Bean
-    @ConfigurationProperties("spring.datasource")
-    public DataSource dataSource() {
-        return DataSourceBuilder.create().build();
-    }
+//    @Bean
+//    @ConfigurationProperties("spring.datasource")
+//    public DataSource dataSource() {
+//        return DataSourceBuilder.create().build();
+//    }
 }
