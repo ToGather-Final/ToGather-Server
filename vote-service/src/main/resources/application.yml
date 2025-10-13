@@ -1,11 +1,31 @@
 # ===============================================
 # ✅ 공통 설정 (모든 프로파일에 적용)
 # ===============================================
+app:
+  database:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/togather_db}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:togather1234}
+  redis:
+    host: ${SPRING_DATA_REDIS_HOST:localhost}
+    port: ${SPRING_DATA_REDIS_PORT:6379}
+    password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+  jwt:
+    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    issuer: ${JWT_ISSUER:togather}
+    access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+    refresh-exp-days: ${JWT_REFRESH_EXP:7}
+
 spring:
   application:
     name: vote-service
   profiles:
-    include: common  # module-common의 설정 포함
+    include: common  # module-common의 Bean 설정 포함
   datasource:
     # 운영 환경에서는 환경 변수를 통해 주입받습니다.
     url: ${DB_URL}
@@ -17,6 +37,20 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    connection-timeout: 15000
+    virtual-host: /
   management:
     endpoints:
       web:
