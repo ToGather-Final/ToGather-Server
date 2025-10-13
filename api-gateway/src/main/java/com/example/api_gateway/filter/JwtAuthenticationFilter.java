@@ -105,7 +105,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublicPath(String path) {
-        return path.startsWith("/actuator/") || 
+        return path.startsWith("/actuator/health") ||
                path.startsWith("/api/auth/login") || 
                path.startsWith("/api/auth/register") ||
                path.startsWith("/api/auth/signup") ||
