@@ -50,15 +50,16 @@ spring:
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
     connection-timeout: 15000
     virtual-host: /
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: always
+  jpa:
+    open-in-view: false
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics
+    endpoint:
+      health:
+        show-details: always
 
 # JWT 설정 키를 'secret-key'로 통일합니다.
 jwt:

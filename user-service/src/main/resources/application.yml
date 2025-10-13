@@ -61,6 +61,8 @@ spring:
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
     connection-timeout: 15000
     virtual-host: /
+  jpa:
+    open-in-view: false
   management:
     endpoints:
       web:
