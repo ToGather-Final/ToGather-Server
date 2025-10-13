@@ -4,25 +4,11 @@
 spring:
   application:
     name: pay-service
-
-  rabbitmq: # RabbitMQ 설정은 dev, main 동일하다고 가정
-    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
-    port: 5672
-    username: ${SPRING_RABBITMQ_USERNAME:admin}
-    password: ${SPRING_RABBITMQ_PASSWORD}
-
-  data:
-    redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
-      port: 6379
-      password: ${SPRING_DATA_REDIS_PASSWORD:}
-
-
-
+  profiles:
+    include: common
 # JWT 설정 (키 구조 통일)
 jwt:
-  secret-key: ${JWT_SECRET_KEY:togather-jwt-secret-key-2024-default} # 기본값 제공
-  expiration-in-ms: 86400000 # 24시간
+  secret-key: ${JWT_SECRET_KEY}
 
 # Pay Service 공통 설정
 pay:
@@ -53,33 +39,21 @@ spring:
     activate:
       on-profile: "dev"
   datasource:
-    url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
+    url: ${app.database.url:jdbc:mysql://localhost:3307/togather_db}
     username: ${app.database.username:admin}
     password: ${app.database.password:togather1234}
-    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
-    hibernate:
-      ddl-auto: update # dev에서는 update 사용
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect
     show-sql: true
-  data:
-    redis:
-      host: ${app.redis.host:localhost}
-      port: ${app.redis.port:6379}
-      password: ${app.redis.password:togather1234}
-  rabbitmq:
-    host: ${app.rabbitmq.host:localhost}
-    port: ${app.rabbitmq.port:5672}
-    username: ${app.rabbitmq.username:guest}
-    password: ${app.rabbitmq.password:togather1234}
+  # Redis와 RabbitMQ 설정은 module-common에서 상속받음
 
 jwt:
-  secret: ${app.jwt.secret:TogatherSecretkey}
-  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
-  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 server:
   port: 8083

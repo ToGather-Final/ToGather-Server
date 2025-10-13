@@ -95,6 +95,9 @@ project(':user-service') {
     apply plugin: 'org.springframework.boot'
     
     dependencies {
+        // module-common 의존성 추가
+        implementation project(':module-common')
+        
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
@@ -114,6 +117,9 @@ project(':vote-service') {
     apply plugin: 'org.springframework.boot'
     
     dependencies {
+        // module-common 의존성 추가
+        implementation project(':module-common')
+        
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         runtimeOnly 'com.mysql:mysql-connector-j'
@@ -130,6 +136,9 @@ project(':pay-service') {
     apply plugin: 'org.springframework.boot'
     
     dependencies {
+        // module-common 의존성 추가
+        implementation project(':module-common')
+        
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
@@ -143,6 +152,9 @@ project(':trading-service') {
     apply plugin: 'org.springframework.boot'
     
     dependencies {
+        // module-common 의존성 추가
+        implementation project(':module-common')
+        
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'

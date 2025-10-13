@@ -1,6 +1,11 @@
+# ===============================================
+# 🚀 ToGather Module Common Configuration
+# 공통 설정 (모든 서비스에서 사용)
+# ===============================================
+
 app:
   database:
-    url: ${DB_URL:jdbc:mysql://togather-database.cxs46swiy72b.ap-northeast-2.rds.amazonaws.com}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/togather_db}
     username: ${DB_USERNAME:admin}
     password: ${DB_PASSWORD:togather1234}
   redis:
@@ -14,7 +19,45 @@ app:
     password: ${RABBITMQ_PASSWORD:togather1234}
   jwt:
     secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    issuer: ${JWT_ISSUER:togather}
     access-exp-seconds: ${JWT_ACCESS_EXP:1800}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
   github:
     pat: ${GH_PAT:CHANGE_THIS_GITHUB_PAT}
+  pay:
+    qr:
+      secret-key: ${PAY_QR_SECRET_KEY:togather-qr-secret-key-2024}
+
+# ===============================================
+# Spring Boot 공통 설정
+# ===============================================
+spring:
+  application:
+    name: module-common
+  
+  # Redis 설정 (Spring Data Redis용)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # password: ${REDIS_PASSWORD:togather1234}  # 비밀번호 없이 테스트
+      timeout: 2000ms
+      connect-timeout: 2000ms
+  
+  # RabbitMQ 설정 (Spring AMQP용)
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    connection-timeout: 15000
+    virtual-host: /
+
+# ===============================================
+# 로깅 설정
+# ===============================================
+logging:
+  level:
+    com.example.module_common: DEBUG
+    org.springframework.data.redis: DEBUG
+    org.springframework.amqp: DEBUG

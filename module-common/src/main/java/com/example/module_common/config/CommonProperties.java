@@ -21,7 +21,7 @@ public class CommonProperties {
     public static class Redis {
         private String host = "localhost";
         private int port = 6379;
-        private String password = "";
+        private String password = "togather1234";
     }
 
     @Data

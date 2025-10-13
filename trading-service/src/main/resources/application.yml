@@ -4,6 +4,8 @@
 spring:
   application:
     name: trading-service
+  profiles:
+    include: common  # module-common의 설정 포함
   datasource:
     # 운영 환경에서는 환경 변수를 통해 주입받습니다.
     url: ${DB_URL}
@@ -15,16 +17,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
-  rabbitmq:
-    host: ${RABBITMQ_HOST:rabbitmq}
-    port: 5672
-    username: ${RABBITMQ_USERNAME:admin}
-    password: ${RABBITMQ_PASSWORD:}
-  data:
-    redis:
-      host: ${SPRING_DATA_REDIS_HOST:redis}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:}
+  # Redis와 RabbitMQ 설정은 module-common에서 상속받음
   management:
     endpoints:
       web:
@@ -54,24 +47,15 @@ spring:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
     show-sql: true # SQL 로그 활성화
-  data:
-    redis:
-      host: ${app.redis.host:localhost}
-      port: ${app.redis.port:6379}
-      password: ${app.redis.password:togather1234}
-  rabbitmq:
-    host: ${app.rabbitmq.host:localhost}
-    port: ${app.rabbitmq.port:5672}
-    username: ${app.rabbitmq.username:guest}
-    password: ${app.rabbitmq.password:togather1234}
+  # Redis와 RabbitMQ 설정은 module-common에서 상속받음
   logging:
     level:
       com.example.trading_service: DEBUG
 
 jwt:
-  secret: ${app.jwt.secret:TogatherSecretkey}
-  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
-  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 server:
   port: 8081
@@ -88,11 +72,7 @@ spring:
     hibernate:
       ddl-auto: update # ❗ 운영에서는 스키마 변경 없이 검증만 수행
     show-sql: false # 성능을 위해 SQL 로그 비활성화
-  data:
-    redis:
-      host: ${SPRING_DATA_REDIS_HOST:redis}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:}
+  # Redis와 RabbitMQ 설정은 module-common에서 상속받음
   logging:
     level:
       com.example.user_service: INFO # 운영에서는 INFO 레벨 이상만 기록
@@ -102,5 +82,5 @@ server:
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
-  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  refresh-exp-days: ${JWT_REFRESH_EXP:7}
