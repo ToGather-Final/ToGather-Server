@@ -22,10 +22,11 @@ app:
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 spring:
+  config:
+    import:
+      - optional:classpath:application-common.yml
   application:
     name: pay-service
-  profiles:
-    include: common
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}

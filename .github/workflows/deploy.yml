@@ -174,84 +174,140 @@ jobs:
     - name: Wait for deployment to complete
       if: github.ref == 'refs/heads/main'
       run: |
+        # 배포 결과 추적을 위한 변수 초기화
+        FAILED_SERVICES=""
+        SUCCESS_SERVICES=""
+        
+        # Redis 배포 확인
         echo "🚀 Redis 배포 상태 확인 중..."
-        kubectl rollout status deployment/redis -n ${{ env.EKS_NAMESPACE }} --timeout=60s || {
+        if kubectl rollout status deployment/redis -n ${{ env.EKS_NAMESPACE }} --timeout=60s; then
+          echo "✅ Redis 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES redis"
+        else
           echo "❌ Redis 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES redis"
           kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=redis
           kubectl describe deployment redis -n ${{ env.EKS_NAMESPACE }}
           POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=redis -o jsonpath='{.items[0].metadata.name}')
           kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
-          exit 1
-        }
+        fi
         
+        # API Gateway 배포 확인
+        echo ""
         echo "🚀 API Gateway 배포 상태 확인 중..."
-        kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=120s || {
+        if kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=120s; then
+          echo "✅ API Gateway 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES api-gateway"
+        else
           echo "❌ API Gateway 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES api-gateway"
           kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=api-gateway
           kubectl describe deployment api-gateway -n ${{ env.EKS_NAMESPACE }}
           POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=api-gateway -o jsonpath='{.items[0].metadata.name}')
           kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
-          exit 1
-        }
+        fi
         
+        # User Service 배포 확인
+        echo ""
         echo "🚀 User Service 배포 상태 확인 중..."
-        kubectl rollout status deployment/user-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s || {
+        if kubectl rollout status deployment/user-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s; then
+          echo "✅ User Service 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES user-service"
+        else
           echo "❌ User Service 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES user-service"
           kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=user-service
           kubectl describe deployment user-service -n ${{ env.EKS_NAMESPACE }}
           POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=user-service -o jsonpath='{.items[0].metadata.name}')
           kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
-          exit 1
-        }
+        fi
         
+        # Trading Service 배포 확인
+        echo ""
         echo "🚀 Trading Service 배포 상태 확인 중..."
-        kubectl rollout status deployment/trading-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s || {
+        if kubectl rollout status deployment/trading-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s; then
+          echo "✅ Trading Service 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES trading-service"
+        else
           echo "❌ Trading Service 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES trading-service"
           kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=trading-service
           kubectl describe deployment trading-service -n ${{ env.EKS_NAMESPACE }}
           POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=trading-service -o jsonpath='{.items[0].metadata.name}')
           kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
-          exit 1
-        }
+        fi
         
+        # Pay Service 배포 확인
+        echo ""
         echo "🚀 Pay Service 배포 상태 확인 중..."
-        kubectl rollout status deployment/pay-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s || {
+        if kubectl rollout status deployment/pay-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s; then
+          echo "✅ Pay Service 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES pay-service"
+        else
           echo "❌ Pay Service 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES pay-service"
           kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=pay-service
           kubectl describe deployment pay-service -n ${{ env.EKS_NAMESPACE }}
           POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=pay-service -o jsonpath='{.items[0].metadata.name}')
           kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
-          exit 1
-        }
+        fi
         
+        # Vote Service 배포 확인
+        echo ""
         echo "🚀 Vote Service 배포 상태 확인 중..."
-        kubectl rollout status deployment/vote-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s || {
+        if kubectl rollout status deployment/vote-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s; then
+          echo "✅ Vote Service 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES vote-service"
+        else
           echo "❌ Vote Service 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES vote-service"
           kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=vote-service
           kubectl describe deployment vote-service -n ${{ env.EKS_NAMESPACE }}
           POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=vote-service -o jsonpath='{.items[0].metadata.name}')
           kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
-          exit 1
-        }
+        fi
         
+        # Next.js Client 배포 확인
+        echo ""
         echo "🚀 Next.js Client 배포 상태 확인 중..."
-        kubectl rollout status deployment/nextjs-client -n ${{ env.EKS_NAMESPACE }} --timeout=120s || {
+        if kubectl rollout status deployment/nextjs-client -n ${{ env.EKS_NAMESPACE }} --timeout=120s; then
+          echo "✅ Next.js Client 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES nextjs-client"
+        else
           echo "❌ Next.js Client 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES nextjs-client"
           kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client
           kubectl describe deployment nextjs-client -n ${{ env.EKS_NAMESPACE }}
           POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client -o jsonpath='{.items[0].metadata.name}')
           kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
-          exit 1
-        }
+        fi
         
-        echo "✅ 모든 서비스 배포 완료!"
+        # 최종 배포 결과 요약
+        echo ""
+        echo "=================================================="
+        echo "📊 배포 결과 요약"
+        echo "=================================================="
+        
+        if [ -n "$SUCCESS_SERVICES" ]; then
+          echo "✅ 성공한 서비스:$SUCCESS_SERVICES"
+        fi
+        
+        if [ -n "$FAILED_SERVICES" ]; then
+          echo "❌ 실패한 서비스:$FAILED_SERVICES"
+          echo ""
+          echo "⚠️ 일부 서비스 배포가 실패했습니다!"
+          exit 1
+        else
+          echo ""
+          echo "🎉 모든 서비스 배포 완료!"
+        fi
 
     - name: Verify deployment
       if: github.ref == 'refs/heads/main'

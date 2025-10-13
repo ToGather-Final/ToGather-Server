@@ -22,10 +22,11 @@ app:
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 spring:
+  config:
+    import:
+      - optional:classpath:application-common.yml
   application:
     name: vote-service
-  profiles:
-    include: common  # module-common의 Bean 설정 포함
   datasource:
     # 운영 환경에서는 환경 변수를 통해 주입받습니다.
     url: ${DB_URL}
