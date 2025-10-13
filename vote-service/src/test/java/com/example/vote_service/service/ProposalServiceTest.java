@@ -1,5 +1,6 @@
 package com.example.vote_service.service;
 
+import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.model.*;
 import com.example.vote_service.repository.ProposalRepository;
@@ -28,6 +29,12 @@ class ProposalServiceTest {
     @Mock
     private GroupMembersRepository groupMembersRepository;
 
+    @Mock
+    private HistoryService historyService;
+
+    @Mock
+    private UserServiceClient userServiceClient;
+
     @InjectMocks
     private ProposalService proposalService;
 
@@ -43,7 +50,6 @@ class ProposalServiceTest {
         UUID userId = UUID.randomUUID();
         UUID groupId = UUID.randomUUID();
         ProposalCreateRequest request = new ProposalCreateRequest(
-                groupId,
                 "삼성전자 100주 매수",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
@@ -54,14 +60,19 @@ class ProposalServiceTest {
                 groupId,
                 userId,
                 "삼성전자 100주 매수",
+                "테스트 사용자",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{\"stockCode\":\"005930\",\"quantity\":100}",
                 LocalDateTime.now().plusMinutes(5)
         );
 
-        // 그룹 멤버십 검증 모킹
-        when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(true);
+        // 사용자의 그룹 ID 조회 모킹
+        when(groupMembersRepository.findFirstGroupIdByUserId(userId)).thenReturn(Optional.of(groupId));
+        
+        // 사용자 닉네임 조회 모킹
+        when(userServiceClient.getUserNickname(userId)).thenReturn("테스트 사용자");
+        
         when(proposalRepository.save(any(Proposal.class))).thenAnswer(invocation -> {
             Proposal proposal = invocation.getArgument(0);
             // JPA가 실제로 하는 것처럼 UUID 설정
@@ -74,33 +85,32 @@ class ProposalServiceTest {
 
         // Then
         assertThat(proposalId).isNotNull();
-        verify(groupMembersRepository).existsByUserIdAndGroupId(userId, groupId);
+        verify(groupMembersRepository).findFirstGroupIdByUserId(userId);
+        verify(userServiceClient).getUserNickname(userId);
         verify(proposalRepository).save(any(Proposal.class));
     }
 
     @Test
-    @DisplayName("제안 생성 실패 - 그룹 멤버가 아님")
+    @DisplayName("제안 생성 실패 - 그룹에 속하지 않음")
     void createProposal_Fail_NotGroupMember() {
         // Given
         UUID userId = UUID.randomUUID();
-        UUID groupId = UUID.randomUUID();
         ProposalCreateRequest request = new ProposalCreateRequest(
-                groupId,
                 "삼성전자 100주 매수",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{\"stockCode\":\"005930\",\"quantity\":100}"
         );
 
-        // 그룹 멤버가 아님
-        when(groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)).thenReturn(false);
+        // 사용자가 그룹에 속하지 않음
+        when(groupMembersRepository.findFirstGroupIdByUserId(userId)).thenReturn(Optional.empty());
 
         // When & Then
         assertThatThrownBy(() -> proposalService.createProposal(userId, request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("해당 그룹의 멤버가 아닙니다.");
+                .hasMessage("사용자가 속한 그룹이 없습니다.");
 
-        verify(groupMembersRepository).existsByUserIdAndGroupId(userId, groupId);
+        verify(groupMembersRepository).findFirstGroupIdByUserId(userId);
         verify(proposalRepository, never()).save(any(Proposal.class));
     }
 
@@ -113,6 +123,7 @@ class ProposalServiceTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 "테스트 제안",
+                "테스트 사용자",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{}",
@@ -153,6 +164,7 @@ class ProposalServiceTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 "테스트 제안",
+                "테스트 사용자",
                 ProposalCategory.TRADE,
                 ProposalAction.BUY,
                 "{}",

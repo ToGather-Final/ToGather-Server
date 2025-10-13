@@ -29,16 +29,18 @@ public class VoteController {
 
     /**
      * GET /vote - 투표 목록 조회 (전체/예매/페이)
-     * view 파라미터로 필터링 (view=TRADE, view=PAY 등)
+     * - 사용자의 그룹을 자동으로 조회하여 해당 그룹의 투표 목록 반환
+     * - view 파라미터로 필터링 (view=TRADE, view=PAY 등)
      */
     @GetMapping
     public ResponseEntity<List<ProposalResponse>> getProposals(
             @RequestParam(required = false) String view,
-            @RequestParam UUID groupId,
             Authentication authentication) {
         
         UUID userId = (UUID) authentication.getPrincipal();
         
+        // 사용자의 그룹 ID 자동 조회
+        UUID groupId = proposalService.getUserGroupId(userId);
         List<Proposal> proposals = proposalService.getProposalsByGroup(groupId);
         
         // view 파라미터로 필터링
@@ -54,8 +56,8 @@ public class VoteController {
                     int rejectCount = (int) voteService.countRejectVotes(p.getProposalId());
                     var myVote = voteService.getUserVoteChoice(p.getProposalId(), userId);
                     
-                    // TODO: 제안자 이름 가져오기 (user-service API 호출)
-                    String proposerName = "제안자"; // 임시
+                    // 제안자 이름은 Proposal 엔티티에서 가져오기
+                    String proposerName = p.getProposerName();
                     
                     // 날짜 포맷팅 (yyyy-MM-dd)
                     String date = p.getOpenAt().toLocalDate().toString();

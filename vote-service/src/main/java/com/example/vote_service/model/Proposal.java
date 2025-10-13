@@ -23,17 +23,20 @@ public class Proposal {
 
     @Id
     @org.hibernate.annotations.UuidGenerator
-    @Column(name = "proposalId", columnDefinition = "BINARY(16)")
+    @Column(name = "proposal_id", columnDefinition = "BINARY(16)")
     private UUID proposalId;
 
-    @Column(name = "groupId", columnDefinition = "BINARY(16)", nullable = false)
+    @Column(name = "group_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID groupId;
 
-    @Column(name = "userId", columnDefinition = "BINARY(16)", nullable = false)
+    @Column(name = "user_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID userId; // 제안자
 
-    @Column(name = "proposalName", nullable = false, length = 255)
+    @Column(name = "proposal_name", nullable = false, length = 255)
     private String proposalName; // 제안 이름
+
+    @Column(name = "proposer_name", nullable = false, length = 100)
+    private String proposerName; // 제안자 닉네임
 
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 50)
@@ -50,13 +53,13 @@ public class Proposal {
     @Column(name = "status", nullable = false, length = 20)
     private ProposalStatus status; // OPEN, APPROVED, REJECTED
 
-    @Column(name = "openAt", nullable = false)
+    @Column(name = "open_at", nullable = false)
     private LocalDateTime openAt; // 제안 시작 시간
 
-    @Column(name = "closeAt")
+    @Column(name = "close_at")
     private LocalDateTime closeAt; // 제안 종료 시간
 
-    @Column(name = "createdAt", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
@@ -73,13 +76,14 @@ public class Proposal {
     /**
      * 정적 팩토리 메서드 - Proposal 생성
      */
-    public static Proposal create(UUID groupId, UUID userId, String proposalName, 
+    public static Proposal create(UUID groupId, UUID userId, String proposalName, String proposerName,
                                    ProposalCategory category, ProposalAction action, 
                                    String payload, LocalDateTime closeAt) {
         Proposal proposal = new Proposal();
         proposal.groupId = groupId;
         proposal.userId = userId;
         proposal.proposalName = proposalName;
+        proposal.proposerName = proposerName;
         proposal.category = category;
         proposal.action = action;
         proposal.payload = payload;
