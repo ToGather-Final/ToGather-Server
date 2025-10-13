@@ -58,28 +58,6 @@ public class Order {
     }
 
     public enum Status {
-        PENDING, FILLED, CANCELLED, COMPLETED
-    }
-
-    // 주문이 매수인지 확인
-    public boolean isBuy() {
-        return orderType == OrderType.BUY;
-    }
-
-    // 주문이 매도인지 확인
-    public boolean isSell() {
-        return orderType == OrderType.SELL;
-    }
-
-    // 주식 코드 반환 (임시로 하드코딩, 실제로는 Stock 엔티티와 조인 필요)
-    public String getStockCode() {
-        // TODO: 실제로는 Stock 엔티티와 조인하여 stockCode 반환
-        return "005930"; // 임시로 삼성전자 코드 반환
-    }
-
-    // 주식명 반환 (임시로 하드코딩, 실제로는 Stock 엔티티와 조인 필요)
-    public String getStockName() {
-        // TODO: 실제로는 Stock 엔티티와 조인하여 stockName 반환
-        return "삼성전자"; // 임시로 삼성전자명 반환
+        PENDING, FILLED, CANCELLED
     }
 }
