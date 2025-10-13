@@ -6,3 +6,9 @@ spring:
     name: trading-service
   profiles:
     include: common
+  data:
+    redis:
+      host: ${app.redis.host}
+      port: ${app.redis.port}
+      username: ${app.redis.username}
+      password: ${app.redis.password}

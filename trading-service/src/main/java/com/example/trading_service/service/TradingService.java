@@ -2,7 +2,6 @@ package com.example.trading_service.service;
 
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.*;
-import com.example.trading_service.exception.*;
 import com.example.trading_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,28 +52,25 @@ public class TradingService {
 
     // 주식 매수
     public void buyStock(UUID userId, BuyRequest request) {
-        // 1️⃣ 투자 계좌 조회
+        // 투자 계좌 조회
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
-        // 2️⃣ 주식 정보 조회 및 검증
+        // 주식 정보 조회
         Stock stock = stockRepository.findById(request.getStockId())
-                .orElseThrow(() -> new InvalidOrderException("존재하지 않는 주식입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다."));
         
         if (!stock.isEnabled()) {
-            throw new InvalidOrderException("거래가 정지된 주식입니다: " + stock.getStockName() + "(" + stock.getStockCode() + ")");
+            throw new IllegalArgumentException("거래가 중단된 종목입니다.");
         }
 
-        // 3️⃣ 주문 수량 및 가격 검증
-        validateBuyOrder(request);
-
-        // 4️⃣ 잔고 확인
+        // 잔고 확인
         BalanceCache balance = balanceCacheRepository.findByInvestmentAccountId(account.getInvestmentAccountId())
-                .orElseThrow(() -> new InvalidOrderException("잔고 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
 
-        long totalAmount = (long) (request.getPrice() * request.getQuantity());
+        float totalAmount = request.getPrice() * request.getQuantity();
         
         if (balance.getBalance() < totalAmount) {
-            throw new InsufficientBalanceException(totalAmount, balance.getBalance());
+            throw new IllegalArgumentException("잔고가 부족합니다. 필요: " + totalAmount + ", 보유: " + balance.getBalance());
         }
 
         // 주문 생성
@@ -99,27 +95,16 @@ public class TradingService {
 
     // 주식 매도
     public void sellStock(UUID userId, SellRequest request) {
-        // 1️⃣ 투자 계좌 조회
+        // 투자 계좌 조회
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
-        // 2️⃣ 주식 정보 조회 및 검증
-        Stock stock = stockRepository.findById(request.getStockId())
-                .orElseThrow(() -> new InvalidOrderException("존재하지 않는 주식입니다."));
-        
-        if (!stock.isEnabled()) {
-            throw new InvalidOrderException("거래가 정지된 주식입니다: " + stock.getStockName() + "(" + stock.getStockCode() + ")");
-        }
-
-        // 3️⃣ 주문 수량 및 가격 검증
-        validateSellOrder(request);
-
-        // 4️⃣ 보유 종목 확인
+        // 보유 종목 확인
         HoldingCache holding = holdingCacheRepository
                 .findByInvestmentAccountIdAndStockId(account.getInvestmentAccountId(), request.getStockId())
-                .orElseThrow(() -> new InsufficientStockException(stock.getStockName(), request.getQuantity(), 0));
+                .orElseThrow(() -> new IllegalArgumentException("보유하지 않은 종목입니다."));
 
         if (holding.getQuantity() < request.getQuantity()) {
-            throw new InsufficientStockException(stock.getStockName(), request.getQuantity(), holding.getQuantity());
+            throw new IllegalArgumentException("보유 수량이 부족합니다. 보유: " + holding.getQuantity() + ", 매도 요청: " + request.getQuantity());
         }
 
         // 주문 생성
@@ -250,14 +235,10 @@ public class TradingService {
     // 체결 처리
     private void executeTrade(Order order, float executionPrice) {
         // 체결 기록 생성
-        Trade trade = Trade.builder()
-                .orderId(order.getOrderId())
-                .stockCode(order.getStockCode())
-                .stockName(order.getStockName())
-                .quantity(order.getQuantity())
-                .price(executionPrice)
-                .tradeType(order.getOrderType())
-                .build();
+        Trade trade = new Trade();
+        trade.setOrderId(order.getOrderId());
+        trade.setQuantity(order.getQuantity());
+        trade.setPrice(executionPrice);
         tradeRepository.save(trade);
 
         // 주문 상태 업데이트
@@ -508,162 +489,5 @@ public class TradingService {
                 order.getCreatedAt(),
                 order.getUpdatedAt()
         );
-    }
-
-    /**
-     * 주문을 체결 처리하는 메서드
-     * @param order 체결할 주문
-     * @param executedPrice 체결가
-     */
-    @Transactional
-    public void executeOrder(Order order, long executedPrice) {
-        // 1️⃣ Trade 생성
-        Trade trade = Trade.builder()
-                .orderId(order.getOrderId())
-                .stockCode(order.getStockCode())
-                .stockName(order.getStockName())
-                .quantity(order.getQuantity())
-                .price(executedPrice)
-                .tradeType(order.getOrderType())
-                .build();
-        tradeRepository.save(trade);
-
-        // 2️⃣ BalanceCache 업데이트
-        updateBalanceCache(order, executedPrice);
-
-        // 3️⃣ HoldingCache 업데이트
-        updateHoldingCache(order, executedPrice);
-
-        System.out.printf("✅ 체결 완료 → %s (%s) %d주 @ %d원\n",
-                order.getStockName(), order.getStockCode(),
-                (int) order.getQuantity(), executedPrice);
-    }
-
-    /**
-     * BalanceCache 업데이트 로직
-     */
-    private void updateBalanceCache(Order order, long executedPrice) {
-        BalanceCache balance = balanceCacheRepository
-                .findByInvestmentAccountId(order.getInvestmentAccountId())
-                .orElseThrow(() -> new InvalidOrderException("잔고 정보를 찾을 수 없습니다."));
-
-        long totalAmount = (long) (executedPrice * order.getQuantity());
-
-        if (order.isBuy()) {
-            // 매수 시 잔고 부족 체크
-            if (balance.getBalance() < totalAmount) {
-                throw new InsufficientBalanceException(totalAmount, balance.getBalance());
-            }
-            balance.setBalance(balance.getBalance() - (int) totalAmount);
-            System.out.printf("📉 잔액 차감: -%d원 (잔액: %d원)\n", totalAmount, balance.getBalance());
-        } else {
-            balance.setBalance(balance.getBalance() + (int) totalAmount);
-            System.out.printf("📈 잔액 증가: +%d원 (잔액: %d원)\n", totalAmount, balance.getBalance());
-        }
-        balanceCacheRepository.save(balance);
-    }
-
-    /**
-     * HoldingCache 업데이트 로직
-     */
-    private void updateHoldingCache(Order order, long executedPrice) {
-        // Stock 정보 조회
-        Stock stock = stockRepository.findById(order.getStockId())
-                .orElseThrow(() -> new RuntimeException("Stock not found"));
-
-        HoldingCache holding = holdingCacheRepository
-                .findByInvestmentAccountIdAndStockId(order.getInvestmentAccountId(), order.getStockId())
-                .orElse(null);
-
-        if (order.isBuy()) {
-            // 매수: 보유 수량 증가
-            if (holding == null) {
-                // 새로운 보유 종목 생성
-                holding = new HoldingCache();
-                holding.setInvestmentAccountId(order.getInvestmentAccountId());
-                holding.setStockId(order.getStockId());
-                holding.setQuantity((int) order.getQuantity());
-                holding.setAvgCost(executedPrice);
-                System.out.printf("📈 신규 보유: %s %d주 (평균단가: %d원)\n", 
-                    stock.getStockName(), (int) order.getQuantity(), executedPrice);
-            } else {
-                // 기존 보유 종목 수량 증가 및 평균단가 재계산
-                int newQuantity = holding.getQuantity() + (int) order.getQuantity();
-                float newAvgCost = ((holding.getAvgCost() * holding.getQuantity()) + 
-                                   (executedPrice * order.getQuantity())) / newQuantity;
-                
-                holding.setQuantity(newQuantity);
-                holding.setAvgCost(newAvgCost);
-                System.out.printf("📈 보유 수량 증가: %s +%d주 (총 %d주, 평균단가: %.0f원)\n", 
-                    stock.getStockName(), (int) order.getQuantity(), newQuantity, newAvgCost);
-            }
-        } else {
-            // 매도: 보유 수량 감소
-            if (holding == null || holding.getQuantity() < order.getQuantity()) {
-                throw new InsufficientStockException(stock.getStockName(), (int) order.getQuantity(), 
-                    holding != null ? holding.getQuantity() : 0);
-            }
-            
-            int newQuantity = holding.getQuantity() - (int) order.getQuantity();
-            holding.setQuantity(newQuantity);
-            
-            if (newQuantity == 0) {
-                holdingCacheRepository.delete(holding);
-                System.out.printf("📉 보유 종목 완전 매도: %s %d주\n", 
-                    stock.getStockName(), (int) order.getQuantity());
-                return;
-            } else {
-                System.out.printf("📉 보유 수량 감소: %s -%d주 (잔여 %d주)\n", 
-                    stock.getStockName(), (int) order.getQuantity(), newQuantity);
-            }
-        }
-
-        holdingCacheRepository.save(holding);
-    }
-
-    /**
-     * 매수 주문 검증
-     */
-    private void validateBuyOrder(BuyRequest request) {
-        if (request.getQuantity() <= 0) {
-            throw new InvalidOrderException("주문 수량은 0보다 커야 합니다.");
-        }
-
-        if (request.getPrice() <= 0) {
-            throw new InvalidOrderException("주문 가격은 0보다 커야 합니다.");
-        }
-
-        // 수량이 너무 큰 경우 (예: 1억주 이상)
-        if (request.getQuantity() > 100_000_000) {
-            throw new InvalidOrderException("주문 수량이 너무 큽니다. (최대 1억주)");
-        }
-
-        // 가격이 너무 높은 경우 (예: 1억원 이상)
-        if (request.getPrice() > 100_000_000) {
-            throw new InvalidOrderException("주문 가격이 너무 높습니다. (최대 1억원)");
-        }
-    }
-
-    /**
-     * 매도 주문 검증
-     */
-    private void validateSellOrder(SellRequest request) {
-        if (request.getQuantity() <= 0) {
-            throw new InvalidOrderException("주문 수량은 0보다 커야 합니다.");
-        }
-
-        if (request.getPrice() <= 0) {
-            throw new InvalidOrderException("주문 가격은 0보다 커야 합니다.");
-        }
-
-        // 수량이 너무 큰 경우
-        if (request.getQuantity() > 100_000_000) {
-            throw new InvalidOrderException("주문 수량이 너무 큽니다. (최대 1억주)");
-        }
-
-        // 가격이 너무 높은 경우
-        if (request.getPrice() > 100_000_000) {
-            throw new InvalidOrderException("주문 가격이 너무 높습니다. (최대 1억원)");
-        }
     }
 }
