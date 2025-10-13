@@ -32,7 +32,7 @@ public class QrService {
     private final AccountRepository accountRepository;
     private final PaymentSessionService paymentSessionService;
 
-    @Value("${pay.qr.secret-key}")
+    @Value("${app.pay.qr.secret-key}")
     private String qrSecretKey;
 
     @Transactional(readOnly = true)
