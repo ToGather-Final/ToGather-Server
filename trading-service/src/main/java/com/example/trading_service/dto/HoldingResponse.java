@@ -7,16 +7,17 @@ import java.util.UUID;
 
 @Getter
 @AllArgsConstructor
-public class StockResponse {
+public class HoldingResponse {
+    private UUID holdingId;
     private UUID stockId;
     private String stockCode;
     private String stockName;
-    private String stockImage;
-    private String country;
+    private Integer quantity;
+    private Float avgCost;
     private Float currentPrice;
-    private Float changeAmount; // 전일 대비 변동금액
-    private Float changeRate; // 전일 대비 변동률
-    private Boolean enabled;
+    private Float profit;
+    private Float evaluatedPrice;
+    private Float profitRate;
 }
 
 

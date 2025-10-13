@@ -21,9 +21,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     // 대기 중인 주문 조회 (PENDING 상태)
     @Query("SELECT o FROM Order o WHERE o.investmentAccountId = :accountId AND o.status = 'PENDING'")
     List<Order> findPendingOrdersByAccountId(@Param("accountId") UUID accountId);
-    
-    // 상태별 주문 조회
-    List<Order> findByStatus(Order.Status status);
 }
 
 
