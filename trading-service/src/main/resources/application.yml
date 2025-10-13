@@ -47,7 +47,7 @@ spring:
     activate:
       on-profile: "dev"
   datasource:
-    url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
+    url: ${app.database.url:jdbc:mysql://localhost:3307/togather_db}
     username: ${app.database.username:admin}
     password: ${app.database.password:togather1234}
   jpa:

@@ -2,7 +2,7 @@ name: Deploy ToGather Microservices to AWS EKS
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, Refactor/#63-infra/inchan ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -11,7 +11,7 @@ env:
   AWS_REGION: ap-northeast-2
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com
   EKS_CLUSTER_NAME: togather-cluster
-  EKS_NAMESPACE: togather
+  EKS_NAMESPACE: ${{ github.ref == 'refs/heads/main' && 'togather' || 'togather-refactor' }}
 
 jobs:
   build-and-deploy:
@@ -65,45 +65,75 @@ jobs:
 
     - name: Build and push Next.js Client image
       run: |
-        docker build -t $ECR_REGISTRY/togather/client:${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
-        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
-        docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
-        docker push $ECR_REGISTRY/togather/client:latest
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          docker build -t $ECR_REGISTRY/togather/client:${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
+          docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
+          docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/client:latest
+        else
+          docker build -t $ECR_REGISTRY/togather/client:refactor-${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
+          docker push $ECR_REGISTRY/togather/client:refactor-${{ github.sha }}
+        fi
 
     - name: Build and push API Gateway image
       run: |
-        docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:${{ github.sha }} .
-        docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:latest .
-        docker push $ECR_REGISTRY/togather/api-gateway:${{ github.sha }}
-        docker push $ECR_REGISTRY/togather/api-gateway:latest
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:${{ github.sha }} .
+          docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:latest .
+          docker push $ECR_REGISTRY/togather/api-gateway:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/api-gateway:latest
+        else
+          docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:refactor-${{ github.sha }} .
+          docker push $ECR_REGISTRY/togather/api-gateway:refactor-${{ github.sha }}
+        fi
 
     - name: Build and push User Service image
       run: |
-        docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:${{ github.sha }} .
-        docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:latest .
-        docker push $ECR_REGISTRY/togather/user-service:${{ github.sha }}
-        docker push $ECR_REGISTRY/togather/user-service:latest
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:${{ github.sha }} .
+          docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:latest .
+          docker push $ECR_REGISTRY/togather/user-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/user-service:latest
+        else
+          docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:refactor-${{ github.sha }} .
+          docker push $ECR_REGISTRY/togather/user-service:refactor-${{ github.sha }}
+        fi
 
     - name: Build and push Trading Service image
       run: |
-        docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:${{ github.sha }} .
-        docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:latest .
-        docker push $ECR_REGISTRY/togather/trading-service:${{ github.sha }}
-        docker push $ECR_REGISTRY/togather/trading-service:latest
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:${{ github.sha }} .
+          docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:latest .
+          docker push $ECR_REGISTRY/togather/trading-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/trading-service:latest
+        else
+          docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:refactor-${{ github.sha }} .
+          docker push $ECR_REGISTRY/togather/trading-service:refactor-${{ github.sha }}
+        fi
 
     - name: Build and push Pay Service image
       run: |
-        docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:${{ github.sha }} .
-        docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:latest .
-        docker push $ECR_REGISTRY/togather/pay-service:${{ github.sha }}
-        docker push $ECR_REGISTRY/togather/pay-service:latest
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:${{ github.sha }} .
+          docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:latest .
+          docker push $ECR_REGISTRY/togather/pay-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/pay-service:latest
+        else
+          docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:refactor-${{ github.sha }} .
+          docker push $ECR_REGISTRY/togather/pay-service:refactor-${{ github.sha }}
+        fi
 
     - name: Build and push Vote Service image
       run: |
-        docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:${{ github.sha }} .
-        docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:latest .
-        docker push $ECR_REGISTRY/togather/vote-service:${{ github.sha }}
-        docker push $ECR_REGISTRY/togather/vote-service:latest
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:${{ github.sha }} .
+          docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:latest .
+          docker push $ECR_REGISTRY/togather/vote-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/vote-service:latest
+        else
+          docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:refactor-${{ github.sha }} .
+          docker push $ECR_REGISTRY/togather/vote-service:refactor-${{ github.sha }}
+        fi
 
     - name: Install kubectl
       uses: azure/setup-kubectl@v3
@@ -115,10 +145,10 @@ jobs:
         aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
 
     - name: Deploy to EKS
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Refactor/#63-infra/inchan'
       run: |
-        # 1. 네임스페이스 생성 (없으면 생성, 있으면 넘어감)
-        kubectl apply -f k8s/namespace.yaml
+        # 1. 네임스페이스 생성 (동적으로 생성)
+        kubectl create namespace ${{ env.EKS_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
 
         # 2. Secret 생성 (모든 민감 정보를 GitHub Secrets에서 가져와 통합)
         kubectl apply -f - <<EOF
@@ -141,32 +171,44 @@ jobs:
         kubectl apply -f k8s/api-gateway-rbac.yaml -n ${{ env.EKS_NAMESPACE }}
 
         # 4. 환경변수 치환 후 나머지 모든 리소스 배포
-        # ECR_REGISTRY 환경변수를 k8s 파일들에 치환
-        envsubst < k8s/api-gateway.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
-        envsubst < k8s/user-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
-        envsubst < k8s/trading-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
-        envsubst < k8s/pay-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
-        envsubst < k8s/vote-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        # ECR_REGISTRY와 EKS_NAMESPACE 환경변수를 k8s 파일들에 치환
+        export ECR_REGISTRY=${{ env.ECR_REGISTRY }}
+        export EKS_NAMESPACE=${{ env.EKS_NAMESPACE }}
+        
+        envsubst < k8s/api-gateway.yaml | kubectl apply -f -
+        envsubst < k8s/user-service.yaml | kubectl apply -f -
+        envsubst < k8s/trading-service.yaml | kubectl apply -f -
+        envsubst < k8s/pay-service.yaml | kubectl apply -f -
+        envsubst < k8s/vote-service.yaml | kubectl apply -f -
         
         # 나머지 리소스들 (ConfigMap, Service, Ingress 등) 배포
-        kubectl apply -f k8s/configmap.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/configmap-env.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/redis.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/rabbitmq.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/ingress.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/nextjs-client.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}    
+        envsubst < k8s/configmap.yaml | kubectl apply -f -
+        envsubst < k8s/configmap-env.yaml | kubectl apply -f -
+        envsubst < k8s/redis.yaml | kubectl apply -f -
+        envsubst < k8s/rabbitmq.yaml | kubectl apply -f -
+        envsubst < k8s/ingress.yaml | kubectl apply -f -
+        envsubst < k8s/nextjs-client.yaml | kubectl apply -f -
+        envsubst < k8s/hpa.yaml | kubectl apply -f -    
 
-        # 5. 각 디플로이먼트에 커밋 SHA 이미지 설정 (롤아웃 트리거)
-        kubectl set image deployment/api-gateway api-gateway=${{ env.ECR_REGISTRY }}/togather/api-gateway:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
-        kubectl set image deployment/user-service user-service=${{ env.ECR_REGISTRY }}/togather/user-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
-        kubectl set image deployment/trading-service trading-service=${{ env.ECR_REGISTRY }}/togather/trading-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
-        kubectl set image deployment/pay-service pay-service=${{ env.ECR_REGISTRY }}/togather/pay-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
-        kubectl set image deployment/vote-service vote-service=${{ env.ECR_REGISTRY }}/togather/vote-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
-        kubectl set image deployment/nextjs-client nextjs-client=${{ env.ECR_REGISTRY }}/togather/client:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+        # 5. 각 디플로이먼트에 브랜치별 이미지 설정 (롤아웃 트리거)
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          kubectl set image deployment/api-gateway api-gateway=${{ env.ECR_REGISTRY }}/togather/api-gateway:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/user-service user-service=${{ env.ECR_REGISTRY }}/togather/user-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/trading-service trading-service=${{ env.ECR_REGISTRY }}/togather/trading-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/pay-service pay-service=${{ env.ECR_REGISTRY }}/togather/pay-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/vote-service vote-service=${{ env.ECR_REGISTRY }}/togather/vote-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/nextjs-client nextjs-client=${{ env.ECR_REGISTRY }}/togather/client:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+        else
+          kubectl set image deployment/api-gateway api-gateway=${{ env.ECR_REGISTRY }}/togather/api-gateway:refactor-${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/user-service user-service=${{ env.ECR_REGISTRY }}/togather/user-service:refactor-${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/trading-service trading-service=${{ env.ECR_REGISTRY }}/togather/trading-service:refactor-${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/pay-service pay-service=${{ env.ECR_REGISTRY }}/togather/pay-service:refactor-${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/vote-service vote-service=${{ env.ECR_REGISTRY }}/togather/vote-service:refactor-${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          kubectl set image deployment/nextjs-client nextjs-client=${{ env.ECR_REGISTRY }}/togather/client:refactor-${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+        fi
 
     - name: Wait for deployment to complete
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Refactor/#63-infra/inchan'
       run: |
         kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=600s
         kubectl rollout status deployment/user-service -n ${{ env.EKS_NAMESPACE }} --timeout=600s
@@ -177,7 +219,7 @@ jobs:
         kubectl rollout status deployment/redis -n ${{ env.EKS_NAMESPACE }} --timeout=600s
 
     - name: Verify deployment
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Refactor/#63-infra/inchan'
       run: |
         kubectl get pods -n ${{ env.EKS_NAMESPACE }}
         kubectl get services -n ${{ env.EKS_NAMESPACE }}
