@@ -57,4 +57,16 @@ public class JwtUtil {
             return false;
         }
     }
+
+    /**
+     * JWT 토큰 검증 후 사용자 ID 반환
+     * - 토큰이 유효하면 userId 반환
+     * - 토큰이 유효하지 않으면 예외 발생
+     */
+    public UUID verifyAndGetUserId(String token) {
+        if (!validateToken(token)) {
+            throw new IllegalArgumentException("유효하지 않은 JWT 토큰입니다.");
+        }
+        return getUserIdFromToken(token);
+    }
 }

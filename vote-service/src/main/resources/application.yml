@@ -1,13 +1,18 @@
 server:
-  port: 8083
+  port: 8082
 
 spring:
   application:
     name: vote-service
   datasource:
-    url: jdbc:mysql://localhost:3307/togather_db
-    username: admin
-    password: togather1234
+    url: ${app.database.url}
+    username: ${app.database.username}
+    password: ${app.database.password}
+  data:
+    redis:
+      host: ${app.redis.host}
+      port: ${app.redis.port}
+      password: ${app.redis.password}
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,12 +21,8 @@ spring:
         format_sql: true
     show-sql: true
 
-# 외부 서비스 URL 설정
 user-service:
   url: ${USER_SERVICE_URL:http://localhost:8080}
 
 jwt:
-  issuer: togather
-  access-exp-seconds: 1800
-  refresh-exp-days: 7
   secret: ${JWT_SECRET:change-this-secret-to-256bit-string}

@@ -9,9 +9,9 @@ import java.util.UUID;
 
 /**
  * 제안 생성 요청 DTO
+ * - groupId는 백엔드에서 사용자의 그룹을 자동으로 조회하여 설정
  */
 public record ProposalCreateRequest(
-        @NotNull UUID groupId,
         @NotBlank String proposalName,
         @NotNull ProposalCategory category,
         @NotNull ProposalAction action,

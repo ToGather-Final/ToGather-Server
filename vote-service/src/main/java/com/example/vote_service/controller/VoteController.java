@@ -29,16 +29,18 @@ public class VoteController {
 
     /**
      * GET /vote - 투표 목록 조회 (전체/예매/페이)
-     * view 파라미터로 필터링 (view=TRADE, view=PAY 등)
+     * - 사용자의 그룹을 자동으로 조회하여 해당 그룹의 투표 목록 반환
+     * - view 파라미터로 필터링 (view=TRADE, view=PAY 등)
      */
     @GetMapping
     public ResponseEntity<List<ProposalResponse>> getProposals(
             @RequestParam(required = false) String view,
-            @RequestParam UUID groupId,
             Authentication authentication) {
         
         UUID userId = (UUID) authentication.getPrincipal();
         
+        // 사용자의 그룹 ID 자동 조회
+        UUID groupId = proposalService.getUserGroupId(userId);
         List<Proposal> proposals = proposalService.getProposalsByGroup(groupId);
         
         // view 파라미터로 필터링

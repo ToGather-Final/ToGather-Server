@@ -29,12 +29,13 @@ public class ProposalService {
 
     /**
      * 제안 생성
+     * - 사용자의 그룹을 자동으로 조회하여 제안 생성
      * TODO: GroupRule에서 voteDurationHours를 가져와 closeAt 설정
      */
     @Transactional
     public UUID createProposal(UUID userId, ProposalCreateRequest request) {
-        // 1. 그룹 멤버인지 검증
-        validateGroupMembership(userId, request.groupId());
+        // 1. 사용자의 그룹 ID 조회
+        UUID groupId = getUserGroupId(userId);
         
         // 2. 사용자 닉네임 조회
         String proposerName = userServiceClient.getUserNickname(userId);
@@ -44,7 +45,7 @@ public class ProposalService {
         LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
         
         Proposal proposal = Proposal.create(
-                request.groupId(),
+                groupId,
                 userId,
                 request.proposalName(),
                 proposerName,
@@ -118,6 +119,20 @@ public class ProposalService {
         if (!proposal.getGroupId().equals(groupId)) {
             throw new IllegalArgumentException("제안이 해당 그룹에 속하지 않습니다.");
         }
+    }
+
+    /**
+     * 사용자의 그룹 ID 조회
+     * - ERD의 GroupMembers 테이블을 통해 사용자가 속한 그룹 조회
+     * - 사용자는 하나의 그룹에만 속한다고 가정
+     * 
+     * @param userId 사용자 ID
+     * @return 사용자가 속한 그룹 ID
+     * @throws IllegalArgumentException 그룹에 속하지 않은 경우
+     */
+    public UUID getUserGroupId(UUID userId) {
+        return groupMembersRepository.findFirstGroupIdByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자가 속한 그룹이 없습니다."));
     }
 
     /**
