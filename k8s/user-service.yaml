@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: user-service
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
   labels:
     app: user-service
 spec:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/user-service:latest
+        image: ${ECR_REGISTRY}/togather/user-service:latest
         ports:
         - containerPort: 8080
         env:
@@ -54,7 +54,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: user-service
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   selector:
     app: user-service

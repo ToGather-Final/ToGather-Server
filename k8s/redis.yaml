@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim # 영구 저장 공간, Pod가 사라져도 데이터가 보존될 디스크 공간(AWS EBS 볼륨)을 요청합니다.
 metadata:
   name: redis-pvc
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   accessModes:
     - ReadWriteOnce # 하나의 노드에서만 마운트
@@ -17,7 +17,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   replicas: 1
   selector:
@@ -76,7 +76,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   selector:
     app: redis

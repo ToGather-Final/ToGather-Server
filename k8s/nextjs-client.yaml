@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nextjs-client
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   replicas: 1
   selector:
@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: nextjs-client
-          image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/client:latest
+          image: ${ECR_REGISTRY}/togather/client:latest
           ports:
             - containerPort: 3000
 ---
@@ -23,7 +23,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nextjs-client
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   selector:
     app: nextjs-client

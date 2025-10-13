@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vote-service
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
   labels:
     app: vote-service
 spec:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: vote-service
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/vote-service:latest
+        image: ${ECR_REGISTRY}/togather/vote-service:latest
         ports:
         - containerPort: 8080
         env:
@@ -64,7 +64,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: vote-service
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   selector:
     app: vote-service

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: trading-service
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
   labels:
     app: trading-service
 spec:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: trading-service
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/trading-service:latest
+        image: ${ECR_REGISTRY}/togather/trading-service:latest
         ports:
         - containerPort: 8080
         env:
@@ -54,7 +54,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: trading-service
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   selector:
     app: trading-service

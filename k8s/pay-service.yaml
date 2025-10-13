@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pay-service
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
   labels:
     app: pay-service
 spec:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: pay-service
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/pay-service:latest
+        image: ${ECR_REGISTRY}/togather/pay-service:latest
         ports:
         - containerPort: 8080
         env:
@@ -54,7 +54,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pay-service
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 spec:
   selector:
     app: pay-service

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: togather-db-config
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 data:
   SPRING_DATASOURCE_URL: "jdbc:mysql://togather-database.cxs46swiy72b.ap-northeast-2.rds.amazonaws.com:3306/togather_db"
 
@@ -12,7 +12,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: togather-config
-  namespace: togather
+  namespace: ${EKS_NAMESPACE}
 data:
   SPRING_RABBITMQ_HOST: "rabbitmq"
   SPRING_DATA_REDIS_HOST: "redis"
