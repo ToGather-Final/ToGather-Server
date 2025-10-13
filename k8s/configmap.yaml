@@ -4,6 +4,7 @@ metadata:
   name: togather-db-config
   namespace: togather
 data:
+  DB_URL: "jdbc:mysql://togather-database.cxs46swiy72b.ap-northeast-2.rds.amazonaws.com:3306/togather_db"
   SPRING_DATASOURCE_URL: "jdbc:mysql://togather-database.cxs46swiy72b.ap-northeast-2.rds.amazonaws.com:3306/togather_db"
 
 ---

@@ -62,10 +62,22 @@ spring:
       on-profile: "main"
   datasource:
     # url, username, password는 K8s ConfigMap/Secret으로 주입
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
     hibernate:
       ddl-auto: update # main에서는 보통 validate 또는 none 사용
+    show-sql: false
+  # Redis와 RabbitMQ 설정은 module-common에서 상속받음
+  logging:
+    level:
+      com.example.pay_service: INFO
 
 server:
   port: 8080

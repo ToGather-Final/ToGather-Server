@@ -6,15 +6,6 @@ spring:
     name: trading-service
   profiles:
     include: common  # module-common의 설정 포함
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: always
-
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -27,6 +18,14 @@ management:
         format_sql: true
   # Redis와 RabbitMQ 설정은 module-common에서 상속받음
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
 
 # JWT 설정 키를 'secret-key'로 통일합니다.
 jwt:

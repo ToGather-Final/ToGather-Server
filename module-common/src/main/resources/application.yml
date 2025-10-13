@@ -9,14 +9,14 @@ app:
     username: ${DB_USERNAME:admin}
     password: ${DB_PASSWORD:togather1234}
   redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:togather1234}
+    host: ${SPRING_DATA_REDIS_HOST:localhost}
+    port: ${SPRING_DATA_REDIS_PORT:6379}
+    password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
   jwt:
     secret: ${JWT_SECRET_KEY:TogatherSecretkey}
     issuer: ${JWT_ISSUER:togather}
@@ -38,18 +38,18 @@ spring:
   # Redis 설정 (Spring Data Redis용)
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      # password: ${REDIS_PASSWORD:togather1234}  # 비밀번호 없이 테스트
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
       timeout: 2000ms
       connect-timeout: 2000ms
   
   # RabbitMQ 설정 (Spring AMQP용)
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
     connection-timeout: 15000
     virtual-host: /
 
