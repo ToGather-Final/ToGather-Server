@@ -1,53 +1,32 @@
 server:
   port: 8083
-
 spring:
   application:
     name: pay-service
-
+  profiles:
+    include: common
   datasource:
-    url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
-    username: admin
-    password: togather1234
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
+    url: ${app.database.url}
+    username: ${app.database.username}
+    password: ${app.database.password}
+  data:
+    redis:
+      host: ${app.redis.host}
+      port: ${app.redis.port}
+      password: ${app.redis.password}
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect
     show-sql: true
+  logging:
+    level:
+      com.example.user_service: DEBUG
+      org.springframework.data.redis: DEBUG
 
-  redis:
-    host: localhost
-    port: 6379
-    timeout: 2000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-
-# Pay Service 설정
-pay:
-  demo-mode: true
-  qr:
-    secret-key: ${QR_SECRET_KEY:togather-qr-secret-key-2024}
-    token-expiry: 900 # 15분 (초)
-  session:
-    ttl: 900 # 15분 (초)
-  limits:
-    min-amount: 1
-    max-amount: 10000000 # 1천만원
-
-# JWT 설정 (user-service와 동일한 키 사용)
 jwt:
-  secret: ${JWT_SECRET:togather-jwt-secret-key-2024}
-  expiration: 86400000 # 24시간 (밀리초)
-
-logging:
-  level:
-    com.example.pay_service: DEBUG
-    org.springframework.security: DEBUG
+  secret: ${app.jwt.secret}
+  issuer: ${app.jwt.issuer:togather}
+  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
