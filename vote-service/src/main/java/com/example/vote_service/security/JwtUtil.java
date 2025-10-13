@@ -3,6 +3,7 @@ package com.example.vote_service.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +13,7 @@ import java.util.UUID;
 /**
  * JWT 토큰 처리 유틸리티
  */
+@Slf4j
 @Component
 public class JwtUtil {
 
@@ -52,8 +54,10 @@ public class JwtUtil {
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token);
+            log.debug("JWT 토큰 검증 성공");
             return true;
         } catch (Exception e) {
+            log.warn("JWT 토큰 검증 실패: {}", e.getMessage());
             return false;
         }
     }
