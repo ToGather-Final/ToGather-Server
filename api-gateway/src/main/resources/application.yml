@@ -55,3 +55,11 @@ spring:
           filters:
             - StripPrefix=1
 
+        # 송금 서비스
+        - id: transfer-service
+          uri: http://pay-service:8083
+          predicates:
+            - Path=/api/transfers/**
+          filters:
+            - StripPrefix=1
+
