@@ -47,6 +47,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
+    open-in-view: false
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
@@ -61,8 +62,6 @@ spring:
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
     connection-timeout: 15000
     virtual-host: /
-  jpa:
-    open-in-view: false
   management:
     endpoints:
       web:
