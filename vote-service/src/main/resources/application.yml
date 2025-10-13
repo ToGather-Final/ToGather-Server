@@ -1,6 +1,12 @@
 server:
-  port: 8083
-
+  port: 8080
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  override-with-generic-response: false
 spring:
   application:
     name: vote-service

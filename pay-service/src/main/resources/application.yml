@@ -1,5 +1,12 @@
 server:
   port: 8083
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  override-with-generic-response: false
 spring:
   application:
     name: pay-service

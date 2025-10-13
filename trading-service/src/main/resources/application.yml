@@ -1,6 +1,12 @@
 server:
-  port: 8080
-
+  port: 8081
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  override-with-generic-response: false
 spring:
   application:
     name: trading-service
