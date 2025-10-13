@@ -1,18 +1,14 @@
 server:
   port: 8080
+
 spring:
   application:
     name: trading-service
-
-  datasource:
-    url: jdbc:mysql://database-mysql.c5qikmwa4vnu.ap-southeast-2.rds.amazonaws.com
-    username: admin
-    password: togather1234
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        format_sql: true
-    show-sql: true
+  profiles:
+    include: common
+  data:
+    redis:
+      host: ${app.redis.host}
+      port: ${app.redis.port}
+      username: ${app.redis.username}
+      password: ${app.redis.password}
