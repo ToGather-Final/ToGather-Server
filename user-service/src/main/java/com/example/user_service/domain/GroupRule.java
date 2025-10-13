@@ -25,23 +25,27 @@ public class GroupRule {
     @Column(name = "voteQuorum", nullable = false)
     private Integer voteQuorum;
 
-    @Column(name = "voteDurationHours", nullable = false)
-    private Integer voteDurationHours;
+    @Column(name = "createdAt", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     @Column(name = "updatedAt", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist
-    @PreUpdate
-    void onWrite() {
+    void onCreate() {
+        this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
-    public static GroupRule of(UUID groupId, Integer voteQuorum, Integer voteDurationHours) {
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public static GroupRule of(UUID groupId, Integer voteQuorum) {
         GroupRule rule = new GroupRule();
         rule.groupId = groupId;
         rule.voteQuorum = voteQuorum;
-        rule.voteDurationHours = voteDurationHours;
         return rule;
     }
 }

@@ -4,6 +4,8 @@
 spring:
   application:
     name: user-service
+  profiles:
+    include: common
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -57,18 +59,21 @@ spring:
     activate:
       on-profile: "dev"
   datasource:
-    url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
-    username: ${app.database.username:admin}
-    password: ${app.database.password:togather1234}
+    url: ${app.database.url}
+    username: ${app.database.username}
+    password: ${app.database.password}
   jpa:
     hibernate:
-      ddl-auto: update # 개발 시에는 스키마 자동 변경
-    show-sql: true # SQL 쿼리 로그 활성화
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
   data:
     redis:
-      host: ${app.redis.host:localhost}
-      port: ${app.redis.port:6379}
-      password: ${app.redis.password:togather1234}
+      host: ${app.redis.host}
+      port: ${app.redis.port}
+      password: ${app.redis.password}
   rabbitmq:
     host: ${app.rabbitmq.host:localhost}
     port: ${app.rabbitmq.port:5672}
@@ -77,11 +82,12 @@ spring:
   logging:
     level:
       com.example.user_service: DEBUG
+      org.springframework.data.redis: DEBUG
 
 jwt:
-  secret: ${app.jwt.secret:TogatherSecretkey}
+  secret: ${app.jwt.secret}
+  issuer: ${app.jwt.issuer:togather}
   access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
-  refresh-exp-days: ${app.jwt.refresh-exp-days:7}
 
 server:
   port: 8082 # main과 다른 포트 사용
