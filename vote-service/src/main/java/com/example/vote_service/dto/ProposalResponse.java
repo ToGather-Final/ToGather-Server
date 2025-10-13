@@ -20,6 +20,7 @@ public record ProposalResponse(
         String payload,
         ProposalStatus status,
         String date,  // yyyy-MM-dd 형태 문자열
+        String closeAt,  // 투표 마감 시간 (yyyy-MM-dd HH시 mm분 형태)
         Integer agreeCount,
         Integer disagreeCount,
         VoteChoice myVote  // AGREE, DISAGREE, NEUTRAL

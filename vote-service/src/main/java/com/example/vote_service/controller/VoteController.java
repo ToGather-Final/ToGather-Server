@@ -62,6 +62,16 @@ public class VoteController {
                     // 날짜 포맷팅 (yyyy-MM-dd)
                     String date = p.getOpenAt().toLocalDate().toString();
                     
+                    // 투표 마감 시간 포맷팅 (yyyy-MM-dd HH시 mm분)
+                    String closeAt = p.getCloseAt() != null 
+                            ? String.format("%04d-%02d-%02d %02d시 %02d분",
+                                    p.getCloseAt().getYear(),
+                                    p.getCloseAt().getMonthValue(),
+                                    p.getCloseAt().getDayOfMonth(),
+                                    p.getCloseAt().getHour(),
+                                    p.getCloseAt().getMinute())
+                            : null;
+                    
                     return new ProposalResponse(
                             p.getProposalId(),
                             p.getProposalName(),
@@ -71,6 +81,7 @@ public class VoteController {
                             p.getPayload(),
                             p.getStatus(),
                             date,
+                            closeAt,
                             approveCount,
                             rejectCount,
                             myVote
