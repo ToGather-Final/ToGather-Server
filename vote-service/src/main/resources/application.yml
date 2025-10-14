@@ -134,3 +134,6 @@ jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
   access-exp-seconds: ${JWT_ACCESS_EXP:1800}
   refresh-exp-days: ${JWT_REFRESH_EXP:7}
+
+user-service:
+  url: ${USER_SERVICE_URL:http://user-service:8080}
