@@ -34,6 +34,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 주식 조회는 인증 불필요
                 .requestMatchers("/trading/stocks", "/trading/stocks/**").permitAll()
+                // Actuator 엔드포인트는 인증 불필요 (Health Check용)
+                .requestMatchers("/actuator/**").permitAll()
                 // 나머지는 인증 필요
                 .anyRequest().authenticated()
             )
