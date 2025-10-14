@@ -12,9 +12,34 @@ spring:
     name: trading-service
   profiles:
     include: common
+  datasource:
+    url: ${app.database.url}
+    username: ${app.database.username}
+    password: ${app.database.password}
   data:
     redis:
       host: ${app.redis.host}
-      port: ${app.redis.port}
       username: ${app.redis.username}
+      port: ${app.redis.port}
       password: ${app.redis.password}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+  logging:
+    level:
+      com.example.user_service: DEBUG
+      org.springframework.data.redis: DEBUG
+
+jwt:
+  secret: ${app.jwt.secret}
+  issuer: ${app.jwt.issuer:togather}
+  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
+
+kis:
+  base-url: ${app.kis.base-url:https://openapi.koreainvestment.com:9443}
+  appkey: ${app.kis.appkey:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
+  appsecret: ${app.kis.appsecret:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
