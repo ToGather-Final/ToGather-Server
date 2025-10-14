@@ -20,6 +20,10 @@ app:
     issuer: ${JWT_ISSUER:togather}
     access-exp-seconds: ${JWT_ACCESS_EXP:1800}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
+  kis:
+    base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
+    appkey: ${KIS_APPKEY:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
+    appsecret: ${KIS_APPSECRET:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
 
 spring:
   config:
@@ -107,13 +111,13 @@ spring:
 
 jwt:
   secret: ${app.jwt.secret}
-  issuer: ${app.jwt.issuer:togather}
-  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
+  issuer: ${app.jwt.issuer}
+  access-exp-seconds: ${app.jwt.access-exp-seconds}
 
 kis:
-  base-url: ${app.kis.base-url:https://openapi.koreainvestment.com:9443}
-  appkey: ${app.kis.appkey:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
-  appsecret: ${app.kis.appsecret:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
+  base-url: ${app.kis.base-url}
+  appkey: ${app.kis.appkey}
+  appsecret: ${app.kis.appsecret}
 
 server:
   port: 8081
@@ -143,11 +147,12 @@ server:
   port: 8080
 
 jwt:
-  secret: ${JWT_SECRET_KEY}
-  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
-  refresh-exp-days: ${JWT_REFRESH_EXP:7}
+  secret: ${app.jwt.secret}
+  issuer: ${app.jwt.issuer}
+  access-exp-seconds: ${app.jwt.access-exp-seconds}
+  refresh-exp-days: ${app.jwt.refresh-exp-days}
 
 kis:
-  base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
-  appkey: ${KIS_APPKEY:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
-  appsecret: ${KIS_APPSECRET:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
+  base-url: ${app.kis.base-url}
+  appkey: ${app.kis.appkey}
+  appsecret: ${app.kis.appsecret}

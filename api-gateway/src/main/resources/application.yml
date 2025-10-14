@@ -70,17 +70,14 @@ spring:
             - StripPrefix=1
     kubernetes:
       discovery:
-        enabled: true
+        enabled: false  # 로컬 개발 환경에서는 비활성화
         all-namespaces: false
       reload:
         enabled: false
       config:
         enabled: false
     loadbalancer:
-      enabled: true
-      health-check:
-        initial-delay: 0
-        interval: 1s
+      enabled: false  # 로컬 개발 환경에서는 비활성화
 
   autoconfigure:
     exclude:

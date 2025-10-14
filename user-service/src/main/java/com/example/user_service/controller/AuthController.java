@@ -28,10 +28,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
+    private final JwtUtil jwtUtil;
 
-    public AuthController(AuthService authService, RefreshTokenService refreshTokenService) {
+    public AuthController(AuthService authService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil) {
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/signup")
