@@ -21,18 +21,18 @@ public class History {
 
     @Id
     @org.hibernate.annotations.UuidGenerator
-    @Column(name = "historyId", columnDefinition = "BINARY(16)")
+    @Column(name = "history_id", columnDefinition = "BINARY(16)")
     private UUID historyId;
 
-    @Column(name = "groupId", columnDefinition = "BINARY(16)", nullable = false)
+    @Column(name = "group_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID groupId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "historyCategory", nullable = false, length = 20)
+    @Column(name = "history_category", nullable = false, length = 20)
     private HistoryCategory historyCategory;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "historyType", nullable = false, length = 30)
+    @Column(name = "history_type", nullable = false, length = 30)
     private HistoryType historyType;
 
     @Column(name = "title", nullable = false, length = 255)
@@ -44,7 +44,7 @@ public class History {
     @Column(name = "payload", columnDefinition = "JSON")
     private String payload;
 
-    @Column(name = "createdAt", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
