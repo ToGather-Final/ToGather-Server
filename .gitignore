@@ -81,6 +81,12 @@ module-common/src/main/resources/application-*.yml
 **/application-secret.yml
 **/application-private.yml
 
-# 환경변수 파일들
-.env*
-!.env.example
+# 개발환경 설정 파일 (민감한 정보 포함)
+application-dev.yml
+
+# 환경 설정 백업 파일들 (민감한 정보 포함)
+ENV_BACKUP_*.md
+ENV_BACKUP_*.txt
+ENV_BACKUP_*.json
+ENV_BACKUP_*.yaml
+ENV_BACKUP_*.yml
