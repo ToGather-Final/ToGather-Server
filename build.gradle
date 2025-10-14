@@ -1,7 +1,7 @@
 plugins {
-    id 'java'
-    id 'org.springframework.boot' version '3.5.6'
-    id 'io.spring.dependency-management' version '1.1.7'
+	id 'java'
+	id 'org.springframework.boot' version '3.5.6'
+	id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.example'
@@ -9,166 +9,167 @@ version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '17'
 
 ext {
-    set('springBootVersion', "3.5.6")
-    set('springCloudVersion', "2025.0.0")
-    set('jjwtVersion', "0.11.5")
+	set('springBootVersion', "3.5.6")
+	set('springCloudVersion', "2025.0.0")
+	set('jjwtVersion', "0.11.5")
 }
 
 dependencies {
-    implementation "org.springframework.boot:spring-boot-starter"
-    implementation "org.springframework.boot:spring-boot-starter-actuator"
-    testImplementation "org.springframework.boot:spring-boot-starter-test"
+	implementation "org.springframework.boot:spring-boot-starter"
+	implementation "org.springframework.boot:spring-boot-starter-actuator"
+	testImplementation "org.springframework.boot:spring-boot-starter-test"
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+	useJUnitPlatform()
 }
 
 allprojects {
-    repositories {
-        mavenCentral()
-    }
+	repositories {
+		mavenCentral()
+	}
 }
 
 subprojects {
-    apply plugin: 'java'
-    apply plugin: 'io.spring.dependency-management'
+	apply plugin: 'java'
+	apply plugin: 'io.spring.dependency-management'
 
-    dependencyManagement {
-        imports {
-            mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
-            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
-        }
-    }
+	dependencyManagement {
+		imports {
+			mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+			mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+		}
+	}
 
-    dependencies {
-        implementation "org.springframework.boot:spring-boot-starter-validation"
-        implementation "org.springframework.boot:spring-boot-starter-security"
-        implementation "org.springframework.boot:spring-boot-starter-actuator"
+	dependencies {
+		implementation "org.springframework.boot:spring-boot-starter-validation"
+		implementation "org.springframework.boot:spring-boot-starter-security"
+		implementation "org.springframework.boot:spring-boot-starter-actuator"
 
-        implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
-        runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
-        runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+		implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+		runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+		runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+		implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
 
-        compileOnly "org.projectlombok:lombok"
-        annotationProcessor "org.projectlombok:lombok"
+		compileOnly "org.projectlombok:lombok"
+		annotationProcessor "org.projectlombok:lombok"
 
-        testImplementation "org.springframework.boot:spring-boot-starter-test"
-        testImplementation "org.springframework.security:spring-security-test"
-        testRuntimeOnly "org.junit.platform:junit-platform-launcher"
-    }
+		testImplementation "org.springframework.boot:spring-boot-starter-test"
+		testImplementation "org.springframework.security:spring-security-test"
+		testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+	}
 
-    tasks.withType(Test) {
-        useJUnitPlatform()
-        testLogging {
-            events "passed", "skipped", "failed"
-            exceptionFormat "full"
-        }
-    }
+	tasks.withType(Test) {
+		useJUnitPlatform()
+		testLogging {
+			events "passed", "skipped", "failed"
+			exceptionFormat "full"
+		}
+	}
 }
 
 project(":api-gateway") {
-    apply plugin: 'org.springframework.boot'
+	apply plugin: 'org.springframework.boot'
 
-    dependencies {
-        implementation project(':module-common')
-        implementation "org.springframework.cloud:spring-cloud-starter-gateway-server-webflux"
-        implementation "org.springframework.cloud:spring-cloud-starter-loadbalancer"
-        implementation("org.springframework.boot:spring-boot-starter-webflux") {
-            exclude group: "org.springframework.boot", module: "spring-boot-starter-web"
-        }
-        implementation "org.springframework.boot:spring-boot-starter-data-redis-reactive"
-        // api-gateway/build.gradle
-        implementation 'org.springframework.cloud:spring-cloud-starter-kubernetes-client'
-    }
+	dependencies {
+		implementation project(':module-common')
+		implementation "org.springframework.cloud:spring-cloud-starter-gateway-server-webflux"
+		implementation "org.springframework.cloud:spring-cloud-starter-loadbalancer"
+		implementation("org.springframework.boot:spring-boot-starter-webflux") {
+			exclude group: "org.springframework.boot", module: "spring-boot-starter-web"
+		}
+		implementation "org.springframework.boot:spring-boot-starter-data-redis-reactive"
+		// api-gateway/build.gradle
+		implementation 'org.springframework.cloud:spring-cloud-starter-kubernetes-client'
+	}
 }
 
 project(':module-common') {
-    apply plugin: 'org.springframework.boot'
+	apply plugin: 'org.springframework.boot'
 
-    dependencies {
-        implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    }
+	dependencies {
+		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	}
 
 }
 
 project(':user-service') {
-    apply plugin: 'org.springframework.boot'
-    
-    dependencies {
-        // module-common 의존성 추가
-        implementation project(':module-common')
-        
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-        implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-        runtimeOnly 'com.mysql:mysql-connector-j'
-        
-        // Jackson JSR310 모듈 추가 (LocalDateTime 직렬화 지원)
-        implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+	apply plugin: 'org.springframework.boot'
 
-        // ✅ Testcontainers
-        testImplementation 'org.testcontainers:testcontainers'
-        testImplementation 'org.testcontainers:mysql'
-        testImplementation 'org.testcontainers:junit-jupiter'
-    }
+	dependencies {
+		// module-common 의존성 추가
+		implementation project(':module-common')
+
+		implementation 'org.springframework.boot:spring-boot-starter-web'
+		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+		runtimeOnly 'com.mysql:mysql-connector-j'
+
+		// Jackson JSR310 모듈 추가 (LocalDateTime 직렬화 지원)
+		implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+		// ✅ Testcontainers
+		testImplementation 'org.testcontainers:testcontainers'
+		testImplementation 'org.testcontainers:mysql'
+		testImplementation 'org.testcontainers:junit-jupiter'
+	}
 }
 
 project(':vote-service') {
-    apply plugin: 'org.springframework.boot'
-    
-    dependencies {
-        // module-common 의존성 추가
-        implementation project(':module-common')
-        
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-        runtimeOnly 'com.mysql:mysql-connector-j'
+	apply plugin: 'org.springframework.boot'
 
-        // ✅ Redis (Jedis 사용)
-        implementation('org.springframework.boot:spring-boot-starter-data-redis') {
-            exclude group: 'io.lettuce', module: 'lettuce-core'
-        }
-        implementation 'redis.clients:jedis'
-    }
+	dependencies {
+		// module-common 의존성 추가
+		implementation project(':module-common')
+
+		implementation 'org.springframework.boot:spring-boot-starter-web'
+		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+		runtimeOnly 'com.mysql:mysql-connector-j'
+
+		// ✅ Redis (Jedis 사용)
+		implementation('org.springframework.boot:spring-boot-starter-data-redis') {
+			exclude group: 'io.lettuce', module: 'lettuce-core'
+		}
+		implementation 'redis.clients:jedis'
+	}
 }
 
 project(':pay-service') {
-    apply plugin: 'org.springframework.boot'
-    
-    dependencies {
-        // module-common 의존성 추가
-        implementation project(':module-common')
-        
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-        implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-        runtimeOnly 'com.mysql:mysql-connector-j'
+	apply plugin: 'org.springframework.boot'
 
-        testImplementation 'com.h2database:h2'
-    }
+	dependencies {
+		// module-common 의존성 추가
+		implementation project(':module-common')
+
+		implementation 'org.springframework.boot:spring-boot-starter-web'
+		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+		runtimeOnly 'com.mysql:mysql-connector-j'
+
+		testImplementation 'com.h2database:h2'
+	}
 }
 
 project(':trading-service') {
-    apply plugin: 'org.springframework.boot'
-    
-    dependencies {
-        // module-common 의존성 추가
-        implementation project(':module-common')
-        
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-        implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-        runtimeOnly 'com.mysql:mysql-connector-j'
+	apply plugin: 'org.springframework.boot'
 
-        testImplementation 'com.h2database:h2'
-    }
+	dependencies {
+		// module-common 의존성 추가
+		implementation project(':module-common')
+
+		implementation 'org.springframework.boot:spring-boot-starter-web'
+		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+		runtimeOnly 'com.mysql:mysql-connector-j'
+
+		testImplementation 'com.h2database:h2'
+	}
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
-    testLogging {
-        events "passed", "skipped", "failed"
-        exceptionFormat "full"
-    }
+	useJUnitPlatform()
+	testLogging {
+		events "passed", "skipped", "failed"
+		exceptionFormat "full"
+	}
 }

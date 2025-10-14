@@ -75,6 +75,13 @@ public class UserController {
         return ResponseEntity.ok(Map.of("exists", exists));
     }
 
+    @GetMapping("/{userId}/nickname")
+    public ResponseEntity<Map<String, String>> getUserNickname(@PathVariable UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        return ResponseEntity.ok(Map.of("nickname", user.getNickname()));
+    }
+
     private void validateNickname(String nickname) {
         if (nickname == null || nickname.isBlank()) {
             throw new IllegalArgumentException("닉네임을 입력하세요.");

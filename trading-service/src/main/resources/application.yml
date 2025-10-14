@@ -65,6 +65,14 @@ spring:
 jwt:
   secret-key: ${JWT_SECRET_KEY}
 
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  override-with-generic-response: false
+
 ---
 # ===============================================
 # 🌳 dev 프로파일 (개발 환경)
