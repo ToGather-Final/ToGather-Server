@@ -4,36 +4,27 @@ server:
 spring:
   application:
     name: api-gateway
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
   cloud:
+    compatibility-verifier:
+      enabled: false  # Spring Boot 3.5.6과 Spring Cloud 2024.0.0 호환성 체크 비활성화
     gateway:
       routes:
         # 사용자 서비스
         - id: user-service
-          uri: http://user-service:8082
+          uri: http://localhost:8082
           predicates:
             - Path=/api/users/**
           filters:
             - StripPrefix=1  # /api 제거
             
-        # 인증 서비스  
-        - id: auth-service
-          uri: http://user-service:8082
-          predicates:
-            - Path=/api/auth/**
-          filters:
-            - StripPrefix=1
-            
-        # 그룹 서비스
-        - id: group-service
-          uri: http://user-service:8082
-          predicates:
-            - Path=/api/groups/**
-          filters:
-            - StripPrefix=1
-            
         # 트레이딩 서비스
         - id: trading-service
-          uri: http://trading-service:8081
+          uri: http://localhost:8081
           predicates:
             - Path=/api/trading/**
           filters:
@@ -41,7 +32,7 @@ spring:
             
         # 결제 서비스
         - id: pay-service
-          uri: http://pay-service:8083
+          uri: http://localhost:8083
           predicates:
             - Path=/api/pay/**
           filters:
@@ -49,17 +40,29 @@ spring:
             
         # 투표 서비스
         - id: vote-service
-          uri: http://vote-service:8080
+          uri: http://localhost:8080
           predicates:
             - Path=/api/votes/**
           filters:
             - StripPrefix=1
-
-        # 송금 서비스
-        - id: transfer-service
-          uri: http://pay-service:8083
+            
+        # 인증 서비스  
+        - id: auth-service
+          uri: http://localhost:8082
           predicates:
-            - Path=/api/transfers/**
+            - Path=/api/auth/**
           filters:
             - StripPrefix=1
+            
+        # 그룹 서비스
+        - id: group-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/groups/**
+          filters:
+            - StripPrefix=1
+
+jwt:
+  # 로컬 테스트용 시크릿 (프로덕션에서는 환경변수로 설정)
+  secret: ${app.jwt.secret}
 
