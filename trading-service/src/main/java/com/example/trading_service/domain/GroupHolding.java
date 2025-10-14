@@ -10,8 +10,8 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "group_holding_cache")
-public class GroupHoldingCache {
+@Table(name = "group_holding")
+public class GroupHolding {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "group_holding_id", nullable = false, updatable = false)
@@ -39,10 +39,18 @@ public class GroupHoldingCache {
     @Column(name = "member_count", nullable = false)
     private int memberCount; // 그룹 멤버 수
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt; // 최초 생성일
+
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt; // 마지막 수정 시간
 
     @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
