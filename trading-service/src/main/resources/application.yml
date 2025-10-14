@@ -16,10 +16,14 @@ app:
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
   jwt:
-    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    secret: ${JWT_SECRET_KEY}
     issuer: ${JWT_ISSUER:togather}
     access-exp-seconds: ${JWT_ACCESS_EXP:1800}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
+  kis:
+    base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
+    appkey: ${KIS_APPKEY:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
+    appsecret: ${KIS_APPSECRET:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
 
 spring:
   config:
@@ -61,9 +65,7 @@ spring:
       health:
         show-details: always
 
-# JWT 설정 키를 'secret-key'로 통일합니다.
-jwt:
-  secret-key: ${JWT_SECRET_KEY}
+# JWT 설정은 위의 app.jwt에서 관리
 
 springdoc:
   api-docs:
@@ -73,36 +75,49 @@ springdoc:
     path: /swagger-ui.html
   override-with-generic-response: false
 
+server:
+  port: 8081  # trading-service 기본 포트
+
 ---
 # ===============================================
 # 🌳 dev 프로파일 (개발 환경)
 # ===============================================
 spring:
-  config:
-    activate:
-      on-profile: "dev"
+  application:
+    name: trading-service
+  profiles:
+    include: common
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
-    username: ${app.database.username:admin}
-    password: ${app.database.password:togather1234}
+    url: ${app.database.url}
+    username: ${app.database.username}
+    password: ${app.database.password}
+  data:
+    redis:
+      host: ${app.redis.host}
+      username: ${app.redis.username}
+      port: ${app.redis.port}
+      password: ${app.redis.password}
   jpa:
     hibernate:
-      ddl-auto: update # 개발 시에는 스키마 자동 변경
-    show-sql: true # SQL 로그 활성화
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
   logging:
     level:
-      com.example.trading_service: DEBUG
+      com.example.user_service: DEBUG
+      org.springframework.data.redis: DEBUG
 
 jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
-  refresh-exp-days: ${JWT_REFRESH_EXP:7}
+  secret: ${app.jwt.secret}
+  issuer: ${app.jwt.issuer}
+  access-exp-seconds: ${app.jwt.access-exp-seconds}
 
 kis:
-  base-url: ${app.kis.base-url:https://openapi.koreainvestment.com:9443}
-  appkey: ${app.kis.appkey:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
-  appsecret: ${app.kis.appsecret:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
+  base-url: ${app.kis.base-url}
+  appkey: ${app.kis.appkey}
+  appsecret: ${app.kis.appsecret}
 
 server:
   port: 8081
@@ -132,11 +147,12 @@ server:
   port: 8080
 
 jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
-  refresh-exp-days: ${JWT_REFRESH_EXP:7}
+  secret: ${app.jwt.secret}
+  issuer: ${app.jwt.issuer}
+  access-exp-seconds: ${app.jwt.access-exp-seconds}
+  refresh-exp-days: ${app.jwt.refresh-exp-days}
 
 kis:
-  base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
-  appkey: ${KIS_APPKEY:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
-  appsecret: ${KIS_APPSECRET:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
+  base-url: ${app.kis.base-url}
+  appkey: ${app.kis.appkey}
+  appsecret: ${app.kis.appsecret}

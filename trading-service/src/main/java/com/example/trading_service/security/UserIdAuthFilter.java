@@ -1,4 +1,4 @@
-package com.example.user_service.security;
+package com.example.trading_service.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,15 +19,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 @Slf4j
 @Component
-public class HeaderAuthFilter extends OncePerRequestFilter {
+public class UserIdAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         // 인증이 필요 없는 경로는 필터를 건너뜁니다
-        return path.startsWith("/auth/login") || 
-               path.startsWith("/auth/signup") || 
-               path.startsWith("/auth/refresh") ||
+        return path.startsWith("/trading/stocks") ||  // 주식 조회
                path.startsWith("/swagger-ui") || 
                path.startsWith("/v3/api-docs") ||
                path.startsWith("/actuator");
@@ -43,14 +41,19 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
         }
 
         // API Gateway에서 전달한 X-User-Id 헤더 읽기
+        log.info("=== Trading Service 요청 수신 ===");
+        log.info("경로: {}", request.getRequestURI());
+        log.info("메서드: {}", request.getMethod());
+        
         UUID userId = resolveUserIdFromHeader(request);
         if (userId != null) {
-            log.debug("인증 성공 - X-User-Id 헤더: {}", userId);
+            log.info("인증 성공 - X-User-Id 헤더: {}", userId);
             setAuthentication(userId);
         } else {
             log.warn("X-User-Id 헤더가 없습니다. 경로: {}", request.getRequestURI());
         }
-                chain.doFilter(request, response);
+        
+        chain.doFilter(request, response);
     }
 
     private UUID resolveUserIdFromHeader(HttpServletRequest request) {
@@ -72,3 +75,4 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }
+

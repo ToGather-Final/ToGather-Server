@@ -13,14 +13,21 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * API Gateway에서 검증된 X-User-Id 헤더를 읽어 인증 처리
+ * JWT 검증은 API Gateway에서 수행됨
+ */
 @Slf4j
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
-
-    public JwtAuthFilter(JwtUtil jwtUtil) {
-        this.jwtUtil = jwtUtil;
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // 인증이 필요 없는 경로는 필터를 건너뜁니다
+        return path.startsWith("/swagger-ui") || 
+               path.startsWith("/v3/api-docs") ||
+               path.startsWith("/actuator");
     }
 
     @Override
@@ -32,21 +39,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        UUID userIdFromGateway = resolveUserIdFromHeader(request);
-        if (userIdFromGateway != null) {
-            log.info("인증 성공 - X-User-Id 헤더: {}", userIdFromGateway);
-            setAuthentication(userIdFromGateway);
-            chain.doFilter(request, response);
-            return;
-        }
-
-        UUID userIdFromBearer = resolveUserIdFromBearer(request);
-        if (userIdFromBearer != null) {
-            log.info("인증 성공 - JWT 토큰: {}", userIdFromBearer);
-            setAuthentication(userIdFromBearer);
+        // API Gateway에서 전달한 X-User-Id 헤더 읽기
+        UUID userId = resolveUserIdFromHeader(request);
+        if (userId != null) {
+            log.info("인증 성공 - X-User-Id 헤더: {}", userId);
+            setAuthentication(userId);
         } else {
-            log.warn("인증 실패 - Authorization 헤더: {}", request.getHeader("Authorization"));
+            log.warn("X-User-Id 헤더가 없습니다. 경로: {}", request.getRequestURI());
         }
+        
         chain.doFilter(request, response);
     }
 
@@ -58,22 +59,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             return UUID.fromString(userIdHeader);
         } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private UUID resolveUserIdFromBearer(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header == null) {
-            return null;
-        }
-        if (!header.startsWith("Bearer ")) {
-            return null;
-        }
-        String token = header.substring(7);
-        try {
-            return jwtUtil.verifyAndGetUserId(token);
-        } catch (Exception e) {
+            log.error("잘못된 X-User-Id 형식: {}", userIdHeader);
             return null;
         }
     }

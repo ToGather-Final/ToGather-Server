@@ -16,7 +16,7 @@ app:
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
   jwt:
-    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    secret: ${JWT_SECRET_KEY}
     issuer: ${JWT_ISSUER:togather}
     access-exp-seconds: ${JWT_ACCESS_EXP:1800}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
@@ -72,8 +72,7 @@ logging:
     com.example.pay_service: DEBUG
     org.springframework.security: DEBUG
 
-jwt:
-  secret-key: ${JWT_SECRET_KEY}
+# JWT 설정은 위의 app.jwt에서 관리
 
 springdoc:
   api-docs:
@@ -82,6 +81,9 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
   override-with-generic-response: false
+
+server:
+  port: 8083  # pay-service 기본 포트
 
 ---
 # ===============================================
@@ -144,6 +146,6 @@ server:
   port: 8080
 
 jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  secret: ${JWT_SECRET_KEY}
   access-exp-seconds: ${JWT_ACCESS_EXP:1800}
   refresh-exp-days: ${JWT_REFRESH_EXP:7}

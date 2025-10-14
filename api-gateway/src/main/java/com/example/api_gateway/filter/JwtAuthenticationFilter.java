@@ -15,118 +15,106 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * API Gateway의 JWT 인증 필터
+ * - JWT 토큰을 검증하고 X-User-Id 헤더를 추가하여 하위 서비스로 전달
+ */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final JwtUtil jwtUtil;
-    private final RedisTemplate<String, Object> redisTemplate;
+
+    // 인증이 필요 없는 경로들
+    private static final List<String> EXCLUDED_PATHS = Arrays.asList(
+            "/api/auth/login",
+            "/api/auth/signup",
+            "/api/auth/refresh",
+            "/api/trading/stocks"  // 주식 조회는 인증 불필요
+    );
+
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+        log.info("=== JWT 필터 초기화 ===");
+        log.info("JWT_SECRET_KEY 환경변수: {}", System.getenv("JWT_SECRET_KEY") != null ? "설정됨" : "NULL");
+        log.info("JwtUtil 주입됨: {}", jwtUtil != null ? "성공" : "실패");
+        log.info("=====================");
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest request = exchange.getRequest();
-        String path = request.getURI().getPath();
-        String method = request.getMethod().name();
+        String path = exchange.getRequest().getURI().getPath();
         
-        log.debug("🔍 JWT Filter - Processing request: {} {}", method, path);
+        log.info("🔍 JWT 필터 실행됨 - 경로: {}", path);
+        log.info("=== API Gateway 요청 수신 ===");
+        log.info("경로: {}", path);
+        log.info("메서드: {}", exchange.getRequest().getMethod());
+        log.info("요청 URI: {}", exchange.getRequest().getURI());
+        log.info("모든 헤더: {}", exchange.getRequest().getHeaders());
+        log.info("==============================");
         
-        // 인증이 필요없는 경로들 (헬스체크, 공개 API 등)
-        if (isPublicPath(path)) {
-            log.info("✅ JWT Filter - Public path, skipping authentication: {}", path);
-            log.info("🚀 JWT Filter - Forwarding request to backend service: {} {}", method, path);
-            return chain.filter(exchange);
+        // 인증이 필요 없는 경로는 그냥 통과
+        if (isExcludedPath(path)) {
+            log.info("인증 제외 경로로 통과: {}", path);
+            return chain.filter(exchange)
+                    .doOnSuccess(result -> log.info("라우팅 성공: {}", path))
+                    .doOnError(error -> log.error("라우팅 실패: {} - {}", path, error.getMessage()));
         }
 
-        HttpHeaders headers = request.getHeaders();
-        String authorizationHeader = headers.getFirst(HttpHeaders.AUTHORIZATION);
-
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            log.warn("❌ JWT Filter - Authorization header missing or invalid for path: {}", path);
-            return handleUnauthorized(exchange, "Authorization header is missing or invalid");
+        // Authorization 헤더에서 JWT 토큰 추출
+        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        log.info("Authorization 헤더: {}", authHeader);
+        
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn("JWT 토큰이 없습니다. 경로: {}", path);
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
         }
 
-        String jwtToken = authorizationHeader.substring(7);
-        log.debug("🔑 JWT Filter - Extracted token: {}...", jwtToken.substring(0, Math.min(20, jwtToken.length())));
+        String token = authHeader.substring(7);
+        log.info("추출된 JWT 토큰: {}", token.substring(0, Math.min(20, token.length())) + "...");
 
         try {
-            // Redis에서 토큰 블랙리스트 확인 (Redis 연결 실패 시 무시)
-            try {
-                String blacklistKey = "blacklist:" + jwtToken;
-                Boolean isBlacklisted = redisTemplate.hasKey(blacklistKey);
-                
-                if (Boolean.TRUE.equals(isBlacklisted)) {
-                    log.warn("❌ JWT Filter - Token is blacklisted for path: {}", path);
-                    return handleUnauthorized(exchange, "Token has been revoked");
-                }
-            } catch (Exception redisException) {
-                log.warn("⚠️ JWT Filter - Redis connection failed, continuing without blacklist check: {}", redisException.getMessage());
-            }
+            // JWT 검증 및 사용자 ID 추출
+            UUID userId = jwtUtil.verifyAndGetUserId(token);
+            log.info("JWT 검증 성공 - UserId: {}, Path: {}", userId, path);
 
-            if (jwtUtil.validateToken(jwtToken)) {
-                Claims claims = jwtUtil.extractAllClaims(jwtToken);
-                String userId = claims.get("userId", String.class);
-                String username = claims.getSubject();
-                String email = claims.get("email", String.class);
-                String roles = claims.get("roles", String.class);
+            // X-User-Id 헤더 추가하여 하위 서비스로 전달
+            ServerHttpRequest modifiedRequest = exchange.getRequest()
+                    .mutate()
+                    .header("X-User-Id", userId.toString())
+                    .build();
 
-                log.debug("✅ JWT Filter - Token valid. User: {} (ID: {}), Email: {}, Roles: {}", 
-                         username, userId, email, roles);
+            log.info("X-User-Id 헤더 추가: {} -> {}", path, userId);
 
-                // Redis에 토큰 정보 저장 (선택적 - 세션 관리용)
-                try {
-                    if (userId != null) {
-                        String tokenKey = "user:token:" + userId;
-                        redisTemplate.opsForValue().set(tokenKey, jwtToken, 3600); // 1시간 TTL
-                    }
-                } catch (Exception redisException) {
-                    log.warn("⚠️ JWT Filter - Failed to store token in Redis: {}", redisException.getMessage());
-                }
+            ServerWebExchange modifiedExchange = exchange.mutate()
+                    .request(modifiedRequest)
+                    .build();
 
-                // JWT 정보를 헤더에 추가하여 백엔드 서비스로 전달
-                ServerHttpRequest newRequest = request.mutate()
-                        .header("X-User-Id", userId != null ? userId : "")
-                        .header("X-Username", username != null ? username : "")
-                        .header("X-Email", email != null ? email : "")
-                        .header("X-Roles", roles != null ? roles : "")
-                        .build();
+            return chain.filter(modifiedExchange)
+                    .doOnSuccess(result -> log.info("인증된 요청 라우팅 성공: {} (UserId: {})", path, userId))
+                    .doOnError(error -> log.error("인증된 요청 라우팅 실패: {} (UserId: {}) - {}", path, userId, error.getMessage()));
 
-                ServerWebExchange newExchange = exchange.mutate().request(newRequest).build();
-                log.debug("🚀 JWT Filter - Forwarding request to backend service");
-                return chain.filter(newExchange);
-            } else {
-                log.warn("❌ JWT Filter - Token validation failed for path: {}", path);
-                return handleUnauthorized(exchange, "Invalid JWT token");
-            }
         } catch (Exception e) {
-            log.error("❌ JWT Filter - JWT validation error for path {}: {}", path, e.getMessage(), e);
-            return handleUnauthorized(exchange, "JWT validation failed: " + e.getMessage());
+            log.error("JWT 검증 실패: {}", e.getMessage());
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
         }
     }
 
-    private boolean isPublicPath(String path) {
-        return path.startsWith("/actuator/health") ||
-               path.startsWith("/api/auth/login") || 
-               path.startsWith("/api/auth/register") ||
-               path.startsWith("/api/auth/signup") ||
-               path.equals("/api/health") ||
-               path.equals("/health");
-    }
-
-    private Mono<Void> handleUnauthorized(ServerWebExchange exchange, String message) {
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        exchange.getResponse().getHeaders().add("Content-Type", "application/json");
-        
-        String body = "{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}";
-        return exchange.getResponse().writeWith(
-            Mono.just(exchange.getResponse().bufferFactory().wrap(body.getBytes()))
-        );
+    /**
+     * 인증 제외 경로 확인
+     */
+    private boolean isExcludedPath(String path) {
+        return EXCLUDED_PATHS.stream().anyMatch(path::startsWith);
     }
 
     @Override
     public int getOrder() {
-        // 필터의 실행 순서, 낮은 숫자가 먼저 실행됨
-        // Spring Security 필터보다 나중에 실행되도록 1로 설정
-        return 1;
+        return -100; // 다른 필터보다 먼저 실행
     }
 }

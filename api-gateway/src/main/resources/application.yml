@@ -1,9 +1,6 @@
 server:
   port: 8000
 
-jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-
 management:
   endpoints:
     web:
@@ -19,60 +16,68 @@ management:
 spring:
   application:
     name: api-gateway
-  profiles:
-    active: dev
-  main:
-    allow-bean-definition-overriding: true
-    web-application-type: reactive
   cloud:
+    compatibility-verifier:
+      enabled: false  # Spring Boot 3.5.6과 Spring Cloud 2024.0.0 호환성 체크 비활성화
     gateway:
-      routes: #deprecated전에 server: webflux: routes: 형태로 수정해야함.
-        - id: auth-service-route
-          uri: lb://user-service
+      routes:
+        # 인증 서비스
+        - id: auth-service
+          uri: http://localhost:8082
           predicates:
             - Path=/api/auth/**
           filters:
             - StripPrefix=1
-        - id: user-service-route
-          uri: lb://user-service
+            
+        # 사용자 서비스
+        - id: user-service
+          uri: http://localhost:8082
           predicates:
-            - Path=/api/user/**
+            - Path=/api/users/**
           filters:
             - StripPrefix=1
-        - id: vote-service-route
-          uri: lb://vote-service
+            
+        # 그룹 서비스
+        - id: group-service
+          uri: http://localhost:8082
           predicates:
-            - Path=/api/vote/**
+            - Path=/api/groups/**
           filters:
             - StripPrefix=1
-        - id: trading-service-route
-          uri: lb://trading-service
+            
+        # 투표 서비스
+        - id: vote-service
+          uri: http://localhost:8080
+          predicates:
+            - Path=/api/votes/**
+          filters:
+            - StripPrefix=1
+            
+        # 트레이딩 서비스
+        - id: trading-service
+          uri: http://localhost:8081
           predicates:
             - Path=/api/trading/**
           filters:
             - StripPrefix=1
-        - id: pay-service-route
-          uri: lb://pay-service
+            
+        # 결제 서비스
+        - id: pay-service
+          uri: http://localhost:8083
           predicates:
             - Path=/api/pay/**
           filters:
             - StripPrefix=1
     kubernetes:
       discovery:
-        enabled: true
+        enabled: false  # 로컬 개발 환경에서는 비활성화
         all-namespaces: false
       reload:
         enabled: false
       config:
         enabled: false
     loadbalancer:
-      enabled: true
-      health-check:
-        initial-delay: 0
-        interval: 1s
-    compatibility-verifier:
-      enabled: false
-
+      enabled: false  # 로컬 개발 환경에서는 비활성화
 
   autoconfigure:
     exclude:
@@ -82,6 +87,8 @@ spring:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
       - org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration
       - org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
   datasource:
     url: ""
@@ -97,40 +104,8 @@ spring:
       timeout: 2000ms
       connect-timeout: 2000ms
 
-logging:
-  level:
-    root: INFO
-    org.springframework.cloud.gateway: INFO
-    org.springframework.cloud.kubernetes: INFO
-    org.springframework.cloud.loadbalancer: INFO
-    org.springframework.web.reactive: INFO
-    reactor.netty: INFO
-    com.example.api_gateway: INFO
-
----
-
-spring:
-  config:
-    activate:
-      on-profile: "dev"
-
 jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-server:
-  port: 8000
-
----
-
-spring:
-  config:
-    activate:
-      on-profile: "main"
-
-jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-
-server:
-  port: 8000
+  secret: ${JWT_SECRET_KEY}
 
 logging:
   level:
