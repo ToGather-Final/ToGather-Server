@@ -2,13 +2,10 @@ package com.example.pay_service;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.ComponentScan;
 
-
-@SpringBootApplication
-@ComponentScan(basePackages = {
-        "com.example.pay_service",
-        "com.example.module_common"
+@SpringBootApplication(scanBasePackages = {
+	"com.example.pay_service",
+	"com.example.module_common"
 })
 public class PayServiceApplication {
 

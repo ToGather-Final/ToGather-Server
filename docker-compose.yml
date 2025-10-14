@@ -1,0 +1,101 @@
+# docker-compose.yml (AWS RDS 연결 버전)
+version: '3.8'
+
+services:
+  # 1. RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - togather-network
+
+  # =======================================================
+  # 2. Spring Boot 마이크로서비스들
+  # - DB 서비스가 사라지고, 환경 변수가 RDS를 직접 가리킴
+  # =======================================================
+  user-service:
+    build:
+      context: .
+      dockerfile: ./user-service/Dockerfile
+    container_name: user-service
+    depends_on:
+      - rabbitmq
+    environment:
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    networks:
+      - togather-network
+
+  trading-service:
+    build:
+      context: .
+      dockerfile: ./trading-service/Dockerfile
+    container_name: trading-service
+    depends_on:
+      - rabbitmq
+    environment:
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    networks:
+      - togather-network
+
+  pay-service:
+    build:
+      context: .
+      dockerfile: ./pay-service/Dockerfile
+    container_name: pay-service
+    depends_on:
+      - rabbitmq
+    environment:
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    networks:
+      - togather-network
+
+  vote-service:
+    build:
+      context: .
+      dockerfile: ./vote-service/Dockerfile
+    container_name: vote-service
+    depends_on:
+      - rabbitmq
+    environment:
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    networks:
+      - togather-network
+
+  # 3. API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - user-service
+      - trading-service
+      - pay-service
+      - vote-service
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    networks:
+      - togather-network
+
+# 컨테이너 간 통신을 위한 가상 네트워크
+networks:
+  togather-network:
+    driver: bridge

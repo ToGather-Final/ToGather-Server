@@ -43,6 +43,7 @@ public class SecurityConfig{
             ex.accessDeniedHandler(restAccessDeniedHandler);
         });
         http.authorizeHttpRequests(reg -> {
+            reg.requestMatchers("/actuator/**").permitAll();
             reg.requestMatchers("/auth/**").permitAll();
             reg.requestMatchers("/users/**").permitAll();
             reg.requestMatchers("/groups/**").permitAll();
