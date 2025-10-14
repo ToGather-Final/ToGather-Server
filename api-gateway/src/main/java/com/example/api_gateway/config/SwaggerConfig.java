@@ -20,10 +20,10 @@ public class SwaggerConfig {
                         .version("1.0.0"))
                 .servers(List.of(
                         new Server().url("http://localhost:8000").description("API Gateway"),
-                        new Server().url("http://localhost:8002").description("User Service"),
                         new Server().url("http://localhost:8001").description("Trading Service"),
+                        new Server().url("http://localhost:8002").description("User Service"),
                         new Server().url("http://localhost:8003").description("Pay Service"),
-                        new Server().url("http://localhost:8000").description("Vote Service")
+                        new Server().url("http://localhost:8004").description("Vote Service")
                 ));
     }
 }
