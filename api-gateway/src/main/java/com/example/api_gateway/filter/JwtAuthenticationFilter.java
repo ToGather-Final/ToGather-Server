@@ -39,20 +39,35 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
+        log.info("=== JWT 필터 초기화 ===");
+        log.info("JWT_SECRET_KEY 환경변수: {}", System.getenv("JWT_SECRET_KEY") != null ? "설정됨" : "NULL");
+        log.info("JwtUtil 주입됨: {}", jwtUtil != null ? "성공" : "실패");
+        log.info("=====================");
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
         
+        log.info("🔍 JWT 필터 실행됨 - 경로: {}", path);
+        log.info("=== API Gateway 요청 수신 ===");
+        log.info("경로: {}", path);
+        log.info("메서드: {}", exchange.getRequest().getMethod());
+        log.info("요청 URI: {}", exchange.getRequest().getURI());
+        log.info("모든 헤더: {}", exchange.getRequest().getHeaders());
+        log.info("==============================");
+        
         // 인증이 필요 없는 경로는 그냥 통과
         if (isExcludedPath(path)) {
-            log.debug("인증 제외 경로: {}", path);
-            return chain.filter(exchange);
+            log.info("인증 제외 경로로 통과: {}", path);
+            return chain.filter(exchange)
+                    .doOnSuccess(result -> log.info("라우팅 성공: {}", path))
+                    .doOnError(error -> log.error("라우팅 실패: {} - {}", path, error.getMessage()));
         }
 
         // Authorization 헤더에서 JWT 토큰 추출
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        log.info("Authorization 헤더: {}", authHeader);
         
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.warn("JWT 토큰이 없습니다. 경로: {}", path);
@@ -61,6 +76,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         String token = authHeader.substring(7);
+        log.info("추출된 JWT 토큰: {}", token.substring(0, Math.min(20, token.length())) + "...");
 
         try {
             // JWT 검증 및 사용자 ID 추출
@@ -73,11 +89,15 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                     .header("X-User-Id", userId.toString())
                     .build();
 
+            log.info("X-User-Id 헤더 추가: {} -> {}", path, userId);
+
             ServerWebExchange modifiedExchange = exchange.mutate()
                     .request(modifiedRequest)
                     .build();
 
-            return chain.filter(modifiedExchange);
+            return chain.filter(modifiedExchange)
+                    .doOnSuccess(result -> log.info("인증된 요청 라우팅 성공: {} (UserId: {})", path, userId))
+                    .doOnError(error -> log.error("인증된 요청 라우팅 실패: {} (UserId: {}) - {}", path, userId, error.getMessage()));
 
         } catch (Exception e) {
             log.error("JWT 검증 실패: {}", e.getMessage());
