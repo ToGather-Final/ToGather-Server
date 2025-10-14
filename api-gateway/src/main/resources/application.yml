@@ -2,7 +2,7 @@ server:
   port: 8000
 
 jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  secret: ${JWT_SECRET_KEY:}
 
 management:
   endpoints:
@@ -21,6 +21,8 @@ spring:
     name: api-gateway
   profiles:
     active: dev
+  config:
+    import: optional:file:application-dev.yml
   main:
     allow-bean-definition-overriding: true
     web-application-type: reactive
@@ -115,7 +117,7 @@ spring:
       on-profile: "dev"
 
 jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  secret: ${JWT_SECRET_KEY:}
 server:
   port: 8000
 
@@ -127,7 +129,7 @@ spring:
       on-profile: "main"
 
 jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  secret: ${JWT_SECRET_KEY:}
 
 server:
   port: 8000
