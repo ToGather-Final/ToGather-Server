@@ -7,18 +7,17 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+@Slf4j
 @Component
-public class JwtAuthFilter extends OncePerRequestFilter {
+public class HeaderAuthFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
-
-    public JwtAuthFilter(JwtUtil jwtUtil) {
-        this.jwtUtil = jwtUtil;
+    public HeaderAuthFilter() {
     }
 
     @Override
@@ -30,17 +29,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        UUID userIdFromGateway = resolveUserIdFromHeader(request);
-        if (userIdFromGateway != null) {
-            setAuthentication(userIdFromGateway);
-            chain.doFilter(request, response);
-            return;
+        UUID userIdFromHeader = resolveUserIdFromHeader(request);
+        if (userIdFromHeader != null) {
+            log.info("인증 성공 - X-User-Id 헤더: {}", userIdFromHeader);
+            setAuthentication(userIdFromHeader);
+        } else {
+            log.warn("인증 실패 - X-User-Id 헤더 없음");
         }
 
-        UUID userIdFromBearer = resolveUserIdFromBearer(request);
-        if (userIdFromBearer != null) {
-            setAuthentication(userIdFromBearer);
-        }
         chain.doFilter(request, response);
     }
 
@@ -52,22 +48,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             return UUID.fromString(userIdHeader);
         } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private UUID resolveUserIdFromBearer(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header == null) {
-            return null;
-        }
-        if (!header.startsWith("Bearer ")) {
-            return null;
-        }
-        String token = header.substring(7);
-        try {
-            return jwtUtil.verifyAndGetUserId(token);
-        } catch (Exception e) {
             return null;
         }
     }
