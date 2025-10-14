@@ -37,7 +37,7 @@ public class JwtUtil {
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-            
+
             String userIdStr = claims.getSubject();
             return UUID.fromString(userIdStr);
         } catch (Exception e) {

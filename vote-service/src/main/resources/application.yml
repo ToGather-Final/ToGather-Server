@@ -1,5 +1,68 @@
-server:
-  port: 8080
+# ===============================================
+# ✅ 공통 설정 (모든 프로파일에 적용)
+# ===============================================
+app:
+  database:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/togather_db}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:togather1234}
+  redis:
+    host: ${SPRING_DATA_REDIS_HOST:localhost}
+    port: ${SPRING_DATA_REDIS_PORT:6379}
+    password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+  jwt:
+    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    issuer: ${JWT_ISSUER:togather}
+    access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+    refresh-exp-days: ${JWT_REFRESH_EXP:7}
+
+spring:
+  config:
+    import:
+      - optional:classpath:application-common.yml
+  application:
+    name: vote-service
+  datasource:
+    # 운영 환경에서는 환경 변수를 통해 주입받습니다.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+    open-in-view: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    connection-timeout: 15000
+    virtual-host: /
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics
+    endpoint:
+      health:
+        show-details: always
+jwt:
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
 springdoc:
   api-docs:
     enabled: true
@@ -7,28 +70,70 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
   override-with-generic-response: false
+---
+# ===============================================
+# 🌳 local 프로파일 (로컬 개발 환경)
+# ===============================================
 spring:
-  application:
-    name: vote-service
+  config:
+    activate:
+      on-profile: "dev"
   datasource:
-    url: ${app.database.url}
-    username: ${app.database.username}
-    password: ${app.database.password}
-  data:
-    redis:
-      host: ${app.redis.host}
-      port: ${app.redis.port}
-      password: ${app.redis.password}
+    url: ${app.database.url:jdbc:mysql://localhost:3307/togather_db}
+    username: ${app.database.username:admin}
+    password: ${app.database.password:togather1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        format_sql: true
-    show-sql: true
+      ddl-auto: update # 개발 시에는 스키마 자동 변경
+    show-sql: true # SQL 쿼리 로그 활성화
+  # Redis와 RabbitMQ 설정은 module-common에서 상속받음
+  logging:
+    level:
+      com.example.user_service: DEBUG
+
+jwt:
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 user-service:
   url: ${USER_SERVICE_URL:http://localhost:8080}
 
+server:
+  port: 8080
+
+---
+# ===============================================
+# 🚀 main 프로파일 (EKS 운영 환경)
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "main"
+  datasource:
+    # url, username, password는 k8s의 ConfigMap/Secret에서 환경 변수로 주입됨
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+  logging:
+    level:
+      com.example.vote_service: INFO
+
+server:
+  port: 8080
+
 jwt:
-  secret: ${app.jwt.secret}
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  refresh-exp-days: ${JWT_REFRESH_EXP:7}
+
+user-service:
+  url: ${USER_SERVICE_URL:http://user-service:8080}

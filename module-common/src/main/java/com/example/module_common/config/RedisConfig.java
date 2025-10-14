@@ -20,7 +20,7 @@ public class RedisConfig {
     @Value("${app.redis.port:6379}")
     private int port;
 
-    @Value("${app.redis.password:}")
+    @Value("${app.redis.password:togather1234}")
     private String password;
 
     @Bean

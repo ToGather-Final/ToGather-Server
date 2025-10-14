@@ -7,6 +7,8 @@ import com.example.user_service.dto.RegisterRequest;
 import com.example.user_service.security.JwtUtil;
 import com.example.user_service.service.AuthService;
 import com.example.user_service.service.RefreshTokenService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -33,12 +35,18 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request,
+                                         @RequestHeader("X-Device-Id") String deviceId) {
+        validateDeviceId(deviceId);
         UUID userId = authService.register(request);
         if (userId == null) {
             throw new IllegalArgumentException("등록 실패");
         }
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+
+        String accessToken = jwtUtil.issue(userId);
+        String refreshToken = refreshTokenService.issue(userId, deviceId);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(new LoginResponse(accessToken, refreshToken, userId));
     }
 
     @PostMapping("/login")

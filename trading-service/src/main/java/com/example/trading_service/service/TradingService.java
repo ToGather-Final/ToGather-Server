@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,6 +26,8 @@ public class TradingService {
     private final OrderRepository orderRepository;
     private final TradeRepository tradeRepository;
     private final StockRepository stockRepository;
+    private final StockPriceService stockPriceService;
+    private final ChartService chartService;
 
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
@@ -142,18 +145,6 @@ public class TradingService {
         log.info("예수금이 충전되었습니다. 사용자: {}, 충전 금액: {}", userId, request.getAmount());
     }
 
-    // 보유 종목 조회
-    @Transactional(readOnly = true)
-    public List<HoldingResponse> getUserHoldings(UUID userId) {
-        InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
-        List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
-        
-        return holdings.stream()
-                .map(this::convertToHoldingResponse)
-                .collect(Collectors.toList());
-    }
 
     // 계좌 잔고 조회
     @Transactional(readOnly = true)
@@ -216,13 +207,19 @@ public class TradingService {
                 .collect(Collectors.toList());
     }
 
-    // 특정 주식 상세 조회
+    // 주식 코드로 상세 정보 조회 (차트 데이터 포함)
     @Transactional(readOnly = true)
-    public StockResponse getStockDetail(UUID stockId) {
-        Stock stock = stockRepository.findById(stockId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다."));
+    public StockDetailResponse getStockDetailByCode(String stockCode) {
+        return getStockDetailByCode(stockCode, 30);
+    }
+
+    // 주식 코드로 상세 정보 조회 (차트 데이터 포함, 기간 지정)
+    @Transactional(readOnly = true)
+    public StockDetailResponse getStockDetailByCode(String stockCode, int days) {
+        Stock stock = stockRepository.findByStockCode(stockCode)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다: " + stockCode));
         
-        return convertToStockResponse(stock);
+        return convertToStockDetailResponse(stock, days);
     }
 
     // 시장가 주문 처리
@@ -319,27 +316,72 @@ public class TradingService {
         return "INV" + System.currentTimeMillis();
     }
 
-    private HoldingResponse convertToHoldingResponse(HoldingCache holding) {
-        // 실제로는 현재가를 가져와야 하지만, 여기서는 평균 단가로 대체
-        float currentPrice = holding.getAvgCost();
-        float evaluatedPrice = currentPrice * holding.getQuantity();
-        float profit = evaluatedPrice - (holding.getAvgCost() * holding.getQuantity());
-        float profitRate = (holding.getAvgCost() * holding.getQuantity()) > 0 ? 
-                (profit / (holding.getAvgCost() * holding.getQuantity())) * 100 : 0;
-
-        return new HoldingResponse(
-                holding.getHoldingId(),
-                holding.getStockId(),
-                "", // stockCode - 실제로는 Stock 테이블에서 조회 필요
-                "", // stockName - 실제로는 Stock 테이블에서 조회 필요
-                holding.getQuantity(),
-                holding.getAvgCost(),
-                currentPrice,
-                profit,
-                evaluatedPrice,
-                profitRate
-        );
+    // 실시간 주식 가격 조회
+    private float getCurrentStockPrice(String stockCode) {
+        try {
+            Map<String, Object> priceData = stockPriceService.getCurrentPrice(stockCode);
+            
+            // 한투 API 응답에서 현재가 추출
+            if (priceData != null && priceData.containsKey("output")) {
+                Map<String, Object> output = (Map<String, Object>) priceData.get("output");
+                if (output != null && output.containsKey("stck_prpr")) {
+                    String priceStr = (String) output.get("stck_prpr");
+                    return Float.parseFloat(priceStr.replace(",", ""));
+                }
+            }
+            
+            log.warn("주식 가격 정보를 가져올 수 없습니다. 종목코드: {}", stockCode);
+            return 0.0f;
+        } catch (Exception e) {
+            log.error("주식 가격 조회 중 오류 발생. 종목코드: {}, 오류: {}", stockCode, e.getMessage());
+            return 0.0f;
+        }
     }
+
+    // 주식 변동률 정보 조회
+    private Map<String, Float> getStockChangeInfo(String stockCode) {
+        try {
+            Map<String, Object> priceData = stockPriceService.getCurrentPrice(stockCode);
+            
+            if (priceData != null && priceData.containsKey("output")) {
+                Map<String, Object> output = (Map<String, Object>) priceData.get("output");
+                if (output != null) {
+                    float changeAmount = 0.0f;
+                    float changeRate = 0.0f;
+                    
+                    if (output.containsKey("prdy_vrss")) {
+                        String changeAmountStr = (String) output.get("prdy_vrss");
+                        changeAmount = Float.parseFloat(changeAmountStr.replace(",", ""));
+                    }
+                    
+                    if (output.containsKey("prdy_vrss_sign")) {
+                        String sign = (String) output.get("prdy_vrss_sign");
+                        if ("2".equals(sign)) { // 하락
+                            changeAmount = -Math.abs(changeAmount);
+                        }
+                    }
+                    
+                    if (output.containsKey("prdy_ctrt")) {
+                        String changeRateStr = (String) output.get("prdy_ctrt");
+                        changeRate = Float.parseFloat(changeRateStr.replace(",", ""));
+                        
+                        if (changeAmount < 0) {
+                            changeRate = -Math.abs(changeRate);
+                        }
+                    }
+                    
+                    return Map.of("changeAmount", changeAmount, "changeRate", changeRate);
+                }
+            }
+            
+            log.warn("주식 변동률 정보를 가져올 수 없습니다. 종목코드: {}", stockCode);
+            return Map.of("changeAmount", 0.0f, "changeRate", 0.0f);
+        } catch (Exception e) {
+            log.error("주식 변동률 조회 중 오류 발생. 종목코드: {}, 오류: {}", stockCode, e.getMessage());
+            return Map.of("changeAmount", 0.0f, "changeRate", 0.0f);
+        }
+    }
+
 
     private TradeHistoryResponse convertToTradeHistoryResponse(Trade trade) {
         // Order 정보를 가져와야 하지만, 간단히 처리
@@ -357,18 +399,126 @@ public class TradingService {
     }
 
     private StockResponse convertToStockResponse(Stock stock) {
-        // 실제로는 현재가 정보를 가져와야 하지만, 여기서는 기본값 사용
+        // 실시간 주식 가격 조회
+        float currentPrice = getCurrentStockPrice(stock.getStockCode());
+        Map<String, Float> changeInfo = getStockChangeInfo(stock.getStockCode());
+        float changeAmount = changeInfo.get("changeAmount");
+        float changeRate = changeInfo.get("changeRate");
+        
         return new StockResponse(
                 stock.getId(),
                 stock.getStockCode(),
                 stock.getStockName(),
                 stock.getStockImage(),
                 stock.getCountry().toString(),
-                0.0f, // currentPrice
-                0.0f, // changeAmount
-                0.0f, // changeRate
+                currentPrice,
+                changeAmount,
+                changeRate,
                 stock.isEnabled()
         );
+    }
+
+    // StockDetailResponse 변환 (차트 데이터 포함)
+    private StockDetailResponse convertToStockDetailResponse(Stock stock) {
+        return convertToStockDetailResponse(stock, 30);
+    }
+
+    // StockDetailResponse 변환 (차트 데이터 포함, 기간 지정)
+    private StockDetailResponse convertToStockDetailResponse(Stock stock, int days) {
+        try {
+            // 주식 상세 정보 조회
+            Map<String, Object> detailData = stockPriceService.getStockDetail(stock.getStockCode());
+            Map<String, Object> output = (Map<String, Object>) detailData.get("output");
+            
+            if (output == null) {
+                log.warn("주식 상세 정보를 가져올 수 없습니다. 종목코드: {}", stock.getStockCode());
+                return createEmptyStockDetailResponse(stock);
+            }
+            
+            // 기본 정보 추출
+            float currentPrice = parseFloat(output.get("stck_prpr"));
+            float changeAmount = parseFloat(output.get("prdy_vrss"));
+            float changeRate = parseFloat(output.get("prdy_ctrt"));
+            long volume = parseLong(output.get("acml_vol"));
+            float highPrice = parseFloat(output.get("stck_hgpr"));
+            float lowPrice = parseFloat(output.get("stck_lwpr"));
+            float openPrice = parseFloat(output.get("stck_oprc"));
+            float prevClosePrice = parseFloat(output.get("stck_sdpr"));
+            
+            // 변동 방향 결정
+            String changeDirection = "unchanged";
+            if (changeAmount > 0) {
+                changeDirection = "up";
+            } else if (changeAmount < 0) {
+                changeDirection = "down";
+            }
+            
+            // 차트 데이터 조회
+            List<ChartData> chartData = chartService.getStockChart(stock.getStockCode(), days);
+            
+            // 저항선/지지선 계산 (임시로 고가/저가 사용)
+            float resistanceLine = highPrice * 1.1f; // 고가의 110%
+            float supportLine = lowPrice * 0.9f; // 저가의 90%
+            
+            return new StockDetailResponse(
+                    stock.getId(),
+                    stock.getStockCode(),
+                    stock.getStockName(),
+                    "KOSPI", // 시장 정보
+                    currentPrice,
+                    changeAmount,
+                    changeRate,
+                    changeDirection,
+                    volume,
+                    highPrice,
+                    lowPrice,
+                    openPrice,
+                    prevClosePrice,
+                    null, // 시가총액 (추후 계산)
+                    chartData,
+                    resistanceLine,
+                    supportLine
+            );
+            
+        } catch (Exception e) {
+            log.error("주식 상세 정보 조회 중 오류 발생. 종목코드: {}, 오류: {}", stock.getStockCode(), e.getMessage());
+            return createEmptyStockDetailResponse(stock);
+        }
+    }
+
+
+    // 빈 StockDetailResponse 생성
+    private StockDetailResponse createEmptyStockDetailResponse(Stock stock) {
+        return new StockDetailResponse(
+                stock.getId(),
+                stock.getStockCode(),
+                stock.getStockName(),
+                "KOSPI",
+                0.0f, 0.0f, 0.0f, "unchanged",
+                0L, 0.0f, 0.0f, 0.0f, 0.0f, null,
+                List.of(), 0.0f, 0.0f
+        );
+    }
+
+    // 유틸리티 메서드들
+    private float parseFloat(Object value) {
+        if (value == null) return 0.0f;
+        try {
+            String str = value.toString().replace(",", "");
+            return Float.parseFloat(str);
+        } catch (Exception e) {
+            return 0.0f;
+        }
+    }
+
+    private long parseLong(Object value) {
+        if (value == null) return 0L;
+        try {
+            String str = value.toString().replace(",", "");
+            return Long.parseLong(str);
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     // 대기 중인 주문 조회
@@ -435,44 +585,6 @@ public class TradingService {
                 .collect(Collectors.toList());
     }
 
-    // 포트폴리오 요약 정보 조회
-    @Transactional(readOnly = true)
-    public PortfolioSummaryResponse getPortfolioSummary(UUID userId) {
-        InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
-        List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
-        
-        float totalInvested = 0;
-        float totalValue = 0;
-        
-        for (HoldingCache holding : holdings) {
-            totalInvested += holding.getAvgCost() * holding.getQuantity();
-            totalValue += holding.getEvaluatedPrice() != null ? holding.getEvaluatedPrice() : 0;
-        }
-        
-        float totalProfit = totalValue - totalInvested;
-        float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-        
-        // 상위 5개 보유 종목
-        List<HoldingResponse> topHoldings = holdings.stream()
-                .sorted((h1, h2) -> Float.compare(
-                    (h2.getEvaluatedPrice() != null ? h2.getEvaluatedPrice() : 0),
-                    (h1.getEvaluatedPrice() != null ? h1.getEvaluatedPrice() : 0)
-                ))
-                .limit(5)
-                .map(this::convertToHoldingResponse)
-                .collect(Collectors.toList());
-        
-        return new PortfolioSummaryResponse(
-                totalInvested,
-                totalValue,
-                totalProfit,
-                totalProfitRate,
-                holdings.size(),
-                topHoldings
-        );
-    }
 
     // OrderResponse 변환
     private OrderResponse convertToOrderResponse(Order order) {

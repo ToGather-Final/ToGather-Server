@@ -1,10 +1,13 @@
 package com.example.api_gateway.filter;
 
 import com.example.api_gateway.util.JwtUtil;
+import io.jsonwebtoken.Claims;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -95,4 +98,3 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return -100; // 다른 필터보다 먼저 실행
     }
 }
-

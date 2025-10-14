@@ -1,5 +1,80 @@
-server:
-  port: 8083
+# ===============================================
+# ✅ (1) 공통 프로파일: 모든 환경에 공통으로 적용
+# ===============================================
+app:
+  database:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/togather_db}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:togather1234}
+  redis:
+    host: ${SPRING_DATA_REDIS_HOST:localhost}
+    port: ${SPRING_DATA_REDIS_PORT:6379}
+    password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+  jwt:
+    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    issuer: ${JWT_ISSUER:togather}
+    access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+    refresh-exp-days: ${JWT_REFRESH_EXP:7}
+  pay:
+    qr:
+      secret-key: ${PAY_QR_SECRET_KEY:default-secret-key-12345}
+
+# ===============================================
+# Spring Boot 공통 설정
+# ===============================================
+spring:
+  config:
+    import:
+      - optional:classpath:application-common.yml
+  application:
+    name: pay-service
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+    open-in-view: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    connection-timeout: 15000
+    virtual-host: /
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics
+    endpoint:
+      health:
+        show-details: always
+
+logging:
+  level:
+    com.example.pay_service: DEBUG
+    org.springframework.security: DEBUG
+
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+
 springdoc:
   api-docs:
     enabled: true
@@ -7,33 +82,68 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
   override-with-generic-response: false
+
+---
+# ===============================================
+# 🌳 (2) dev 프로파일: 개발 환경 전용 설정
+# ===============================================
 spring:
-  application:
-    name: pay-service
-  profiles:
-    include: common
+  config:
+    activate:
+      on-profile: "dev"
   datasource:
-    url: ${app.database.url}
-    username: ${app.database.username}
-    password: ${app.database.password}
-  data:
-    redis:
-      host: ${app.redis.host}
-      port: ${app.redis.port}
-      password: ${app.redis.password}
+    url: ${app.database.url:jdbc:mysql://localhost:3307/togather_db}
+    username: ${app.database.username:admin}
+    password: ${app.database.password:togather1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    properties:
+      hibernate:
+        ddl-auto: update
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+    show-sql: true
+#
+#jwt:
+#  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+#  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+#  refresh-exp-days: ${JWT_REFRESH_EXP:7}
+
+server:
+  port: 8083
+
+---
+# ===============================================
+# 🚀 (3) main 프로파일: 운영 환경 전용 설정
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "main"
+  datasource:
+    # url, username, password는 K8s ConfigMap/Secret으로 주입
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: false
+    open-in-view: false
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
-    show-sql: true
+  # Redis와 RabbitMQ 설정은 module-common에서 상속받음
   logging:
     level:
-      com.example.user_service: DEBUG
-      org.springframework.data.redis: DEBUG
+      com.example.pay_service: INFO
+
+server:
+  port: 8080
 
 jwt:
-  secret: ${app.jwt.secret}
-  issuer: ${app.jwt.issuer:togather}
-  access-exp-seconds: ${app.jwt.access-exp-seconds:1800}
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  refresh-exp-days: ${JWT_REFRESH_EXP:7}

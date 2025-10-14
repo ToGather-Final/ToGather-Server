@@ -1,0 +1,65 @@
+# API Gateway 테스트 설정
+server:
+  port: 0  # 랜덤 포트 사용
+
+# JWT 시크릿 키 설정 (테스트용)
+jwt:
+  secret: test-secret-key
+
+spring:
+  application:
+    name: api-gateway-test
+  main:
+    allow-bean-definition-overriding: true
+    web-application-type: reactive
+  # JPA 및 데이터베이스 자동 설정 완전 비활성화
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration
+  # 데이터베이스 설정 완전 제거
+  datasource:
+    url: ""
+    username: ""
+    password: ""
+    driver-class-name: ""
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    database-platform: ""
+  # Redis 설정 (테스트용 - Mock 사용)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+# 로깅 설정
+logging:
+  level:
+    root: WARN
+    com.example.api_gateway: DEBUG
+
+  cloud:
+    gateway:
+      default-filters:
+        - StripPrefix=1
+      routes:
+        # 테스트용 더미 라우트
+        - id: test-route
+          uri: http://localhost:8080
+          predicates:
+            - Path=/test/**

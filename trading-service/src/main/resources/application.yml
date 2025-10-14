@@ -1,5 +1,70 @@
-server:
-  port: 8081
+# ===============================================
+# ✅ 공통 설정 (모든 프로파일에 적용)
+# ===============================================
+app:
+  database:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/togather_db}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:togather1234}
+  redis:
+    host: ${SPRING_DATA_REDIS_HOST:localhost}
+    port: ${SPRING_DATA_REDIS_PORT:6379}
+    password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+  jwt:
+    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    issuer: ${JWT_ISSUER:togather}
+    access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+    refresh-exp-days: ${JWT_REFRESH_EXP:7}
+
+spring:
+  config:
+    import:
+      - optional:classpath:application-common.yml
+  application:
+    name: trading-service
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+    open-in-view: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    connection-timeout: 15000
+    virtual-host: /
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics
+    endpoint:
+      health:
+        show-details: always
+
+# JWT 설정 키를 'secret-key'로 통일합니다.
+jwt:
+  secret-key: ${JWT_SECRET_KEY}
+
 springdoc:
   api-docs:
     enabled: true
@@ -7,6 +72,11 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
   override-with-generic-response: false
+
+---
+# ===============================================
+# 🌳 dev 프로파일 (개발 환경)
+# ===============================================
 spring:
   application:
     name: trading-service
@@ -43,3 +113,40 @@ kis:
   base-url: ${app.kis.base-url:https://openapi.koreainvestment.com:9443}
   appkey: ${app.kis.appkey:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
   appsecret: ${app.kis.appsecret:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
+
+server:
+  port: 8081
+
+---
+# ===============================================
+# 🚀 main 프로파일 (운영 환경)
+# ===============================================
+spring:
+  config:
+    activate:
+      on-profile: "main"
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+  logging:
+    level:
+      com.example.trading_service: INFO
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  refresh-exp-days: ${JWT_REFRESH_EXP:7}
+
+kis:
+  base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
+  appkey: ${KIS_APPKEY:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
+  appsecret: ${KIS_APPSECRET:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}

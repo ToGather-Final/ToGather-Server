@@ -1,6 +1,21 @@
 server:
   port: 8000
 
+jwt:
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+
 spring:
   application:
     name: api-gateway
@@ -13,56 +28,118 @@ spring:
     compatibility-verifier:
       enabled: false  # Spring Boot 3.5.6과 Spring Cloud 2024.0.0 호환성 체크 비활성화
     gateway:
-      routes:
-        # 사용자 서비스
-        - id: user-service
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/users/**
-          filters:
-            - StripPrefix=1  # /api 제거
-            
-        # 트레이딩 서비스
-        - id: trading-service
-          uri: http://localhost:8081
-          predicates:
-            - Path=/api/trading/**
-          filters:
-            - StripPrefix=1
-            
-        # 결제 서비스
-        - id: pay-service
-          uri: http://localhost:8083
-          predicates:
-            - Path=/api/pay/**
-          filters:
-            - StripPrefix=1
-            
-        # 투표 서비스
-        - id: vote-service
-          uri: http://localhost:8080
-          predicates:
-            - Path=/api/votes/**
-          filters:
-            - StripPrefix=1
-            
-        # 인증 서비스  
-        - id: auth-service
-          uri: http://localhost:8082
+      routes: #deprecated전에 server: webflux: routes: 형태로 수정해야함.
+        - id: auth-service-route
+          uri: lb://user-service
           predicates:
             - Path=/api/auth/**
           filters:
             - StripPrefix=1
-            
-        # 그룹 서비스
-        - id: group-service
-          uri: http://localhost:8082
+        - id: user-service-route
+          uri: lb://user-service
           predicates:
-            - Path=/api/groups/**
+            - Path=/api/user/**
           filters:
             - StripPrefix=1
+        - id: vote-service-route
+          uri: lb://vote-service
+          predicates:
+            - Path=/api/vote/**
+          filters:
+            - StripPrefix=1
+        - id: trading-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/trading/**
+          filters:
+            - StripPrefix=1
+        - id: pay-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/pay/**
+          filters:
+            - StripPrefix=1
+    kubernetes:
+      discovery:
+        enabled: true
+        all-namespaces: false
+      reload:
+        enabled: false
+      config:
+        enabled: false
+    loadbalancer:
+      enabled: true
+      health-check:
+        initial-delay: 0
+        interval: 1s
+    compatibility-verifier:
+      enabled: false
+
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration
+      - org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration
+
+  datasource:
+    url: ""
+    username: ""
+    password: ""
+    driver-class-name: ""
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.cloud.kubernetes: INFO
+    org.springframework.cloud.loadbalancer: INFO
+    org.springframework.web.reactive: INFO
+    reactor.netty: INFO
+    com.example.api_gateway: INFO
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: "dev"
 
 jwt:
-  # 로컬 테스트용 시크릿 (프로덕션에서는 환경변수로 설정)
+  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+server:
+  port: 8000
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: "main"
+
+jwt:
   secret: ${app.jwt.secret}
 
+server:
+  port: 8000
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.cloud.kubernetes: INFO
+    org.springframework.cloud.loadbalancer: INFO
+    org.springframework.web.reactive: INFO
+    reactor.netty: INFO
+    com.example.api_gateway: INFO

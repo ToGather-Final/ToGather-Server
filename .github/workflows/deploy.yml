@@ -1,0 +1,327 @@
+name: Deploy ToGather Microservices to AWS EKS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com
+  EKS_CLUSTER_NAME: togather-cluster
+  EKS_NAMESPACE: togather
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set gradlew permissions
+      run: chmod +x gradlew
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Checkout Client Repo # ToGather-Client 접근
+      uses: actions/checkout@v4
+      with:
+        repository: ToGather-Final/ToGather-Client
+        token: ${{ secrets.GH_PAT }}
+        path: togather-client
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Build with Gradle
+      run: |
+        chmod +x gradlew
+        ./gradlew build -x test
+
+    - name: Build and push Next.js Client image
+      run: |
+        docker build -t $ECR_REGISTRY/togather/client:${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
+        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
+        docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
+        docker push $ECR_REGISTRY/togather/client:latest
+
+    - name: Build and push API Gateway image
+      run: |
+        docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:${{ github.sha }} .
+        docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:latest .
+        docker push $ECR_REGISTRY/togather/api-gateway:${{ github.sha }}
+        docker push $ECR_REGISTRY/togather/api-gateway:latest
+
+    - name: Build and push User Service image
+      run: |
+        docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:${{ github.sha }} .
+        docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:latest .
+        docker push $ECR_REGISTRY/togather/user-service:${{ github.sha }}
+        docker push $ECR_REGISTRY/togather/user-service:latest
+
+    - name: Build and push Trading Service image
+      run: |
+        docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:${{ github.sha }} .
+        docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:latest .
+        docker push $ECR_REGISTRY/togather/trading-service:${{ github.sha }}
+        docker push $ECR_REGISTRY/togather/trading-service:latest
+
+    - name: Build and push Pay Service image
+      run: |
+        docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:${{ github.sha }} .
+        docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:latest .
+        docker push $ECR_REGISTRY/togather/pay-service:${{ github.sha }}
+        docker push $ECR_REGISTRY/togather/pay-service:latest
+
+    - name: Build and push Vote Service image
+      run: |
+        docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:${{ github.sha }} .
+        docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:latest .
+        docker push $ECR_REGISTRY/togather/vote-service:${{ github.sha }}
+        docker push $ECR_REGISTRY/togather/vote-service:latest
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl for EKS
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+    - name: Deploy to EKS
+      if: github.ref == 'refs/heads/main'
+      run: |
+        # 1. 네임스페이스 생성 (없으면 생성, 있으면 넘어감)
+        kubectl apply -f k8s/namespace.yaml
+
+        # 2. Secret 생성 (모든 민감 정보를 GitHub Secrets에서 가져와 통합)
+        kubectl apply -f - <<EOF
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: togather-secrets
+          namespace: ${{ env.EKS_NAMESPACE }}
+        type: Opaque
+        stringData:
+          SPRING_DATASOURCE_USERNAME: "${{ secrets.DB_USERNAME }}"
+          SPRING_DATASOURCE_PASSWORD: "${{ secrets.DB_PASSWORD }}"
+          DB_USERNAME: "${{ secrets.DB_USERNAME }}"
+          DB_PASSWORD: "${{ secrets.DB_PASSWORD }}"
+          JWT_SECRET_KEY: "${{ secrets.JWT_SECRET_KEY }}"
+          JWT_SECRET: "${{ secrets.JWT_SECRET_KEY }}"
+          SPRING_RABBITMQ_USERNAME: "admin"
+          SPRING_RABBITMQ_PASSWORD: "${{ secrets.RABBITMQ_PASSWORD }}"
+          RABBITMQ_USERNAME: "admin"
+          RABBITMQ_PASSWORD: "${{ secrets.RABBITMQ_PASSWORD }}"
+          REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
+          SPRING_DATA_REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
+        EOF
+
+        # 3. RBAC 먼저 적용 (ServiceAccount/Role/RoleBinding)
+        kubectl apply -f k8s/api-gateway-rbac.yaml -n ${{ env.EKS_NAMESPACE }}
+
+        # 4. 환경변수 치환 후 나머지 모든 리소스 배포
+        # ECR_REGISTRY 환경변수를 k8s 파일들에 치환
+        envsubst < k8s/api-gateway.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/user-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/trading-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/pay-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/vote-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        
+        # 나머지 리소스들 (ConfigMap, Service, Ingress 등) 배포
+        kubectl apply -f k8s/configmap.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/configmap-env.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/redis.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/rabbitmq.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/ingress.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/nextjs-client.yaml -n ${{ env.EKS_NAMESPACE }}
+        kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}    
+
+        # 5. 각 디플로이먼트에 커밋 SHA 이미지 설정 (롤아웃 트리거)
+        kubectl set image deployment/api-gateway api-gateway=${{ env.ECR_REGISTRY }}/togather/api-gateway:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+        kubectl set image deployment/user-service user-service=${{ env.ECR_REGISTRY }}/togather/user-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+        kubectl set image deployment/trading-service trading-service=${{ env.ECR_REGISTRY }}/togather/trading-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+        kubectl set image deployment/pay-service pay-service=${{ env.ECR_REGISTRY }}/togather/pay-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+        kubectl set image deployment/vote-service vote-service=${{ env.ECR_REGISTRY }}/togather/vote-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+        kubectl set image deployment/nextjs-client nextjs-client=${{ env.ECR_REGISTRY }}/togather/client:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+
+    - name: Wait for deployment to complete
+      if: github.ref == 'refs/heads/main'
+      run: |
+        # 배포 결과 추적을 위한 변수 초기화
+        FAILED_SERVICES=""
+        SUCCESS_SERVICES=""
+        
+        # Redis 배포 확인
+        echo "🚀 Redis 배포 상태 확인 중..."
+        if kubectl rollout status deployment/redis -n ${{ env.EKS_NAMESPACE }} --timeout=60s; then
+          echo "✅ Redis 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES redis"
+        else
+          echo "❌ Redis 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES redis"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=redis
+          kubectl describe deployment redis -n ${{ env.EKS_NAMESPACE }}
+          POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=redis -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
+          kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
+        fi
+        
+        # API Gateway 배포 확인
+        echo ""
+        echo "🚀 API Gateway 배포 상태 확인 중..."
+        if kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=120s; then
+          echo "✅ API Gateway 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES api-gateway"
+        else
+          echo "❌ API Gateway 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES api-gateway"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=api-gateway
+          kubectl describe deployment api-gateway -n ${{ env.EKS_NAMESPACE }}
+          POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=api-gateway -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
+          kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
+        fi
+        
+        # User Service 배포 확인
+        echo ""
+        echo "🚀 User Service 배포 상태 확인 중..."
+        if kubectl rollout status deployment/user-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s; then
+          echo "✅ User Service 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES user-service"
+        else
+          echo "❌ User Service 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES user-service"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=user-service
+          kubectl describe deployment user-service -n ${{ env.EKS_NAMESPACE }}
+          POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=user-service -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
+          kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
+        fi
+        
+        # Trading Service 배포 확인
+        echo ""
+        echo "🚀 Trading Service 배포 상태 확인 중..."
+        if kubectl rollout status deployment/trading-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s; then
+          echo "✅ Trading Service 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES trading-service"
+        else
+          echo "❌ Trading Service 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES trading-service"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=trading-service
+          kubectl describe deployment trading-service -n ${{ env.EKS_NAMESPACE }}
+          POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=trading-service -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
+          kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
+        fi
+        
+        # Pay Service 배포 확인
+        echo ""
+        echo "🚀 Pay Service 배포 상태 확인 중..."
+        if kubectl rollout status deployment/pay-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s; then
+          echo "✅ Pay Service 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES pay-service"
+        else
+          echo "❌ Pay Service 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES pay-service"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=pay-service
+          kubectl describe deployment pay-service -n ${{ env.EKS_NAMESPACE }}
+          POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=pay-service -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
+          kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
+        fi
+        
+        # Vote Service 배포 확인
+        echo ""
+        echo "🚀 Vote Service 배포 상태 확인 중..."
+        if kubectl rollout status deployment/vote-service -n ${{ env.EKS_NAMESPACE }} --timeout=180s; then
+          echo "✅ Vote Service 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES vote-service"
+        else
+          echo "❌ Vote Service 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES vote-service"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=vote-service
+          kubectl describe deployment vote-service -n ${{ env.EKS_NAMESPACE }}
+          POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=vote-service -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
+          kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
+        fi
+        
+        # Next.js Client 배포 확인
+        echo ""
+        echo "🚀 Next.js Client 배포 상태 확인 중..."
+        if kubectl rollout status deployment/nextjs-client -n ${{ env.EKS_NAMESPACE }} --timeout=120s; then
+          echo "✅ Next.js Client 배포 성공"
+          SUCCESS_SERVICES="$SUCCESS_SERVICES nextjs-client"
+        else
+          echo "❌ Next.js Client 배포 실패! 진단 정보 출력 중..."
+          FAILED_SERVICES="$FAILED_SERVICES nextjs-client"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client
+          kubectl describe deployment nextjs-client -n ${{ env.EKS_NAMESPACE }}
+          POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
+          kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
+        fi
+        
+        # 최종 배포 결과 요약
+        echo ""
+        echo "=================================================="
+        echo "📊 배포 결과 요약"
+        echo "=================================================="
+        
+        if [ -n "$SUCCESS_SERVICES" ]; then
+          echo "✅ 성공한 서비스:$SUCCESS_SERVICES"
+        fi
+        
+        if [ -n "$FAILED_SERVICES" ]; then
+          echo "❌ 실패한 서비스:$FAILED_SERVICES"
+          echo ""
+          echo "⚠️ 일부 서비스 배포가 실패했습니다!"
+          exit 1
+        else
+          echo ""
+          echo "🎉 모든 서비스 배포 완료!"
+        fi
+
+    - name: Verify deployment
+      if: github.ref == 'refs/heads/main'
+      run: |
+        kubectl get pods -n ${{ env.EKS_NAMESPACE }}
+        kubectl get services -n ${{ env.EKS_NAMESPACE }}
+        kubectl get ingress -n ${{ env.EKS_NAMESPACE }}
+
+    - name: Diagnostics on failure
+      if: failure()
+      run: |
+        kubectl get deploy -n ${{ env.EKS_NAMESPACE }}
+        kubectl describe deploy api-gateway -n ${{ env.EKS_NAMESPACE }}
+        kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=api-gateway -o wide
+        POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=api-gateway -o jsonpath='{.items[0].metadata.name}')
+        kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || true
+        kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=200 || true
