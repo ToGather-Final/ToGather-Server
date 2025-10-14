@@ -13,28 +13,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtUtil {
 
-    @Value("${app.jwt.secret}")
+    @Value("${JWT_SECRET_KEY}")
     private String secret;
 
-    @Value("${app.jwt.issuer:togather}")
+    @Value("${JWT_ISSUER:togather}")
     private String issuer;
 
-    @Value("${app.jwt.access-exp-seconds:1800}")
+    @Value("${JWT_ACCESS_EXP:1800}")
     private long accessTokenExpireSeconds;
 
-//    public String issue(UUID userId) {
-//        LocalDateTime now = LocalDateTime.now();
-//        Date issuedAt = Date.from(now.atZone(ZoneId.systemDefault()).toInstant());
-//        Date expiration = Date.from(now.plusSeconds(accessTokenExpireSeconds).atZone(ZoneId.systemDefault()).toInstant());
-//
-//        return Jwts.builder()
-//                .setSubject(userId.toString())
-//                .setIssuer(issuer)
-//                .setIssuedAt(issuedAt)
-//                .setExpiration(expiration)
-//                .signWith(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
-//                .compact();
-//    }
     public String issue(UUID userId) {
         System.out.println("=== JWT 생성 시작 ===");
         System.out.println("userId: " + userId);
@@ -63,7 +50,6 @@ public class JwtUtil {
             throw e;
         }
     }
-
 
     public UUID verifyAndGetUserId(String token) {
         String subject = Jwts.parserBuilder()

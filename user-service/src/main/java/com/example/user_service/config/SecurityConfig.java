@@ -2,7 +2,7 @@ package com.example.user_service.config;
 
 import com.example.user_service.error.RestAccessDeniedHandler;
 import com.example.user_service.error.RestAuthEntryPoint;
-import com.example.user_service.security.JwtAuthFilter;
+import com.example.user_service.security.HeaderAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,13 +17,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig{
 
-    private final JwtAuthFilter jwtAuthFilter;
+    private final HeaderAuthFilter headerAuthFilter;
     private final RestAuthEntryPoint restAuthEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, RestAuthEntryPoint restAuthEntryPoint,
+    public SecurityConfig(HeaderAuthFilter headerAuthFilter, RestAuthEntryPoint restAuthEntryPoint,
                           RestAccessDeniedHandler restAccessDeniedHandler) {
-        this.jwtAuthFilter = jwtAuthFilter;
+        this.headerAuthFilter = headerAuthFilter;
         this.restAuthEntryPoint = restAuthEntryPoint;
         this.restAccessDeniedHandler = restAccessDeniedHandler;
     }
@@ -36,7 +36,7 @@ public class SecurityConfig{
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable());
-        http.cors(cors -> {});
+        // CORS는 API Gateway에서 처리
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.exceptionHandling(ex -> {
             ex.authenticationEntryPoint(restAuthEntryPoint);
@@ -47,11 +47,12 @@ public class SecurityConfig{
             reg.requestMatchers("/auth/**").permitAll();
             reg.requestMatchers("/users/**").permitAll();
             reg.requestMatchers("/groups/**").permitAll();
+            reg.requestMatchers("/swagger-ui/**").permitAll();
+            reg.requestMatchers("/v3/api-docs/**").permitAll();
+            reg.requestMatchers("/swagger-ui.html").permitAll();
             reg.anyRequest().authenticated();
         });
-        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }
-
-

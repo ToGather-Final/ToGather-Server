@@ -13,11 +13,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * 보안 설정
- * 1. 클라이언트가 API 호출 → 헤더에 JWT 포함
- * 2. JwtAuthFilter가 토큰 확인 → 유효하면 인증 성공
- * 3. 인증 실패면 RestAuthEntryPoint가 401 리턴
- * 4. 인증 성공해도 권한이 없으면 RestAccessDeniedHandler가 403 리턴
- * 5. 나머지는 컨트롤러 로직 실행
+ * API Gateway에서 JWT 검증을 수행하고 X-User-Id 헤더를 전달받음
+ * JwtAuthFilter는 X-User-Id 헤더만 읽어서 인증 처리
  */
 
 @Configuration
@@ -38,7 +35,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable());
-        http.cors(cors -> {});
+        // CORS는 API Gateway에서 처리
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.exceptionHandling(ex -> {
             ex.authenticationEntryPoint(restAuthEntryPoint);

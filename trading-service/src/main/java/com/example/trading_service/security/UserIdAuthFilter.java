@@ -1,4 +1,4 @@
-package com.example.user_service.security;
+package com.example.trading_service.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -7,18 +7,28 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * API Gateway에서 검증된 X-User-Id 헤더를 읽어 인증 처리
+ * JWT 검증은 API Gateway에서 수행됨
+ */
+@Slf4j
 @Component
-public class JwtAuthFilter extends OncePerRequestFilter {
+public class UserIdAuthFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
-
-    public JwtAuthFilter(JwtUtil jwtUtil) {
-        this.jwtUtil = jwtUtil;
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // 인증이 필요 없는 경로는 필터를 건너뜁니다
+        return path.startsWith("/trading/stocks") ||  // 주식 조회
+               path.startsWith("/swagger-ui") || 
+               path.startsWith("/v3/api-docs") ||
+               path.startsWith("/actuator");
     }
 
     @Override
@@ -30,17 +40,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        UUID userIdFromGateway = resolveUserIdFromHeader(request);
-        if (userIdFromGateway != null) {
-            setAuthentication(userIdFromGateway);
-            chain.doFilter(request, response);
-            return;
+        // API Gateway에서 전달한 X-User-Id 헤더 읽기
+        log.info("=== Trading Service 요청 수신 ===");
+        log.info("경로: {}", request.getRequestURI());
+        log.info("메서드: {}", request.getMethod());
+        
+        UUID userId = resolveUserIdFromHeader(request);
+        if (userId != null) {
+            log.info("인증 성공 - X-User-Id 헤더: {}", userId);
+            setAuthentication(userId);
+        } else {
+            log.warn("X-User-Id 헤더가 없습니다. 경로: {}", request.getRequestURI());
         }
-
-        UUID userIdFromBearer = resolveUserIdFromBearer(request);
-        if (userIdFromBearer != null) {
-            setAuthentication(userIdFromBearer);
-        }
+        
         chain.doFilter(request, response);
     }
 
@@ -52,22 +64,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             return UUID.fromString(userIdHeader);
         } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private UUID resolveUserIdFromBearer(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header == null) {
-            return null;
-        }
-        if (!header.startsWith("Bearer ")) {
-            return null;
-        }
-        String token = header.substring(7);
-        try {
-            return jwtUtil.verifyAndGetUserId(token);
-        } catch (Exception e) {
+            log.error("잘못된 X-User-Id 형식: {}", userIdHeader);
             return null;
         }
     }
@@ -78,3 +75,4 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }
+
