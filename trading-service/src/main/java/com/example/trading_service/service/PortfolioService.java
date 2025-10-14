@@ -34,7 +34,7 @@ public class PortfolioService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         
         return holdings.stream()
                 .map(this::convertToHoldingResponse)
@@ -46,7 +46,7 @@ public class PortfolioService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         
         float totalInvested = 0;
         float totalValue = 0;
@@ -86,7 +86,7 @@ public class PortfolioService {
         
         // 기존 보유 종목이 있으면 생성하지 않음
         List<HoldingCache> existingHoldings = holdingCacheRepository
-                .findByInvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         if (!existingHoldings.isEmpty()) {
             log.info("이미 보유 종목이 존재합니다. 사용자: {}", userId);
             return;
@@ -106,8 +106,7 @@ public class PortfolioService {
     // HoldingResponse 변환 (실시간 가격 정보 포함)
     private HoldingResponse convertToHoldingResponse(HoldingCache holding) {
         // 주식 정보 조회
-        Stock stock = stockRepository.findById(holding.getStockId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다."));
+        Stock stock = holding.getStock();
         
         // 실시간 주식 가격 및 변동률 조회
         float currentPrice = getCurrentStockPrice(stock.getStockCode());
@@ -131,7 +130,7 @@ public class PortfolioService {
 
         return new HoldingResponse(
                 holding.getHoldingId(),
-                holding.getStockId(),
+                holding.getStock().getId(),
                 stock.getStockCode(),
                 stock.getStockName(),
                 stock.getStockImage(),
@@ -218,8 +217,11 @@ public class PortfolioService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다: " + stockCode));
         
         HoldingCache holding = new HoldingCache();
-        holding.setInvestmentAccountId(accountId);
-        holding.setStockId(stock.getId());
+        InvestmentAccount account = investmentAccountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("투자 계좌를 찾을 수 없습니다"));
+        
+        holding.setInvestmentAccount(account);
+        holding.setStock(stock);
         holding.setQuantity((int) quantity);
         holding.setAvgCost(avgCost);
         holding.setEvaluatedPrice(avgCost * quantity); // 초기값은 평균 매입가로 설정

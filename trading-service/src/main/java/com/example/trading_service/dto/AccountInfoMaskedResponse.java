@@ -15,5 +15,3 @@ public class AccountInfoMaskedResponse {
     private LocalDateTime createdAt;
     private boolean hasAccount;
 }
-
-
