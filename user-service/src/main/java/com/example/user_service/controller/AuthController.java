@@ -27,12 +27,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
-    private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
 
-    public AuthController(AuthService authService, JwtUtil jwtUtil, RefreshTokenService refreshTokenService) {
+    public AuthController(AuthService authService, RefreshTokenService refreshTokenService) {
         this.authService = authService;
-        this.jwtUtil = jwtUtil;
         this.refreshTokenService = refreshTokenService;
     }
 

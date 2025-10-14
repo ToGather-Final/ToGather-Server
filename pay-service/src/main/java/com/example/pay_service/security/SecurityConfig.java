@@ -6,10 +6,17 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private final HeaderAuthFilter headerAuthFilter;
+
+    public SecurityConfig(HeaderAuthFilter headerAuthFilter) {
+        this.headerAuthFilter = headerAuthFilter;
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -23,7 +30,8 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
                 .httpBasic(httpBasic -> httpBasic.disable())
-                .formLogin(formLogin -> formLogin.disable());
+                .formLogin(formLogin -> formLogin.disable())
+                .addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -19,7 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 @Slf4j
 @Component
-public class JwtAuthFilter extends OncePerRequestFilter {
+public class HeaderAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -50,8 +50,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         } else {
             log.warn("X-User-Id 헤더가 없습니다. 경로: {}", request.getRequestURI());
         }
-        
-        chain.doFilter(request, response);
+                chain.doFilter(request, response);
     }
 
     private UUID resolveUserIdFromHeader(HttpServletRequest request) {
