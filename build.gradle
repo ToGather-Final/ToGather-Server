@@ -14,6 +14,10 @@ ext {
 	set('jjwtVersion', "0.11.5")
 }
 
+repositories {
+	mavenCentral()
+}
+
 dependencies {
 	implementation "org.springframework.boot:spring-boot-starter"
 	implementation "org.springframework.boot:spring-boot-starter-actuator"
@@ -73,60 +77,66 @@ project(":api-gateway") {
 
 	dependencies {
 		implementation project(':module-common')
+
+		// Gateway (WebFlux)
 		implementation "org.springframework.cloud:spring-cloud-starter-gateway-server-webflux"
 		implementation "org.springframework.cloud:spring-cloud-starter-loadbalancer"
 		implementation("org.springframework.boot:spring-boot-starter-webflux") {
 			exclude group: "org.springframework.boot", module: "spring-boot-starter-web"
 		}
 		implementation "org.springframework.boot:spring-boot-starter-data-redis-reactive"
-		// api-gateway/build.gradle
+
+		// Kubernetes 클라이언트
 		implementation 'org.springframework.cloud:spring-cloud-starter-kubernetes-client'
+
+		// JWT
+		implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+		runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+		runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+		// Lombok
+		compileOnly 'org.projectlombok:lombok'
+		annotationProcessor 'org.projectlombok:lombok'
+
+		testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	}
 }
 
-project(':module-common') {
+project(":module-common") {
 	apply plugin: 'org.springframework.boot'
 
 	dependencies {
 		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	}
-
 }
 
-project(':user-service') {
+project(":user-service") {
 	apply plugin: 'org.springframework.boot'
 
 	dependencies {
-		// module-common 의존성 추가
 		implementation project(':module-common')
-
 		implementation 'org.springframework.boot:spring-boot-starter-web'
 		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 		runtimeOnly 'com.mysql:mysql-connector-j'
-
-		// Jackson JSR310 모듈 추가 (LocalDateTime 직렬화 지원)
 		implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
-		// ✅ Testcontainers
 		testImplementation 'org.testcontainers:testcontainers'
 		testImplementation 'org.testcontainers:mysql'
 		testImplementation 'org.testcontainers:junit-jupiter'
 	}
 }
 
-project(':vote-service') {
+project(":vote-service") {
 	apply plugin: 'org.springframework.boot'
 
 	dependencies {
-		// module-common 의존성 추가
 		implementation project(':module-common')
-
 		implementation 'org.springframework.boot:spring-boot-starter-web'
 		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 		runtimeOnly 'com.mysql:mysql-connector-j'
 
-		// ✅ Redis (Jedis 사용)
+		// Redis (Jedis)
 		implementation('org.springframework.boot:spring-boot-starter-data-redis') {
 			exclude group: 'io.lettuce', module: 'lettuce-core'
 		}
@@ -134,42 +144,28 @@ project(':vote-service') {
 	}
 }
 
-project(':pay-service') {
+project(":pay-service") {
 	apply plugin: 'org.springframework.boot'
 
 	dependencies {
-		// module-common 의존성 추가
 		implementation project(':module-common')
-
 		implementation 'org.springframework.boot:spring-boot-starter-web'
 		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 		runtimeOnly 'com.mysql:mysql-connector-j'
-
 		testImplementation 'com.h2database:h2'
 	}
 }
 
-project(':trading-service') {
+project(":trading-service") {
 	apply plugin: 'org.springframework.boot'
 
 	dependencies {
-		// module-common 의존성 추가
 		implementation project(':module-common')
-
 		implementation 'org.springframework.boot:spring-boot-starter-web'
 		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 		runtimeOnly 'com.mysql:mysql-connector-j'
-
 		testImplementation 'com.h2database:h2'
-	}
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
-	testLogging {
-		events "passed", "skipped", "failed"
-		exceptionFormat "full"
 	}
 }
