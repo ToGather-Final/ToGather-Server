@@ -13,13 +13,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtUtil {
 
-    @Value("${app.jwt.secret}")
+    @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${app.jwt.issuer:togather}")
+    @Value("${jwt.issuer:togather}")
     private String issuer;
 
-    @Value("${app.jwt.access-exp-seconds:1800}")
+    @Value("${jwt.access-exp-seconds:1800}")
     private long accessTokenExpireSeconds;
 
 //    public String issue(UUID userId) {

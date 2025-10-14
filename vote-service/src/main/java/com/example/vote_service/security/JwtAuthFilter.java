@@ -22,6 +22,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // 인증이 필요 없는 경로는 필터를 건너뜁니다
+        return path.startsWith("/swagger-ui") || 
+               path.startsWith("/v3/api-docs") ||
+               path.startsWith("/actuator");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
