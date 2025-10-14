@@ -141,6 +141,10 @@ jobs:
           RABBITMQ_PASSWORD: "${{ secrets.RABBITMQ_PASSWORD }}"
           REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
           SPRING_DATA_REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
+          # KIS 증권 API 환경변수
+          KIS_BASE_URL: "${{ secrets.KIS_BASE_URL }}"
+          KIS_APPKEY: "${{ secrets.KIS_APPKEY }}"
+          KIS_APPSECRET: "${{ secrets.KIS_APPSECRET }}"
         EOF
 
         # 3. RBAC 먼저 적용 (ServiceAccount/Role/RoleBinding)
