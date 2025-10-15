@@ -72,11 +72,14 @@ public class GroupController {
     }
 
     @PostMapping
-    public ResponseEntity<GroupIdResponse> create(@Valid @RequestBody GroupCreateRequest request,
+    public ResponseEntity<GroupCreateResponse> create(@Valid @RequestBody GroupCreateRequest request,
                                                   Authentication authentication) {
         UUID ownerId = (UUID) authentication.getPrincipal();
         UUID groupId = groupService.createGroup(ownerId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new GroupIdResponse(groupId));
+
+        String invitationCode = groupService.issueInvitation(groupId, ownerId);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(new GroupCreateResponse(groupId, invitationCode));
     }
 
     @PostMapping("/{groupId}/members")

@@ -45,8 +45,9 @@ public class SecurityConfig{
         http.authorizeHttpRequests(reg -> {
             reg.requestMatchers("/actuator/**").permitAll();
             reg.requestMatchers("/auth/**").permitAll();
-            reg.requestMatchers("/users/**").permitAll();
-            reg.requestMatchers("/groups/**").permitAll();
+            reg.requestMatchers("/users/exists").permitAll();
+            reg.requestMatchers("/users/**").authenticated();
+            reg.requestMatchers("/groups/**").authenticated();
             reg.anyRequest().authenticated();
         });
         http.addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
