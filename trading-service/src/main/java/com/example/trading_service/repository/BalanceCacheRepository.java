@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface BalanceCacheRepository extends JpaRepository<BalanceCache, UUID> {
     
     // 투자 계좌별 잔고 조회
-    Optional<BalanceCache> findByInvestmentAccountId(UUID investmentAccountId);
+    Optional<BalanceCache> findByInvestmentAccount_InvestmentAccountId(UUID investmentAccountId);
 }
 
 

@@ -17,8 +17,9 @@ public class BalanceCache {
     @Column(name = "balance_id", nullable = false, updatable = false)
     private UUID balanceId; // 현금 아이디 (PK)
 
-    @Column(name = "investment_account_id", nullable = false)
-    private UUID investmentAccountId; // 주식 계좌 아이디
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "investment_account_id", nullable = false)
+    private InvestmentAccount investmentAccount;
 
     @Column(name = "balance", nullable = false)
     private int balance; // 현금 잔고

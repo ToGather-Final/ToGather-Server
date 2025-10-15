@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.trading_service.util.AccountNumberGenerator;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +30,8 @@ public class TradingService {
     private final StockRepository stockRepository;
     private final StockPriceService stockPriceService;
     private final ChartService chartService;
+    private final OrderService orderService;
+    private final PortfolioCalculationService portfolioCalculationService;
 
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
@@ -45,7 +49,7 @@ public class TradingService {
         
         // 초기 잔고 생성
         BalanceCache balance = new BalanceCache();
-        balance.setInvestmentAccountId(savedAccount.getInvestmentAccountId());
+        balance.setInvestmentAccount(savedAccount);
         balance.setBalance(0);
         balanceCacheRepository.save(balance);
         
@@ -53,81 +57,14 @@ public class TradingService {
         return savedAccount.getInvestmentAccountId();
     }
 
-    // 주식 매수
+    // 주식 매수 (OrderService로 위임)
     public void buyStock(UUID userId, BuyRequest request) {
-        // 투자 계좌 조회
-        InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
-        // 주식 정보 조회
-        Stock stock = stockRepository.findById(request.getStockId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다."));
-        
-        if (!stock.isEnabled()) {
-            throw new IllegalArgumentException("거래가 중단된 종목입니다.");
-        }
-
-        // 잔고 확인
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccountId(account.getInvestmentAccountId())
-                .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
-
-        float totalAmount = request.getPrice() * request.getQuantity();
-        
-        if (balance.getBalance() < totalAmount) {
-            throw new IllegalArgumentException("잔고가 부족합니다. 필요: " + totalAmount + ", 보유: " + balance.getBalance());
-        }
-
-        // 주문 생성
-        Order order = new Order();
-        order.setInvestmentAccountId(account.getInvestmentAccountId());
-        order.setStockId(request.getStockId());
-        order.setOrderType(Order.OrderType.BUY);
-        order.setQuantity(request.getQuantity());
-        order.setPrice(request.getPrice());
-        order.setStatus(Order.Status.PENDING);
-        
-        Order savedOrder = orderRepository.save(order);
-
-        // 시장가 주문인 경우 즉시 체결 처리
-        if (request.getIsMarketOrder()) {
-            processMarketOrder(savedOrder);
-        }
-
-        log.info("매수 주문이 생성되었습니다. 사용자: {}, 종목: {}, 수량: {}, 가격: {}", 
-                userId, stock.getStockName(), request.getQuantity(), request.getPrice());
+        orderService.buyStock(userId, request);
     }
 
-    // 주식 매도
+    // 주식 매도 (OrderService로 위임)
     public void sellStock(UUID userId, SellRequest request) {
-        // 투자 계좌 조회
-        InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
-        // 보유 종목 확인
-        HoldingCache holding = holdingCacheRepository
-                .findByInvestmentAccountIdAndStockId(account.getInvestmentAccountId(), request.getStockId())
-                .orElseThrow(() -> new IllegalArgumentException("보유하지 않은 종목입니다."));
-
-        if (holding.getQuantity() < request.getQuantity()) {
-            throw new IllegalArgumentException("보유 수량이 부족합니다. 보유: " + holding.getQuantity() + ", 매도 요청: " + request.getQuantity());
-        }
-
-        // 주문 생성
-        Order order = new Order();
-        order.setInvestmentAccountId(account.getInvestmentAccountId());
-        order.setStockId(request.getStockId());
-        order.setOrderType(Order.OrderType.SELL);
-        order.setQuantity(request.getQuantity());
-        order.setPrice(request.getPrice());
-        order.setStatus(Order.Status.PENDING);
-        
-        Order savedOrder = orderRepository.save(order);
-
-        // 시장가 주문인 경우 즉시 체결 처리
-        if (request.getIsMarketOrder()) {
-            processMarketOrder(savedOrder);
-        }
-
-        log.info("매도 주문이 생성되었습니다. 사용자: {}, 종목: {}, 수량: {}, 가격: {}", 
-                userId, request.getStockId(), request.getQuantity(), request.getPrice());
+        orderService.sellStock(userId, request);
     }
 
     // 예수금 충전
@@ -136,7 +73,7 @@ public class TradingService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         // 잔고 업데이트
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccountId(account.getInvestmentAccountId())
+        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
         
         balance.setBalance(balance.getBalance() + request.getAmount().intValue());
@@ -146,37 +83,10 @@ public class TradingService {
     }
 
 
-    // 계좌 잔고 조회
+    // 계좌 잔고 조회 (PortfolioCalculationService로 위임)
     @Transactional(readOnly = true)
     public BalanceResponse getAccountBalance(UUID userId) {
-        InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccountId(account.getInvestmentAccountId())
-                .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
-
-        // 보유 종목들의 총 평가금액 계산
-        List<HoldingCache> holdings = holdingCacheRepository.findByInvestmentAccountId(account.getInvestmentAccountId());
-        
-        float totalInvested = 0;
-        float totalValue = 0;
-        
-        for (HoldingCache holding : holdings) {
-            totalInvested += holding.getAvgCost() * holding.getQuantity();
-            totalValue += holding.getEvaluatedPrice() != null ? holding.getEvaluatedPrice() : 0;
-        }
-        
-        float totalProfit = totalValue - totalInvested;
-        float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-        
-        return new BalanceResponse(
-                balance.getBalanceId(),
-                balance.getInvestmentAccountId(),
-                (long) balance.getBalance(),
-                totalInvested,
-                totalValue,
-                totalProfit,
-                totalProfitRate
-        );
+        return portfolioCalculationService.calculateAccountBalance(userId);
     }
 
     // 거래 내역 조회
@@ -207,6 +117,40 @@ public class TradingService {
                 .collect(Collectors.toList());
     }
 
+    // 주식 기본 정보 조회 (현재가, 변동률, 거래량 등)
+    @Transactional(readOnly = true)
+    public StockInfoResponse getStockInfoByCode(String stockCode) {
+        Stock stock = stockRepository.findByStockCode(stockCode)
+                .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
+
+        // 실시간 가격 정보 조회
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode);
+        
+        // 간단한 차트 데이터 조회 (30일)
+        List<ChartData> chartData = chartService.getStockChart(stockCode, 30);
+
+        return StockInfoResponse.builder()
+                .stockId(stock.getId().toString())
+                .stockCode(stock.getStockCode())
+                .stockName(stock.getStockName())
+                .market("KOSPI") // TODO: 실제 시장 정보로 변경
+                .currentPrice(priceInfo.getCurrentPrice())
+                .changeAmount(priceInfo.getChangePrice())
+                .changeRate(priceInfo.getChangeRate())
+                .changeDirection(priceInfo.getChangePrice().compareTo(BigDecimal.ZERO) > 0 ? "up" : 
+                               priceInfo.getChangePrice().compareTo(BigDecimal.ZERO) < 0 ? "down" : "unchanged")
+                .volume(priceInfo.getVolume())
+                .highPrice(priceInfo.getHighPrice())
+                .lowPrice(priceInfo.getLowPrice())
+                .openPrice(priceInfo.getOpenPrice())
+                .prevClosePrice(priceInfo.getPrevClosePrice())
+                .marketCap(null) // TODO: 시가총액 계산 로직 추가
+                .chartData(chartData)
+                .resistanceLine(calculateResistanceLine(chartData))
+                .supportLine(calculateSupportLine(chartData))
+                .build();
+    }
+
     // 주식 코드로 상세 정보 조회 (차트 데이터 포함)
     @Transactional(readOnly = true)
     public StockDetailResponse getStockDetailByCode(String stockCode) {
@@ -233,7 +177,7 @@ public class TradingService {
     private void executeTrade(Order order, float executionPrice) {
         // 체결 기록 생성
         Trade trade = new Trade();
-        trade.setOrderId(order.getOrderId());
+        trade.setOrder(order);
         trade.setQuantity(order.getQuantity());
         trade.setPrice(executionPrice);
         tradeRepository.save(trade);
@@ -252,18 +196,18 @@ public class TradingService {
         
         if (order.getOrderType() == Order.OrderType.BUY) {
             // 매수: 잔고 차감, 보유 종목 추가/업데이트
-            updateBalance(order.getInvestmentAccountId(), -totalAmount);
-            updateHolding(order.getInvestmentAccountId(), order.getStockId(), (int) order.getQuantity(), executionPrice, true);
+            updateBalance(order.getInvestmentAccount().getInvestmentAccountId(), -totalAmount);
+            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), (int) order.getQuantity(), executionPrice, true);
         } else {
             // 매도: 잔고 증가, 보유 종목 차감
-            updateBalance(order.getInvestmentAccountId(), totalAmount);
-            updateHolding(order.getInvestmentAccountId(), order.getStockId(), (int) order.getQuantity(), executionPrice, false);
+            updateBalance(order.getInvestmentAccount().getInvestmentAccountId(), totalAmount);
+            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), (int) order.getQuantity(), executionPrice, false);
         }
     }
 
     // 잔고 업데이트
     private void updateBalance(UUID accountId, float amount) {
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccountId(accountId)
+        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
         
         balance.setBalance(balance.getBalance() + (int) amount);
@@ -273,7 +217,7 @@ public class TradingService {
     // 보유 종목 업데이트
     private void updateHolding(UUID accountId, UUID stockId, int quantity, float price, boolean isBuy) {
         Optional<HoldingCache> existingHolding = holdingCacheRepository
-                .findByInvestmentAccountIdAndStockId(accountId, stockId);
+                .findByInvestmentAccount_InvestmentAccountIdAndStock_Id(accountId, stockId);
         
         if (isBuy) {
             // 매수
@@ -286,8 +230,13 @@ public class TradingService {
                 holdingCacheRepository.save(holding);
             } else {
                 HoldingCache newHolding = new HoldingCache();
-                newHolding.setInvestmentAccountId(accountId);
-                newHolding.setStockId(stockId);
+                InvestmentAccount account = investmentAccountRepository.findById(accountId)
+                        .orElseThrow(() -> new RuntimeException("투자 계좌를 찾을 수 없습니다"));
+                Stock stock = stockRepository.findById(stockId)
+                        .orElseThrow(() -> new RuntimeException("주식을 찾을 수 없습니다"));
+                
+                newHolding.setInvestmentAccount(account);
+                newHolding.setStock(stock);
                 newHolding.setQuantity(quantity);
                 newHolding.setAvgCost(price);
                 holdingCacheRepository.save(newHolding);
@@ -313,7 +262,7 @@ public class TradingService {
     }
 
     private String generateAccountNumber() {
-        return "INV" + System.currentTimeMillis();
+        return AccountNumberGenerator.generateAccountNumber();
     }
 
     // 실시간 주식 가격 조회
@@ -384,13 +333,16 @@ public class TradingService {
 
 
     private TradeHistoryResponse convertToTradeHistoryResponse(Trade trade) {
-        // Order 정보를 가져와야 하지만, 간단히 처리
+        // Order와 Stock 정보 조회
+        Order order = trade.getOrder();
+        Stock stock = order.getStock();
+        
         return new TradeHistoryResponse(
                 trade.getTradeId(),
-                null, // stockId - Order에서 조회 필요
-                "", // stockCode
-                "", // stockName
-                "BUY", // orderType - Order에서 조회 필요
+                stock.getId(),
+                stock.getStockCode() != null ? stock.getStockCode() : "",
+                stock.getStockName() != null ? stock.getStockName() : "",
+                order.getOrderType().toString(),
                 (int) trade.getQuantity(),
                 trade.getPrice(),
                 trade.getCreatedAt(),
@@ -411,6 +363,7 @@ public class TradingService {
                 stock.getStockName(),
                 stock.getStockImage(),
                 stock.getCountry().toString(),
+                "300", // 기본값: 주식 (300), ETF는 500
                 currentPrice,
                 changeAmount,
                 changeRate,
@@ -521,37 +474,15 @@ public class TradingService {
         }
     }
 
-    // 대기 중인 주문 조회
+    // 대기 중인 주문 조회 (OrderService로 위임)
     @Transactional(readOnly = true)
     public List<OrderResponse> getPendingOrders(UUID userId) {
-        InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
-        List<Order> orders = orderRepository.findPendingOrdersByAccountId(account.getInvestmentAccountId());
-        
-        return orders.stream()
-                .map(this::convertToOrderResponse)
-                .collect(Collectors.toList());
+        return orderService.getPendingOrders(userId);
     }
 
-    // 주문 취소
+    // 주문 취소 (OrderService로 위임)
     public void cancelOrder(UUID userId, UUID orderId) {
-        InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
-        
-        if (!order.getInvestmentAccountId().equals(account.getInvestmentAccountId())) {
-            throw new IllegalArgumentException("권한이 없는 주문입니다.");
-        }
-        
-        if (order.getStatus() != Order.Status.PENDING) {
-            throw new IllegalArgumentException("취소할 수 없는 주문입니다.");
-        }
-        
-        order.setStatus(Order.Status.CANCELLED);
-        orderRepository.save(order);
-        
-        log.info("주문이 취소되었습니다. 사용자: {}, 주문ID: {}", userId, orderId);
+        orderService.cancelOrder(userId, orderId);
     }
 
     // 계좌 정보 조회
@@ -575,25 +506,57 @@ public class TradingService {
 
     // 특정 종목 거래 내역 조회
     @Transactional(readOnly = true)
-    public List<TradeHistoryResponse> getStockTradeHistory(UUID userId, UUID stockId) {
+    public List<TradeHistoryResponse> getStockTradeHistory(UUID userId, String stockCode) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
-        List<Trade> trades = tradeRepository.findByInvestmentAccountIdAndStockId(account.getInvestmentAccountId(), stockId);
+        // stockCode로 stockId 찾기
+        Stock stock = stockRepository.findByStockCode(stockCode)
+                .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
+        
+        List<Trade> trades = tradeRepository.findByInvestmentAccountIdAndStockId(account.getInvestmentAccountId(), stock.getId());
         
         return trades.stream()
                 .map(this::convertToTradeHistoryResponse)
                 .collect(Collectors.toList());
     }
 
+    // 저항선 계산
+    private BigDecimal calculateResistanceLine(List<ChartData> chartData) {
+        if (chartData == null || chartData.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        
+        return chartData.stream()
+                .map(ChartData::getHigh)
+                .max(Float::compareTo)
+                .map(BigDecimal::valueOf)
+                .orElse(BigDecimal.ZERO);
+    }
+
+    // 지지선 계산
+    private BigDecimal calculateSupportLine(List<ChartData> chartData) {
+        if (chartData == null || chartData.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        
+        return chartData.stream()
+                .map(ChartData::getLow)
+                .min(Float::compareTo)
+                .map(BigDecimal::valueOf)
+                .orElse(BigDecimal.ZERO);
+    }
+
 
     // OrderResponse 변환
     private OrderResponse convertToOrderResponse(Order order) {
-        // 실제로는 Stock 정보를 가져와야 하지만, 간단히 처리
+        // Stock 정보 조회
+        Stock stock = order.getStock();
+        
         return new OrderResponse(
                 order.getOrderId(),
-                order.getStockId(),
-                "", // stockCode - Stock에서 조회 필요
-                "", // stockName - Stock에서 조회 필요
+                order.getStock().getId(),
+                stock.getStockCode() != null ? stock.getStockCode() : "",
+                stock.getStockName() != null ? stock.getStockName() : "",
                 order.getOrderType().toString(),
                 (int) order.getQuantity(),
                 order.getPrice(),

@@ -13,13 +13,13 @@ import java.util.UUID;
 public interface OrderRepository extends JpaRepository<Order, UUID> {
     
     // 투자 계좌별 주문 내역 조회
-    List<Order> findByInvestmentAccountIdOrderByCreatedAtDesc(UUID investmentAccountId);
+    List<Order> findByInvestmentAccount_InvestmentAccountIdOrderByCreatedAtDesc(UUID investmentAccountId);
     
     // 특정 종목의 주문 내역 조회
-    List<Order> findByInvestmentAccountIdAndStockIdOrderByCreatedAtDesc(UUID investmentAccountId, UUID stockId);
+    List<Order> findByInvestmentAccount_InvestmentAccountIdAndStock_IdOrderByCreatedAtDesc(UUID investmentAccountId, UUID stockId);
     
     // 대기 중인 주문 조회 (PENDING 상태)
-    @Query("SELECT o FROM Order o WHERE o.investmentAccountId = :accountId AND o.status = 'PENDING'")
+    @Query("SELECT o FROM Order o WHERE o.investmentAccount.investmentAccountId = :accountId AND o.status = 'PENDING'")
     List<Order> findPendingOrdersByAccountId(@Param("accountId") UUID accountId);
 }
 

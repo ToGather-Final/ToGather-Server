@@ -1,18 +1,14 @@
 package com.example.trading_service.service;
 
-import com.example.trading_service.domain.HoldingCache;
-import com.example.trading_service.domain.InvestmentAccount;
-import com.example.trading_service.domain.Stock;
-import com.example.trading_service.dto.HoldingResponse;
-import com.example.trading_service.dto.PortfolioSummaryResponse;
-import com.example.trading_service.repository.HoldingCacheRepository;
-import com.example.trading_service.repository.InvestmentAccountRepository;
-import com.example.trading_service.repository.StockRepository;
+import com.example.trading_service.domain.*;
+import com.example.trading_service.dto.*;
+import com.example.trading_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,27 +18,77 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 @Transactional(readOnly = true)
-public class PortfolioService {
+public class PortfolioCalculationService {
 
     private final HoldingCacheRepository holdingCacheRepository;
     private final InvestmentAccountRepository investmentAccountRepository;
     private final StockRepository stockRepository;
     private final StockPriceService stockPriceService;
+    private final BalanceCacheRepository balanceCacheRepository;
+    private final RedisCacheService redisCacheService;
 
-    // 보유 종목 조회 (실시간 가격 정보 포함)
-    public List<HoldingResponse> getUserHoldings(UUID userId) {
-        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+    /**
+     * 캐싱이 적용된 사용자 보유 주식 조회
+     */
+    public List<HoldingResponse> calculateUserHoldingsWithCache(UUID userId) {
+        // 1. Redis 캐시에서 조회
+        @SuppressWarnings("unchecked")
+        List<HoldingResponse> cachedHoldings = (List<HoldingResponse>) redisCacheService.getCachedUserHoldings(userId);
+        if (cachedHoldings != null) {
+            log.debug("사용자 보유 주식 캐시 히트 - 사용자ID: {}", userId);
+            return cachedHoldings;
+        }
+
+        // 2. 캐시에 없으면 DB에서 조회
+        List<HoldingResponse> holdings = calculateUserHoldings(userId);
         
-        List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+        // 3. Redis에 캐싱
+        redisCacheService.cacheUserHoldings(userId, holdings);
         
-        return holdings.stream()
-                .map(this::convertToHoldingResponse)
-                .collect(Collectors.toList());
+        return holdings;
     }
 
-    // 포트폴리오 요약 정보 조회
-    public PortfolioSummaryResponse getPortfolioSummary(UUID userId) {
+    /**
+     * 캐싱이 적용된 사용자 잔고 조회
+     */
+    public BigDecimal getUserBalanceWithCache(UUID userId) {
+        // 1. Redis 캐시에서 조회
+        BigDecimal cachedBalance = redisCacheService.getCachedUserBalance(userId);
+        if (cachedBalance != null) {
+            log.debug("사용자 잔고 캐시 히트 - 사용자ID: {}", userId);
+            return cachedBalance;
+        }
+
+        // 2. 캐시에 없으면 DB에서 조회
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        BalanceCache balance = balanceCacheRepository
+                .findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId())
+                .orElseThrow(() -> new RuntimeException("잔고 정보를 찾을 수 없습니다."));
+        
+        BigDecimal userBalance = BigDecimal.valueOf(balance.getBalance());
+        
+        // 3. Redis에 캐싱
+        redisCacheService.cacheUserBalance(userId, userBalance);
+        
+        return userBalance;
+    }
+
+    /**
+     * 사용자 잔고 캐시 무효화 (거래 후 호출)
+     */
+    public void evictUserBalanceCache(UUID userId) {
+        redisCacheService.evictUserBalance(userId);
+    }
+
+    /**
+     * 사용자 보유 주식 캐시 무효화 (거래 후 호출)
+     */
+    public void evictUserHoldingsCache(UUID userId) {
+        redisCacheService.evictUserHoldings(userId);
+    }
+
+    // 포트폴리오 요약 정보 계산
+    public PortfolioSummaryResponse calculatePortfolioSummary(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<HoldingCache> holdings = holdingCacheRepository
@@ -79,28 +125,48 @@ public class PortfolioService {
         );
     }
 
-    // 테스트용 샘플 보유 종목 생성
-    @Transactional
-    public void createSampleHoldings(UUID userId) {
+    // 보유 종목 목록 계산
+    public List<HoldingResponse> calculateUserHoldings(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
-        // 기존 보유 종목이 있으면 생성하지 않음
-        List<HoldingCache> existingHoldings = holdingCacheRepository
+        List<HoldingCache> holdings = holdingCacheRepository
                 .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
-        if (!existingHoldings.isEmpty()) {
-            log.info("이미 보유 종목이 존재합니다. 사용자: {}", userId);
-            return;
+        
+        return holdings.stream()
+                .map(this::convertToHoldingResponse)
+                .collect(Collectors.toList());
+    }
+
+    // 계좌 잔고 계산
+    public BalanceResponse calculateAccountBalance(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        
+        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId())
+                .orElseThrow(() -> new RuntimeException("잔고 정보를 찾을 수 없습니다"));
+
+        // 보유 종목들의 총 평가금액 계산
+        List<HoldingCache> holdings = holdingCacheRepository.findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId());
+        
+        float totalInvested = 0;
+        float totalValue = 0;
+        
+        for (HoldingCache holding : holdings) {
+            totalInvested += holding.getAvgCost() * holding.getQuantity();
+            totalValue += holding.getEvaluatedPrice() != null ? holding.getEvaluatedPrice() : 0;
         }
         
-        // 이미지에 나온 주식들의 샘플 보유 종목 생성
-        createSampleHolding(account.getInvestmentAccountId(), "035420", 2.5f, 485500f); // NAVER
-        createSampleHolding(account.getInvestmentAccountId(), "035720", 8.333f, 416650f); // 카카오
-        createSampleHolding(account.getInvestmentAccountId(), "051910", 1.25f, 625000f); // LG화학
-        createSampleHolding(account.getInvestmentAccountId(), "005380", 3.75f, 712500f); // 현대차
-        createSampleHolding(account.getInvestmentAccountId(), "000660", 0.875f, 1125000f); // SK하이닉스
-        createSampleHolding(account.getInvestmentAccountId(), "005930", 2.0f, 72500f); // 삼성전자
+        float totalProfit = totalValue - totalInvested;
+        float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
         
-        log.info("샘플 보유 종목이 생성되었습니다. 사용자: {}", userId);
+        return new BalanceResponse(
+                balance.getBalanceId(),
+                balance.getInvestmentAccount().getInvestmentAccountId(),
+                (long) balance.getBalance(),
+                totalInvested,
+                totalValue,
+                totalProfit,
+                totalProfitRate
+        );
     }
 
     // HoldingResponse 변환 (실시간 가격 정보 포함)
@@ -212,25 +278,8 @@ public class PortfolioService {
         }
     }
 
-    private void createSampleHolding(UUID accountId, String stockCode, float quantity, float avgCost) {
-        Stock stock = stockRepository.findByStockCode(stockCode)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다: " + stockCode));
-        
-        HoldingCache holding = new HoldingCache();
-        InvestmentAccount account = investmentAccountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("투자 계좌를 찾을 수 없습니다"));
-        
-        holding.setInvestmentAccount(account);
-        holding.setStock(stock);
-        holding.setQuantity((int) quantity);
-        holding.setAvgCost(avgCost);
-        holding.setEvaluatedPrice(avgCost * quantity); // 초기값은 평균 매입가로 설정
-        
-        holdingCacheRepository.save(holding);
-    }
-
     private InvestmentAccount getInvestmentAccountByUserId(UUID userId) {
         return investmentAccountRepository.findByUserId(userId.toString())
-                .orElseThrow(() -> new IllegalArgumentException("투자 계좌를 찾을 수 없습니다."));
+                .orElseThrow(() -> new RuntimeException("투자 계좌를 찾을 수 없습니다"));
     }
 }
