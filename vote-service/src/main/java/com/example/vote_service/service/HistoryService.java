@@ -7,6 +7,7 @@ import com.example.vote_service.security.JwtUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ import java.util.UUID;
  * History 서비스
  * - 히스토리 생성 비즈니스 로직 처리
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class HistoryService {
@@ -33,7 +35,7 @@ public class HistoryService {
      * 투표 생성 히스토리 생성 (사용자 ID 기반)
      */
     @Transactional
-    public void createVoteCreatedHistory(UUID userId, UUID proposalId, String proposalName, String proposerName) {
+    public void createVoteCreatedHistory(UUID userId, UUID proposalId, String proposalName, String proposerName, Integer price, Integer quantity) {
         try {
             // 사용자가 속한 그룹 ID 조회 (단일 그룹)
             Optional<UUID> groupIdOpt = groupMembersRepository.findFirstGroupIdByUserId(userId);
@@ -47,6 +49,12 @@ public class HistoryService {
             payload.put("proposalId", proposalId.toString());
             payload.put("proposalName", proposalName);
             payload.put("proposerName", proposerName);
+            if (price != null) {
+                payload.put("price", price);
+            }
+            if (quantity != null) {
+                payload.put("quantity", quantity);
+            }
             
             String payloadJson = objectMapper.writeValueAsString(payload);
             String title = String.format("투표가 생성되었습니다: %s", proposalName);
@@ -56,7 +64,9 @@ public class HistoryService {
                 HistoryCategory.VOTE,
                 HistoryType.VOTE_CREATED,
                 title,
-                payloadJson
+                payloadJson,
+                price,
+                quantity
             );
             
             historyRepository.save(history);
