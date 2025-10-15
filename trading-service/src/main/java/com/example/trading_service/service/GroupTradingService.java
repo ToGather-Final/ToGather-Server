@@ -52,17 +52,12 @@ public class GroupTradingService {
 
         int memberCount = groupMembers.size();
         
-        // 가격을 그룹 멤버 수로 나누기
+        // 가격과 수량을 그룹 멤버 수로 나누기
         BigDecimal pricePerMember = price.divide(new BigDecimal(memberCount), 2, RoundingMode.HALF_UP);
-        log.info("가격 분할 계산 - 원래 가격: {}, 멤버 수: {}, 멤버당 가격: {}", 
-                price, memberCount, pricePerMember);
+        BigDecimal quantityPerMember = new BigDecimal(totalQuantity).divide(new BigDecimal(memberCount), 4, RoundingMode.HALF_UP);
         
-        // 올림 처리된 분할 계산
-        GroupDistributionResult distribution = calculateGroupDistribution(totalQuantity, memberCount);
-        
-        log.info("그룹 멤버 수: {}, 멤버당 수량(반올림): {}, 총 분배량: {}, 차이: {}", 
-                memberCount, distribution.getQuantityPerMember(), 
-                distribution.getTotalDistributed(), distribution.getDifference());
+        log.info("분할 계산 - 원래 가격: {}, 멤버 수: {}, 멤버당 가격: {}, 멤버당 수량: {}", 
+                price, memberCount, pricePerMember, quantityPerMember);
 
         // 2. 각 멤버별로 개인 주문 생성 및 실행
         List<Order> executedOrders = new ArrayList<>();
@@ -70,13 +65,10 @@ public class GroupTradingService {
 
         for (int i = 0; i < groupMembers.size(); i++) {
             InvestmentAccount memberAccount = groupMembers.get(i);
-            
-            // 올림 처리된 수량 계산
-            int memberQuantity = distribution.getMemberQuantity(i, memberCount);
 
             try {
-                // 개인 매수 주문 생성 (멤버당 가격 사용)
-                BuyRequest buyRequest = new BuyRequest(stockId, null, memberQuantity, pricePerMember, false);
+                // 개인 매수 주문 생성 (멤버당 가격과 수량 사용)
+                BuyRequest buyRequest = new BuyRequest(stockId, null, quantityPerMember.intValue(), pricePerMember, false);
 
                 orderService.buyStock(UUID.fromString(memberAccount.getUserId()), buyRequest);
                 
@@ -85,7 +77,7 @@ public class GroupTradingService {
                 processedCount++;
 
                 log.info("멤버 {} 매수 완료 - 수량: {}, 가격: {}", 
-                        memberAccount.getInvestmentAccountId(), memberQuantity, pricePerMember);
+                        memberAccount.getInvestmentAccountId(), quantityPerMember, pricePerMember);
 
             } catch (Exception e) {
                 log.error("멤버 {} 매수 실패: {}", memberAccount.getInvestmentAccountId(), e.getMessage());
@@ -93,11 +85,11 @@ public class GroupTradingService {
             }
         }
 
-        // 3. 그룹 보유량 업데이트 (실제 분배된 수량으로)
-        updateGroupHolding(groupId, stockId, distribution.getTotalDistributed(), pricePerMember, memberCount);
+        // 3. 그룹 보유량 업데이트
+        updateGroupHolding(groupId, stockId, totalQuantity, pricePerMember, memberCount);
 
         // 4. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, distribution.getTotalDistributed(), pricePerMember, "BUY", executedOrders);
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "BUY", executedOrders);
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -127,17 +119,12 @@ public class GroupTradingService {
         List<InvestmentAccount> groupMembers = getGroupMembers(groupId);
         int memberCount = groupMembers.size();
         
-        // 가격을 그룹 멤버 수로 나누기
+        // 가격과 수량을 그룹 멤버 수로 나누기
         BigDecimal pricePerMember = price.divide(new BigDecimal(memberCount), 2, RoundingMode.HALF_UP);
-        log.info("가격 분할 계산 - 원래 가격: {}, 멤버 수: {}, 멤버당 가격: {}", 
-                price, memberCount, pricePerMember);
+        BigDecimal quantityPerMember = new BigDecimal(totalQuantity).divide(new BigDecimal(memberCount), 4, RoundingMode.HALF_UP);
         
-        // 올림 처리된 분할 계산
-        GroupDistributionResult distribution = calculateGroupDistribution(totalQuantity, memberCount);
-        
-        log.info("그룹 멤버 수: {}, 멤버당 수량(반올림): {}, 총 분배량: {}, 차이: {}", 
-                memberCount, distribution.getQuantityPerMember(), 
-                distribution.getTotalDistributed(), distribution.getDifference());
+        log.info("분할 계산 - 원래 가격: {}, 멤버 수: {}, 멤버당 가격: {}, 멤버당 수량: {}", 
+                price, memberCount, pricePerMember, quantityPerMember);
 
         // 3. 각 멤버별로 개인 매도 주문 생성 및 실행
         List<Order> executedOrders = new ArrayList<>();
@@ -145,13 +132,10 @@ public class GroupTradingService {
 
         for (int i = 0; i < groupMembers.size(); i++) {
             InvestmentAccount memberAccount = groupMembers.get(i);
-            
-            // 올림 처리된 수량 계산
-            int memberQuantity = distribution.getMemberQuantity(i, memberCount);
 
             try {
-                // 개인 매도 주문 생성 (멤버당 가격 사용)
-                SellRequest sellRequest = new SellRequest(stockId, null, memberQuantity, pricePerMember, false);
+                // 개인 매도 주문 생성 (멤버당 가격과 수량 사용)
+                SellRequest sellRequest = new SellRequest(stockId, null, quantityPerMember.intValue(), pricePerMember, false);
 
                 orderService.sellStock(UUID.fromString(memberAccount.getUserId()), sellRequest);
                 
@@ -160,74 +144,23 @@ public class GroupTradingService {
                 processedCount++;
 
                 log.info("멤버 {} 매도 완료 - 수량: {}, 가격: {}", 
-                        memberAccount.getInvestmentAccountId(), memberQuantity, pricePerMember);
+                        memberAccount.getInvestmentAccountId(), quantityPerMember, pricePerMember);
 
             } catch (Exception e) {
                 log.error("멤버 {} 매도 실패: {}", memberAccount.getInvestmentAccountId(), e.getMessage());
             }
         }
 
-        // 4. 그룹 보유량 업데이트 (실제 분배된 수량으로)
-        updateGroupHolding(groupId, stockId, -distribution.getTotalDistributed(), pricePerMember, memberCount);
+        // 4. 그룹 보유량 업데이트
+        updateGroupHolding(groupId, stockId, -totalQuantity, pricePerMember, memberCount);
 
         // 5. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, distribution.getTotalDistributed(), pricePerMember, "SELL", executedOrders);
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "SELL", executedOrders);
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
     }
 
-    /**
-     * 반올림 처리된 그룹 분할 계산
-     * @param totalQuantity 총 수량
-     * @param memberCount 멤버 수
-     * @return 분할 결과
-     */
-    private GroupDistributionResult calculateGroupDistribution(int totalQuantity, int memberCount) {
-        int quantityPerMember = (int) Math.round((double) totalQuantity / memberCount);
-        int totalDistributed = quantityPerMember * memberCount;
-        int difference = totalDistributed - totalQuantity;
-        
-        return new GroupDistributionResult(quantityPerMember, totalDistributed, difference);
-    }
-
-    /**
-     * 그룹 분할 결과 클래스
-     */
-    private static class GroupDistributionResult {
-        private final int quantityPerMember;
-        private final int totalDistributed;
-        private final int difference;
-        
-        public GroupDistributionResult(int quantityPerMember, int totalDistributed, int difference) {
-            this.quantityPerMember = quantityPerMember;
-            this.totalDistributed = totalDistributed;
-            this.difference = difference;
-        }
-        
-        public int getQuantityPerMember() {
-            return quantityPerMember;
-        }
-        
-        public int getTotalDistributed() {
-            return totalDistributed;
-        }
-        
-        public int getDifference() {
-            return difference;
-        }
-        
-        /**
-         * 특정 멤버의 수량 계산 (반올림 처리로 모든 멤버가 동일한 수량)
-         * @param memberIndex 멤버 인덱스 (0부터 시작)
-         * @param totalMembers 총 멤버 수
-         * @return 해당 멤버의 수량
-         */
-        public int getMemberQuantity(int memberIndex, int totalMembers) {
-            // 반올림 처리로 모든 멤버가 동일한 수량을 가짐
-            return quantityPerMember;
-        }
-    }
 
     /**
      * 그룹 멤버들의 투자 계좌 조회
