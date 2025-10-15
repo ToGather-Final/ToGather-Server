@@ -7,8 +7,6 @@ import com.example.user_service.dto.RegisterRequest;
 import com.example.user_service.security.JwtUtil;
 import com.example.user_service.service.AuthService;
 import com.example.user_service.service.RefreshTokenService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
