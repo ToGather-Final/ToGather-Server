@@ -7,6 +7,7 @@ import com.example.vote_service.model.VoteChoice;
 import com.example.vote_service.repository.VoteRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.util.UUID;
  * Vote 서비스
  * - 투표 생성, 조회, 집계 등의 비즈니스 로직 처리
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VoteService {
@@ -140,10 +142,17 @@ public class VoteService {
         long rejectCount = countRejectVotes(proposalId);
         long totalVotes = approveCount + rejectCount;
 
+        // 투표 결과 로깅
+        log.info("투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}", 
+                proposalId, approveCount, rejectCount, voteQuorum);
+
         // 가결 조건:
-        // 1. 찬성 투표 수가 정족수 이상
-        // 2. 찬성이 반대보다 많음
+        // 1. 찬성 투표 수가 정족수(voteQuorum) 이상
+        // 2. 찬성이 반대보다 많음 (동점이면 부결)
         boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+        
+        log.info("가결 여부: {} (찬성 >= 정족수: {}, 찬성 > 반대: {})", 
+                isApproved, (approveCount >= voteQuorum), (approveCount > rejectCount));
 
         if (isApproved) {
             proposalService.approveProposal(proposalId);

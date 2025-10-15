@@ -1,5 +1,8 @@
 package com.example.vote_service.scheduler;
 
+import com.example.vote_service.client.UserServiceClient;
+import com.example.vote_service.dto.GroupMemberCountResponse;
+import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.ProposalStatus;
 import com.example.vote_service.repository.ProposalRepository;
@@ -23,6 +26,7 @@ public class VoteScheduler {
 
     private final ProposalRepository proposalRepository;
     private final VoteService voteService;
+    private final UserServiceClient userServiceClient;
 
     /**
      * 매 분마다 실행되어 마감된 투표를 자동 집계
@@ -42,13 +46,24 @@ public class VoteScheduler {
                     log.info("제안 집계 시작: proposalId={}, proposalName={}", 
                             proposal.getProposalId(), proposal.getProposalName());
 
-                    // TODO: user-service API 호출하여 GroupRule과 멤버 수 가져오기
-                    // GroupRule rule = userServiceClient.getGroupRule(proposal.getGroupId());
-                    // int totalMembers = userServiceClient.getGroupMemberCount(proposal.getGroupId());
-                    // voteService.tallyVotes(proposal.getProposalId(), totalMembers, rule.getVoteQuorum());
-
-                    // 임시: 간단 버전 사용
-                    voteService.tallyVotesSimple(proposal.getProposalId());
+                    // user-service API 호출하여 GroupRule과 멤버 수 가져오기
+                    try {
+                        GroupRuleResponse rule = userServiceClient.getGroupRule(proposal.getGroupId());
+                        GroupMemberCountResponse memberCount = userServiceClient.getGroupMemberCount(proposal.getGroupId());
+                        
+                        log.info("그룹 정보 조회 완료 - groupId: {}, 정족수: {}, 멤버 수: {}", 
+                                proposal.getGroupId(), rule.voteQuorum(), memberCount.count());
+                        
+                        voteService.tallyVotes(proposal.getProposalId(), memberCount.count(), rule.voteQuorum());
+                    } catch (Exception e) {
+                        log.error("user-service API 호출 실패, 기본값으로 집계 진행 - groupId: {}, error: {}", 
+                                proposal.getGroupId(), e.getMessage());
+                        
+                        // API 호출 실패 시 기본값으로 집계
+                        int totalMembers = 10; // 기본값
+                        int voteQuorum = 2;    // 기본값
+                        voteService.tallyVotes(proposal.getProposalId(), totalMembers, voteQuorum);
+                    }
 
                     log.info("제안 집계 완료: proposalId={}", proposal.getProposalId());
                 } catch (Exception e) {
