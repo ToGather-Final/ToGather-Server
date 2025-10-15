@@ -141,6 +141,9 @@ project(":vote-service") {
 			exclude group: 'io.lettuce', module: 'lettuce-core'
 		}
 		implementation 'redis.clients:jedis'
+		
+		// Feign Client for user-service API calls
+		implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 	}
 }
 
