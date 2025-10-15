@@ -2,6 +2,8 @@ package com.example.pay_service.repository;
 
 import com.example.pay_service.domain.Transfer;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -33,4 +35,6 @@ public interface TransferRepository extends JpaRepository<Transfer, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM Transfer t WHERE t.clientRequestId = :clientRequestId")
     Optional<Transfer> findByClientRequestIdWithLock(@Param("clientRequestId") String clientRequestId);
+
+    Page<Transfer> findByToAccountIdOrderByCreatedAtDesc(UUID accountId, Pageable pageable);
 }
