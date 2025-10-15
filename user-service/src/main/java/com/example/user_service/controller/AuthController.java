@@ -78,12 +78,12 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public LoginResponse refresh(
-            @Valid @RequestBody RefreshTokenRequest request,
+            @RequestHeader("X-Refresh-Token") String refreshToken,
             @RequestHeader("X-Device-Id") String deviceId) {
         validateDeviceId(deviceId);
-        validateRefreshToken(request.refreshToken());
+        validateRefreshToken(refreshToken);
 
-        UUID userId = refreshTokenService.getUserIdFromToken(request.refreshToken(), deviceId);
+        UUID userId = refreshTokenService.getUserIdFromToken(refreshToken, deviceId);
 
         String newAccessToken = jwtUtil.issue(userId);
         String newRefreshToken = refreshTokenService.issue(userId, deviceId);
