@@ -2,6 +2,7 @@ package com.example.vote_service.service;
 
 import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.ProposalCreateRequest;
+import com.example.vote_service.dto.UserMeResponse;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.ProposalStatus;
 import com.example.vote_service.repository.ProposalRepository;
@@ -46,9 +47,22 @@ public class ProposalService {
         UUID groupId = getUserGroupId(userId);
         log.info("사용자 그룹 조회 완료 - userId: {}, groupId: {}", userId, groupId);
         
-        // 2. 사용자 닉네임 조회
-        String proposerName = userServiceClient.getUserNickname(userId);
-        log.info("사용자 닉네임 조회 완료 - userId: {}, proposerName: {}", userId, proposerName);
+        // 2. 사용자 닉네임 조회 (/users/me API 호출)
+        String proposerName;
+        log.info("🔍 사용자 닉네임 조회 시작 - userId: {}", userId);
+        try {
+            log.info("📞 userServiceClient.getCurrentUser() 호출 시작");
+            UserMeResponse userMe = userServiceClient.getCurrentUser();
+            log.info("📞 userServiceClient.getCurrentUser() 응답 받음 - userMe: {}", userMe);
+            
+            proposerName = userMe.nickname();
+            log.info("✅ 사용자 닉네임 조회 성공 - userId: {}, proposerName: {}", userId, proposerName);
+        } catch (Exception e) {
+            log.error("❌ 사용자 닉네임 조회 실패 - userId: {}, error: {}", userId, e.getMessage());
+            log.error("❌ Exception 상세 정보:", e);
+            proposerName = "사용자"; // API 호출 실패 시 기본값
+            log.info("⚠️ 기본값 사용 - userId: {}, proposerName: {}", userId, proposerName);
+        }
         
         // 3. payload를 유효한 JSON으로 변환
         String validatedPayload = validateAndConvertPayload(request.payload());
@@ -75,7 +89,9 @@ public class ProposalService {
             userId,
             saved.getProposalId(),
             request.proposalName(),
-            proposerName
+            proposerName,
+            request.price(),
+            request.quantity()
         );
         
         return saved.getProposalId();

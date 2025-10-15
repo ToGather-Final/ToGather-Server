@@ -20,11 +20,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchange -> exchange
-                        .pathMatchers("/actuator/health", "/actuator/health/**").permitAll() // AWS Health Check
-                        .pathMatchers("/health").permitAll() // Health Check
-                        .pathMatchers("/api/health").permitAll() // Health Check
-                        .pathMatchers("/api/auth/**").permitAll() // 비회원 일 때 권한체크 안하고 api 열어줌
-                        .anyExchange().authenticated()
+                        .anyExchange().permitAll() // 모든 요청 허용, JWT 인증은 GlobalFilter에서 처리
                 )
                 .build();
     }

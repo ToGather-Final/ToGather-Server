@@ -13,11 +13,24 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * API Gateway에서 검증된 X-User-Id 헤더를 읽어 인증 처리
+ * JWT 검증은 API Gateway에서 수행됨
+ */
 @Slf4j
 @Component
 public class HeaderAuthFilter extends OncePerRequestFilter {
 
-    public HeaderAuthFilter() {
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // 인증이 필요 없는 경로는 필터를 건너뜁니다
+        return path.startsWith("/auth/login") || 
+               path.startsWith("/auth/signup") || 
+               path.startsWith("/auth/refresh") ||
+               path.startsWith("/swagger-ui") || 
+               path.startsWith("/v3/api-docs") ||
+               path.startsWith("/actuator");
     }
 
     @Override
@@ -29,15 +42,15 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        UUID userIdFromHeader = resolveUserIdFromHeader(request);
-        if (userIdFromHeader != null) {
-            log.info("인증 성공 - X-User-Id 헤더: {}", userIdFromHeader);
-            setAuthentication(userIdFromHeader);
+        // API Gateway에서 전달한 X-User-Id 헤더 읽기
+        UUID userId = resolveUserIdFromHeader(request);
+        if (userId != null) {
+            log.debug("인증 성공 - X-User-Id 헤더: {}", userId);
+            setAuthentication(userId);
         } else {
-            log.warn("인증 실패 - X-User-Id 헤더 없음");
+            log.warn("X-User-Id 헤더가 없습니다. 경로: {}", request.getRequestURI());
         }
-
-        chain.doFilter(request, response);
+                chain.doFilter(request, response);
     }
 
     private UUID resolveUserIdFromHeader(HttpServletRequest request) {
@@ -48,6 +61,7 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
         try {
             return UUID.fromString(userIdHeader);
         } catch (IllegalArgumentException e) {
+            log.error("잘못된 X-User-Id 형식: {}", userIdHeader);
             return null;
         }
     }

@@ -7,10 +7,12 @@ import com.example.user_service.repository.UserRepository;
 
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -20,17 +22,31 @@ public class AuthService {
 
     @Transactional
     public UUID register(RegisterRequest request) {
-        if (isDuplicate(request.username())) {
-            throw new IllegalArgumentException("이미 존재하는 아이디입니다.");
+        try {
+            log.info("AuthService.register 시작 - username: {}", request.username());
+            
+            if (isDuplicate(request.username())) {
+                log.warn("회원가입 실패: 이미 존재하는 아이디 - {}", request.username());
+                throw new IllegalArgumentException("이미 존재하는 아이디입니다.");
+            }
+
+            log.info("비밀번호 유효성 검사 시작");
+            validatePassword(request.password());
+            validatePasswordConfirm(request.password(), request.passwordConfirm());
+
+            log.info("비밀번호 인코딩 시작");
+            String encoded = passwordEncoder.encode(request.password());
+            
+            log.info("User 엔티티 생성 및 저장");
+            User newUser = User.create(encoded, request.username(), request.nickname());
+            User saved = userRepository.save(newUser);
+            
+            log.info("회원가입 성공: userId={}", saved.getUserId());
+            return saved.getUserId();
+        } catch (Exception e) {
+            log.error("AuthService.register 실패 - username: {}, 에러: {}", request.username(), e.getMessage(), e);
+            throw e;
         }
-
-        validatePassword(request.password());
-        validatePasswordConfirm(request.password(), request.passwordConfirm());
-
-        String encoded = passwordEncoder.encode(request.password());
-        User newUser = User.create(encoded, request.username(), request.nickname());
-        User saved = userRepository.save(newUser);
-        return saved.getUserId();
     }
 
     @Transactional(readOnly = true)

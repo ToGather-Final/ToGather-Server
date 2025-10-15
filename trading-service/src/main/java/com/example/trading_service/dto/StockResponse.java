@@ -13,6 +13,7 @@ public class StockResponse {
     private String stockName;
     private String stockImage;
     private String country;
+    private String prdtTypeCd; // 300: 주식, 500: ETF
     private Float currentPrice;
     private Float changeAmount; // 전일 대비 변동금액
     private Float changeRate; // 전일 대비 변동률

@@ -5,18 +5,18 @@ app:
   database:
     url: ${DB_URL:jdbc:mysql://localhost:3306/togather_db}
     username: ${DB_USERNAME:admin}
-    password: ${DB_PASSWORD:togather1234}
+    password: ${DB_PASSWORD:}
   redis:
     host: ${SPRING_DATA_REDIS_HOST:localhost}
     port: ${SPRING_DATA_REDIS_PORT:6379}
-    password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+    password: ${SPRING_DATA_REDIS_PASSWORD:}
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: 5672
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
   jwt:
-    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    secret: ${JWT_SECRET_KEY:}
     issuer: ${JWT_ISSUER:togather}
     access-exp-seconds: ${JWT_ACCESS_EXP:1800}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
@@ -24,7 +24,7 @@ app:
 spring:
   config:
     import:
-      - optional:classpath:application-common.yml
+      - optional:file:application-dev.yml
   application:
     name: trading-service
   datasource:
@@ -42,7 +42,7 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
       timeout: 2000ms
       connect-timeout: 2000ms
   rabbitmq:
@@ -85,7 +85,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${app.database.url:jdbc:mysql://localhost:3306/togather_db}
     username: ${app.database.username:admin}
-    password: ${app.database.password:togather1234}
+    password: ${app.database.password:}
   jpa:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
@@ -100,9 +100,9 @@ jwt:
   refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 kis:
-  base-url: ${app.kis.base-url:https://openapi.koreainvestment.com:9443}
-  appkey: ${app.kis.appkey:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
-  appsecret: ${app.kis.appsecret:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
+  base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
+  appkey: ${KIS_APPKEY:}
+  appsecret: ${KIS_APPSECRET:}
 
 server:
   port: 8081
@@ -138,5 +138,5 @@ jwt:
 
 kis:
   base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
-  appkey: ${KIS_APPKEY:PSl58sGebbz74LDEINMKH0QXCbX0tnuxy55B}
-  appsecret: ${KIS_APPSECRET:OLkpy/YoF7d/KajEe10twHWOCm8yvNgiKJRdWyPuo5prz2Munm8Fx2gITWmUAsw1CRjukfuZxuiYKuIb09nC6oNC2F2WiNQhPqoW7sxQLa4fzXqdOBMwleSkldkOQ7c4ofAptRGRLpZZJx5HTUtM2sfiD+Hc6Om+WkOsPYD/GEHL9p8sQIg=}
+  appkey: ${KIS_APPKEY:}
+  appsecret: ${KIS_APPSECRET:}

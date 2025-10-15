@@ -36,7 +36,7 @@ public class SecurityConfig{
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable());
-        http.cors(cors -> {});
+        // CORS는 API Gateway에서 처리
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.exceptionHandling(ex -> {
             ex.authenticationEntryPoint(restAuthEntryPoint);
@@ -45,14 +45,15 @@ public class SecurityConfig{
         http.authorizeHttpRequests(reg -> {
             reg.requestMatchers("/actuator/**").permitAll();
             reg.requestMatchers("/auth/**").permitAll();
-            reg.requestMatchers("/users/exists").permitAll();
-            reg.requestMatchers("/users/**").authenticated();
-            reg.requestMatchers("/groups/**").authenticated();
+
+            reg.requestMatchers("/users/**").permitAll();
+            reg.requestMatchers("/groups/**").permitAll();
+            reg.requestMatchers("/swagger-ui/**").permitAll();
+            reg.requestMatchers("/v3/api-docs/**").permitAll();
+            reg.requestMatchers("/swagger-ui.html").permitAll();
             reg.anyRequest().authenticated();
         });
         http.addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }
-
-

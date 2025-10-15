@@ -17,8 +17,9 @@ public class Trade {
     @Column(name = "trade_id", nullable = false, updatable = false)
     private UUID tradeId; // 체결 아이디 (PK)
 
-    @Column(name = "order_id", nullable = false)
-    private UUID orderId; // 주문 아이디 (FK, 실제로는 값만 저장)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
+    private Order order;
 
     @Column(name = "quantity", nullable = false)
     private float quantity; // 체결 수량
