@@ -24,7 +24,6 @@ app:
 spring:
   config:
     import:
-      - optional:classpath:application-common.yml
       - optional:file:application-dev.yml
   application:
     name: trading-service
@@ -101,9 +100,9 @@ jwt:
   refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 kis:
-  base-url: ${app.kis.base-url:https://openapi.koreainvestment.com:9443}
-  appkey: ${app.kis.appkey:}
-  appsecret: ${app.kis.appsecret:}
+  base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
+  appkey: ${KIS_APPKEY:}
+  appsecret: ${KIS_APPSECRET:}
 
 server:
   port: 8081
