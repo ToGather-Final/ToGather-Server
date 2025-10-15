@@ -34,6 +34,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 주식 조회는 인증 불필요
                 .requestMatchers("/trading/stocks", "/trading/stocks/**").permitAll()
+                // Swagger UI 및 API 문서는 인증 불필요
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/index.html", "/swagger-resources/**", "/webjars/**").permitAll()
+                // favicon.ico 허용
+                .requestMatchers("/favicon.ico").permitAll()
                 // 나머지는 인증 필요
                 .anyRequest().authenticated()
             )
