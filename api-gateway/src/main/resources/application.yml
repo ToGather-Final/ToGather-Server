@@ -99,9 +99,9 @@ spring:
 
         # 투표 서비스
         - id: vote-service
-          uri: http://localhost:8080
+          uri: http://localhost:8084
           predicates:
-            - Path=/api/votes/**
+            - Path=/api/vote/**,/api/votes/**
           filters:
             - StripPrefix=1
 
@@ -167,7 +167,7 @@ spring:
         - id: vote-service-route
           uri: lb://vote-service
           predicates:
-            - Path=/api/vote/**
+            - Path=/api/vote/**,/api/votes/**
           filters:
             - StripPrefix=1
         - id: trading-service-route
