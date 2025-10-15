@@ -124,12 +124,12 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(orderBook));
     }
 
-    // 주식 차트 데이터 조회 (캔들차트 + 이동평균선 + 거래량)
+    // 주식 차트 데이터 조회 (캔들차트 + 이동평균선 + 거래량 + 기본 정보)
     @GetMapping("/stocks/{stockCode}/chart")
-    public ResponseEntity<ApiResponse<List<ChartData>>> getStockChart(@PathVariable String stockCode,
-                                                                      @RequestParam(defaultValue = "30") int days) {
-        List<ChartData> chartData = chartService.getStockChart(stockCode, days);
-        return ResponseEntity.ok(ApiResponse.success(chartData));
+    public ResponseEntity<ApiResponse<StockInfoResponse>> getStockChart(@PathVariable String stockCode,
+                                                                        @RequestParam(defaultValue = "80") int days) {
+        StockInfoResponse chartInfo = tradingService.getStockChartWithInfo(stockCode, days);
+        return ResponseEntity.ok(ApiResponse.success(chartInfo));
     }
 
     // 대기 중인 주문 조회

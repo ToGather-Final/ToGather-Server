@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -50,10 +51,13 @@ public class GroupTradingService {
         }
 
         int memberCount = groupMembers.size();
-        int quantityPerMember = totalQuantity / memberCount;
-        int remainingQuantity = totalQuantity % memberCount;
-
-        log.info("그룹 멤버 수: {}, 멤버당 수량: {}, 남은 수량: {}", memberCount, quantityPerMember, remainingQuantity);
+        
+        // 가격과 수량을 그룹 멤버 수로 나누기
+        BigDecimal pricePerMember = price.divide(new BigDecimal(memberCount), 2, RoundingMode.HALF_UP);
+        BigDecimal quantityPerMember = new BigDecimal(totalQuantity).divide(new BigDecimal(memberCount), 4, RoundingMode.HALF_UP);
+        
+        log.info("분할 계산 - 원래 가격: {}, 멤버 수: {}, 멤버당 가격: {}, 멤버당 수량: {}", 
+                price, memberCount, pricePerMember, quantityPerMember);
 
         // 2. 각 멤버별로 개인 주문 생성 및 실행
         List<Order> executedOrders = new ArrayList<>();
@@ -61,16 +65,10 @@ public class GroupTradingService {
 
         for (int i = 0; i < groupMembers.size(); i++) {
             InvestmentAccount memberAccount = groupMembers.get(i);
-            
-            // 마지막 멤버가 남은 수량 처리
-            int memberQuantity = quantityPerMember;
-            if (i == groupMembers.size() - 1 && remainingQuantity > 0) {
-                memberQuantity += remainingQuantity;
-            }
 
             try {
-                // 개인 매수 주문 생성
-                BuyRequest buyRequest = new BuyRequest(stockId, null, memberQuantity, price, false);
+                // 개인 매수 주문 생성 (멤버당 가격과 수량 사용)
+                BuyRequest buyRequest = new BuyRequest(stockId, null, quantityPerMember.intValue(), pricePerMember, false);
 
                 orderService.buyStock(UUID.fromString(memberAccount.getUserId()), buyRequest);
                 
@@ -79,7 +77,7 @@ public class GroupTradingService {
                 processedCount++;
 
                 log.info("멤버 {} 매수 완료 - 수량: {}, 가격: {}", 
-                        memberAccount.getInvestmentAccountId(), memberQuantity, price);
+                        memberAccount.getInvestmentAccountId(), quantityPerMember, pricePerMember);
 
             } catch (Exception e) {
                 log.error("멤버 {} 매수 실패: {}", memberAccount.getInvestmentAccountId(), e.getMessage());
@@ -88,10 +86,10 @@ public class GroupTradingService {
         }
 
         // 3. 그룹 보유량 업데이트
-        updateGroupHolding(groupId, stockId, totalQuantity, price, memberCount);
+        updateGroupHolding(groupId, stockId, totalQuantity, pricePerMember, memberCount);
 
         // 4. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, totalQuantity, price, "BUY", executedOrders);
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "BUY", executedOrders);
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -120,8 +118,13 @@ public class GroupTradingService {
         // 2. 그룹 멤버들의 투자 계좌 조회
         List<InvestmentAccount> groupMembers = getGroupMembers(groupId);
         int memberCount = groupMembers.size();
-        int quantityPerMember = totalQuantity / memberCount;
-        int remainingQuantity = totalQuantity % memberCount;
+        
+        // 가격과 수량을 그룹 멤버 수로 나누기
+        BigDecimal pricePerMember = price.divide(new BigDecimal(memberCount), 2, RoundingMode.HALF_UP);
+        BigDecimal quantityPerMember = new BigDecimal(totalQuantity).divide(new BigDecimal(memberCount), 4, RoundingMode.HALF_UP);
+        
+        log.info("분할 계산 - 원래 가격: {}, 멤버 수: {}, 멤버당 가격: {}, 멤버당 수량: {}", 
+                price, memberCount, pricePerMember, quantityPerMember);
 
         // 3. 각 멤버별로 개인 매도 주문 생성 및 실행
         List<Order> executedOrders = new ArrayList<>();
@@ -129,15 +132,10 @@ public class GroupTradingService {
 
         for (int i = 0; i < groupMembers.size(); i++) {
             InvestmentAccount memberAccount = groupMembers.get(i);
-            
-            int memberQuantity = quantityPerMember;
-            if (i == groupMembers.size() - 1 && remainingQuantity > 0) {
-                memberQuantity += remainingQuantity;
-            }
 
             try {
-                // 개인 매도 주문 생성
-                SellRequest sellRequest = new SellRequest(stockId, null, memberQuantity, price, false);
+                // 개인 매도 주문 생성 (멤버당 가격과 수량 사용)
+                SellRequest sellRequest = new SellRequest(stockId, null, quantityPerMember.intValue(), pricePerMember, false);
 
                 orderService.sellStock(UUID.fromString(memberAccount.getUserId()), sellRequest);
                 
@@ -146,7 +144,7 @@ public class GroupTradingService {
                 processedCount++;
 
                 log.info("멤버 {} 매도 완료 - 수량: {}, 가격: {}", 
-                        memberAccount.getInvestmentAccountId(), memberQuantity, price);
+                        memberAccount.getInvestmentAccountId(), quantityPerMember, pricePerMember);
 
             } catch (Exception e) {
                 log.error("멤버 {} 매도 실패: {}", memberAccount.getInvestmentAccountId(), e.getMessage());
@@ -154,14 +152,15 @@ public class GroupTradingService {
         }
 
         // 4. 그룹 보유량 업데이트
-        updateGroupHolding(groupId, stockId, -totalQuantity, price, memberCount);
+        updateGroupHolding(groupId, stockId, -totalQuantity, pricePerMember, memberCount);
 
         // 5. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, totalQuantity, price, "SELL", executedOrders);
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "SELL", executedOrders);
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
     }
+
 
     /**
      * 그룹 멤버들의 투자 계좌 조회
