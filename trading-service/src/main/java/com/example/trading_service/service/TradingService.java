@@ -153,15 +153,15 @@ public class TradingService {
 
     // 주식 차트 정보 조회 (기본 정보 + 차트 데이터)
     @Transactional(readOnly = true)
-    public StockInfoResponse getStockChartWithInfo(String stockCode, int days) {
+    public StockInfoResponse getStockChartWithInfo(String stockCode, String periodDiv) {
         Stock stock = stockRepository.findByStockCode(stockCode)
                 .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
 
         // 실시간 가격 정보 조회
         StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode);
         
-        // 차트 데이터 조회 (지정된 기간)
-        List<ChartData> chartData = chartService.getStockChart(stockCode, days);
+        // 차트 데이터 조회 (기간분류코드 사용)
+        List<ChartData> chartData = chartService.getStockChartByPeriod(stockCode, periodDiv);
 
         return StockInfoResponse.builder()
                 .stockId(stock.getId().toString())
