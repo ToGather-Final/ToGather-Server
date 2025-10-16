@@ -1,13 +1,9 @@
 package com.example.user_service.service;
 
 import com.example.user_service.domain.*;
-import com.example.user_service.dto.GroupCreateRequest;
-import com.example.user_service.dto.GroupMemberAddRequest;
-import com.example.user_service.dto.GroupRuleUpdateRequest;
-import com.example.user_service.dto.GroupStatusResponse;
+import com.example.user_service.dto.*;
 import com.example.user_service.repository.GroupMemberRepository;
 import com.example.user_service.repository.GroupRepository;
-import com.example.user_service.repository.GroupRuleRepository;
 import com.example.user_service.repository.InvitationCodeRepository;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -23,7 +19,6 @@ public class GroupService {
 
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
-    private final GroupRuleRepository groupRuleRepository;
     private final InvitationCodeRepository invitationCodeRepository;
 
     @Transactional
@@ -36,6 +31,7 @@ public class GroupService {
                 request.goalAmount(),
                 request.initialAmount(),
                 request.maxMembers(),
+                request.voteQuorum(),
                 request.dissolutionQuorum()
         );
         Group saved = groupRepository.save(group);
@@ -47,11 +43,59 @@ public class GroupService {
     }
 
     @Transactional
-    public void updateRule(UUID groupId, GroupRuleUpdateRequest request, UUID operatorId) {
+    public void updateGroupSettings(UUID groupId, GroupSettingsUpdateRequest request, UUID operatorId) {
         assertOperatorIsOwner(groupId, operatorId);
-        validateRule(request);
-        GroupRule rule = GroupRule.of(groupId, request.voteQuorum());
-        groupRuleRepository.save(rule);
+
+        Group group = groupRepository.findById(groupId).orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        boolean hasVoteQuorum = request.voteQuorum().isPresent();
+        boolean hasDissolutionQuorum = request.dissolutionQuorum().isPresent();
+        boolean hasGoalAmount = request.goalAmount().isPresent();
+
+        if (!hasVoteQuorum && !hasDissolutionQuorum && !hasGoalAmount) {
+            throw new IllegalArgumentException("수정할 사항이 없습니다.");
+        }
+
+        validateGroupSettings(groupId, request);
+
+        group.updateSettings(request.voteQuorum(), request.dissolutionQuorum(), request.goalAmount());
+        groupRepository.save(group);
+    }
+
+    @Transactional
+    public void updateGoalAmount(UUID groupId, Integer goalAmount, UUID operatorId) {
+        assertOperatorIsOwner(groupId, operatorId);
+
+        if (goalAmount == null || goalAmount <= 0) {
+            throw new IllegalArgumentException("목표 금액은 0원보다 커야 합니다.");
+        }
+
+        Group group = groupRepository.findById(groupId).orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        group.updateGoalAmount(goalAmount);
+        groupRepository.save(group);
+    }
+
+    @Transactional
+    public void updateQuorumSettings(UUID groupId, Integer voteQuorum, Integer dissolutionQuorum, UUID operatorId) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        if (voteQuorum == null || voteQuorum <= 0) {
+            throw new IllegalArgumentException("투표 찬성 인원수는 1명 이상이어야 합니다.");
+        }
+        if (dissolutionQuorum == null || dissolutionQuorum <= 0) {
+            throw new IllegalArgumentException("그룹 해체 인원수는 1명 이상이어야 합니다.");
+        }
+        if (voteQuorum > group.getMaxMembers()) {
+            throw new IllegalArgumentException("투표 찬성 인원수는 그룹 최대 인원을 초과할 수 없습니다.");
+        }
+        if (dissolutionQuorum > group.getMaxMembers()) {
+            throw new IllegalArgumentException("그룹 해체 인원수는 그룹 최대 인원을 초과할 수 없습니다.");
+        }
+
+        group.updateQuorumSetting(voteQuorum, dissolutionQuorum);
+        groupRepository.save(group);
     }
 
     @Transactional
@@ -102,22 +146,6 @@ public class GroupService {
         return group.getOwnerId();
     }
 
-    @Transactional(readOnly = true)
-    public GroupRule getRule(UUID groupId, UUID requesterId) {
-        assertMember(groupId, requesterId);
-        return groupRuleRepository.findByGroupId(groupId).orElseThrow(() -> new NoSuchElementException("그룹 규칙이 없습니다."));
-    }
-
-    /**
-     * 시스템용 그룹 규칙 조회
-     * - 인증 없이 조회 (시스템 내부용)
-     */
-    @Transactional(readOnly = true)
-    public GroupRule getRuleInternal(UUID groupId) {
-        return groupRuleRepository.findByGroupId(groupId).orElseThrow(() -> new NoSuchElementException("그룹 규칙이 없습니다."));
-    }
-
-
     @Transactional
     public void addMember(UUID groupId, GroupMemberAddRequest request, UUID operatorId) {
         assertOperatorIsOwner(groupId, operatorId);
@@ -164,6 +192,28 @@ public class GroupService {
                 .toList();
     }
 
+    // 시스템용 조회 기능
+    @Transactional(readOnly = true)
+    public GroupSettingsResponse getGroupSettingsInternal(UUID groupId) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        return new GroupSettingsResponse(
+                group.getVoteQuorum(),
+                group.getDissolutionQuorum(),
+                group.getGoalAmount(),
+                group.getMaxMembers()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public Integer getVoteQuorumInternal(UUID groupId) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        return group.getVoteQuorum();
+    }
+
     private void assertMember(UUID groupId, UUID userId) {
         boolean ok = groupMemberRepository.existsByIdGroupIdAndIdUserId(groupId, userId);
         if (ok) {
@@ -203,15 +253,6 @@ public class GroupService {
         }
     }
 
-    private void validateRule(GroupRuleUpdateRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("요청이 비었습니다.");
-        }
-        if (request.voteQuorum() == null || request.voteQuorum() <= 0) {
-            throw new IllegalArgumentException("투표 찬성 인원수는 1 이상이여야 합니다.");
-        }
-    }
-
     private void validateInvitationAcceptable(InvitationCode invitationCode) {
         if (invitationCode.isExpired()) {
             throw new IllegalArgumentException("이미 만료된 초대 코드입니다.");
@@ -233,5 +274,24 @@ public class GroupService {
         if (!isOwner) {
             throw new IllegalArgumentException("그룹장만 수행할 수 있습니다.");
         }
+    }
+
+    private void validateGroupSettings(UUID groupId, GroupSettingsUpdateRequest request) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        // 투표 찬성 인원수 검증
+        request.voteQuorum().ifPresent(quorum -> {
+            if (quorum > group.getMaxMembers()) {
+                throw new IllegalArgumentException("투표 찬성 인원수는 그룹 최대 인원을 초과할 수 없습니다.");
+            }
+        });
+
+        // 그룹 해체 인원수 검증
+        request.dissolutionQuorum().ifPresent(quorum -> {
+            if (quorum > group.getMaxMembers()) {
+                throw new IllegalArgumentException("그룹 해체 인원수는 그룹 최대 인원을 초과할 수 없습니다.");
+            }
+        });
     }
 }
