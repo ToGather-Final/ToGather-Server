@@ -117,6 +117,18 @@ public class GroupController {
         return ResponseEntity.ok(body);
     }
 
+    /**
+     * 시스템용 그룹 정족수 조회 API
+     * - 인증 없이 조회 (시스템 내부용)
+     * - vote-service에서 투표 마감 시 사용
+     */
+    @GetMapping("/groups/{groupId}/quorum")
+    public ResponseEntity<GroupRuleResponse> getQuorumInternal(@PathVariable UUID groupId) {
+        GroupRule rule = groupService.getRuleInternal(groupId);
+        GroupRuleResponse body = new GroupRuleResponse(rule.getVoteQuorum());
+        return ResponseEntity.ok(body);
+    }
+
     @PostMapping("/invites/{code}/accept")
     public ResponseEntity<Void> acceptInvite(@PathVariable String code,
                                              Authentication authentication) {
@@ -138,6 +150,7 @@ public class GroupController {
         List<GroupStatusResponse> response = groupService.getMyGroupsStatus(userId);
         return ResponseEntity.ok(response);
     }
+
 
     private String resolveRole(UUID memberUserId, UUID ownerUserId) {
         if (memberUserId.equals(ownerUserId)) {

@@ -32,6 +32,14 @@ public interface UserServiceClient {
     GroupMemberCountResponse getGroupMemberCount(@PathVariable UUID groupId);
 
     /**
+     * 시스템용 그룹 정족수 조회
+     * GET /groups/{groupId}/quorum
+     * - 인증 없이 조회 (시스템 내부용)
+     */
+    @GetMapping("/groups/{groupId}/quorum")
+    GroupRuleResponse getQuorumInternal(@PathVariable UUID groupId);
+
+    /**
      * 사용자 닉네임 조회
      * GET /users/{userId}/nickname
      */
