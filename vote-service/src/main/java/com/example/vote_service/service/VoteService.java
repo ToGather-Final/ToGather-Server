@@ -1,7 +1,6 @@
 package com.example.vote_service.service;
 
 import com.example.vote_service.client.UserServiceClient;
-import com.example.vote_service.dto.GroupMemberCountResponse;
 import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.dto.VoteRequest;
 import com.example.vote_service.event.VoteExpirationEvent;
@@ -235,11 +234,11 @@ public class VoteService {
         
         try {
             // user-service에서 정족수 정보 가져오기 (시스템용 API 사용)
-            GroupRuleResponse rule = userServiceClient.getQuorumInternal(groupId);
+            GroupRuleResponse rule = userServiceClient.getVoteQuorumInternal(groupId);
             
             log.info("그룹 정족수 조회 완료 - groupId: {}, 정족수: {}", 
                     groupId, rule.voteQuorum());
-            
+
             tallyVotes(proposalId, 0, rule.voteQuorum()); // totalMembers는 사용하지 않으므로 0으로 설정
             
             log.info("투표 마감 집계 완료 - proposalId: {}", proposalId);
