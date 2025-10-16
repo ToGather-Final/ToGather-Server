@@ -34,7 +34,7 @@ spec:
               value: "1"
             # Node.js 성능 최적화 (메모리 증가)
             - name: NODE_OPTIONS
-              value: "--max-old-space-size=896 --optimize-for-size"
+              value: "--max-old-space-size=896 --max-semi-space-size=128"
             # Next.js 성능 최적화
             - name: NEXT_PUBLIC_ANALYTICS_ID
               value: ""
