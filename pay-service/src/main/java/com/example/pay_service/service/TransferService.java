@@ -1,9 +1,6 @@
 package com.example.pay_service.service;
 
-import com.example.pay_service.client.TradingServiceClient;
 import com.example.pay_service.domain.*;
-import com.example.pay_service.dto.FundsTransferRequest;
-import com.example.pay_service.dto.FundsTransferResponse;
 import com.example.pay_service.dto.TransferRequest;
 import com.example.pay_service.dto.TransferResponse;
 import com.example.pay_service.exception.PayServiceException;
@@ -29,7 +26,6 @@ public class TransferService {
     private final PayAccountRepository payAccountRepository;
     private final PayAccountLedgerRepository payAccountLedgerRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
-    private final TradingServiceClient tradingServiceClient;
 
     @Transactional
     public TransferResponse executeTransfer(TransferRequest request, UUID userId, UUID groupId) {
@@ -55,56 +51,38 @@ public class TransferService {
         transferRepository.save(transfer);
 
         try {
-            FundsTransferRequest fundsTransferRequest = FundsTransferRequest.builder()
-                    .txId(UUID.randomUUID())
-                    .fromUserId(userId)
-                    .toAccountId(toAccount.getId())
-                    .amount(request.amount())
-                    .transferId(transfer.getId())
-                    .clientRequestId(request.clientRequestId())
+            PayAccount updatedToAccount = PayAccount.builder()
+                    .id(toAccount.getId())
+                    .ownerUserId(toAccount.getOwnerUserId())
+                    .balance(toAccount.getBalance() + request.amount())
+                    .nickname(toAccount.getNickname())
+                    .isActive(toAccount.getIsActive())
+                    .groupId(toAccount.getGroupId())
                     .build();
 
-            FundsTransferResponse response = tradingServiceClient.transferFunds(fundsTransferRequest);
+            transfer.markAsSucceeded();
+            payAccountRepository.save(updatedToAccount);
+            transferRepository.save(transfer);
 
-            if (response.isSuccess()) {
-                PayAccount updatedToAccount = PayAccount.builder()
-                        .id(toAccount.getId())
-                        .ownerUserId(toAccount.getOwnerUserId())
-                        .balance(toAccount.getBalance() + request.amount())
-                        .nickname(toAccount.getNickname())
-                        .isActive(toAccount.getIsActive())
-                        .groupId(toAccount.getGroupId())
-                        .build();
+            PayAccountLedger ledgerEntry = PayAccountLedger.builder()
+                    .payAccountId(toAccount.getId())
+                    .transactionType(TransactionType.TRANSFER_IN)
+                    .amount(request.amount())
+                    .balanceAfter(updatedToAccount.getBalance())
+                    .description("페이머니 충전")
+                    .relatedTransferId(transfer.getId())
+                    .build();
 
-                transfer.markAsSucceeded();
+            payAccountLedgerRepository.save(ledgerEntry);
 
-                payAccountRepository.save(updatedToAccount);
-                transferRepository.save(transfer);
-
-                PayAccountLedger ledgerEntry = PayAccountLedger.builder()
-                        .payAccountId(toAccount.getId())
-                        .transactionType(TransactionType.TRANSFER_IN)
-                        .amount(request.amount())
-                        .balanceAfter(updatedToAccount.getBalance())
-                        .description("페이머니 충전")
-                        .relatedTransferId(transfer.getId())
-                        .build();
-
-                payAccountLedgerRepository.save(ledgerEntry);
-
-                if(request.clientRequestId() != null) {
-                    IdempotencyKey idempotencyKey = IdempotencyKey.create(request.clientRequestId(), toAccount.getId());
-                    idempotencyKey.markAsUsed(transfer.getId());
-                    idempotencyKeyRepository.save(idempotencyKey);
-                }
-
-                log.info("페이머니 충전 성공: transferId={}, amount={}", transfer.getId(), request.amount());
-                return createTransferResponse(transfer, updatedToAccount.getBalance());
-            } else {
-                transfer.markAsFailed(response.getFailureReason());
-                transferRepository.save(transfer);
-                throw new PayServiceException("TRANSFER_FAILED", response.getFailureReason());
+            if (request.clientRequestId() != null) {
+                IdempotencyKey idempotencyKey = IdempotencyKey.create(request.clientRequestId(), toAccount.getId());
+                idempotencyKey.markAsUsed(transfer.getId());
+                idempotencyKeyRepository.save(idempotencyKey);
             }
+
+            log.info("페이머니 충전 성공: transferId={}, amount={}",transfer.getId(), request.amount());
+            return createTransferResponse(transfer, updatedToAccount.getBalance());
 
         } catch (Exception e) {
             log.error("페이머니 충전 실패: {}", e.getMessage());

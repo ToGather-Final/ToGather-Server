@@ -40,7 +40,7 @@ public class OrderService {
         }
 
         // 잔고 확인
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId())
+        BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())
                 .orElseThrow(() -> new BusinessException("잔고 정보를 찾을 수 없습니다", "BALANCE_NOT_FOUND"));
 
         BigDecimal totalAmount = request.getPrice().multiply(BigDecimal.valueOf(request.getQuantity()));
@@ -79,7 +79,7 @@ public class OrderService {
         
         // 보유 종목 확인
         HoldingCache holding = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndStock_Id(account.getInvestmentAccountId(), stock.getId())
+                .findByAccountIdAndStockId(account.getInvestmentAccountId(), stock.getId())
                 .orElseThrow(() -> new BusinessException("보유하지 않은 종목입니다", "HOLDING_NOT_FOUND"));
 
         if (holding.getQuantity() < request.getQuantity()) {

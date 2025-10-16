@@ -30,4 +30,10 @@ public interface GroupMembersRepository extends JpaRepository<GroupMembers, Grou
      */
     @Query("SELECT g.groupId FROM GroupMembers g WHERE g.userId = :userId")
     Optional<UUID> findFirstGroupIdByUserId(@Param("userId") UUID userId);
+    
+    /**
+     * 그룹의 모든 멤버 ID 조회
+     */
+    @Query("SELECT g.userId FROM GroupMembers g WHERE g.groupId = :groupId")
+    List<UUID> findUserIdsByGroupId(@Param("groupId") UUID groupId);
 }

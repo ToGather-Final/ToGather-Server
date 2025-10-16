@@ -62,7 +62,7 @@ public class PortfolioCalculationService {
         // 2. 캐시에 없으면 DB에서 조회
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         BalanceCache balance = balanceCacheRepository
-                .findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId())
+                .findByAccountId(account.getInvestmentAccountId())
                 .orElseThrow(() -> new RuntimeException("잔고 정보를 찾을 수 없습니다."));
         
         BigDecimal userBalance = BigDecimal.valueOf(balance.getBalance());
@@ -92,7 +92,7 @@ public class PortfolioCalculationService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+                .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         
         float totalInvested = 0;
         float totalValue = 0;
@@ -130,7 +130,7 @@ public class PortfolioCalculationService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+                .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         
         return holdings.stream()
                 .map(this::convertToHoldingResponse)
@@ -141,11 +141,11 @@ public class PortfolioCalculationService {
     public BalanceResponse calculateAccountBalance(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId())
+        BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())
                 .orElseThrow(() -> new RuntimeException("잔고 정보를 찾을 수 없습니다"));
 
         // 보유 종목들의 총 평가금액 계산
-        List<HoldingCache> holdings = holdingCacheRepository.findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId());
+        List<HoldingCache> holdings = holdingCacheRepository.findByAccountId(account.getInvestmentAccountId());
         
         float totalInvested = 0;
         float totalValue = 0;

@@ -68,7 +68,7 @@ public class BatchProcessingService {
             try {
                 // 기존 실제 테이블 데이터 조회
                 Holding existingHolding = holdingRepository
-                        .findByInvestmentAccount_InvestmentAccountIdAndStock_Id(
+                        .findByAccountIdAndStockId(
                                 cacheHolding.getInvestmentAccount().getInvestmentAccountId(),
                                 cacheHolding.getStock().getId())
                         .orElse(null);
@@ -170,7 +170,7 @@ public class BatchProcessingService {
             try {
                 // 기존 실제 테이블 데이터 조회
                 Balance existingBalance = balanceRepository
-                        .findByInvestmentAccount_InvestmentAccountId(
+                        .findByAccountId(
                                 cacheBalance.getInvestmentAccount().getInvestmentAccountId())
                         .orElse(null);
                 
