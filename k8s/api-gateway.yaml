@@ -35,17 +35,26 @@ spec:
           value: "none"  # JPA DDL 비활성화
         - name: SPRING_JPA_SHOW_SQL
           value: "false"  # SQL 로그 비활성화
-        # 로깅 설정 (INFO 레벨로 변경)
+        # 로깅 설정 (성능 최적화를 위해 WARN 레벨로 변경)
         - name: LOGGING_LEVEL_COM_EXAMPLE_API_GATEWAY
-          value: "DEBUG"
+          value: "WARN"
         - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY
-          value: "INFO"
+          value: "WARN"
         - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_REACTIVE
-          value: "INFO"
+          value: "WARN"
         - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
-          value: "INFO"
+          value: "WARN"
         - name: LOGGING_LEVEL_REACTOR_NETTY
-          value: "INFO"
+          value: "WARN"
+        # 성능 최적화 설정
+        - name: SPRING_WEBFLUX_MULTIPART_MAX_IN_MEMORY_SIZE
+          value: "1MB"
+        - name: SPRING_WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART
+          value: "10MB"
+        - name: SERVER_TOMCAT_THREADS_MAX
+          value: "200"
+        - name: SERVER_TOMCAT_THREADS_MIN_SPARE
+          value: "10"
         # Redis 연결 설정
         - name: SPRING_DATA_REDIS_HOST
           value: "redis"
