@@ -5,7 +5,6 @@ import lombok.*;
 import org.hibernate.annotations.Check;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -57,24 +56,6 @@ public class PaymentSession {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-    @Builder
-    public PaymentSession(String id, UUID groupId, UUID payerUserId, Long amount,
-                          String recipientBankCode, String recipientAccountNumber,
-                          String recipientName, String recipientBankName,
-                          LocalDateTime expiresAt, Boolean isUsed, LocalDateTime createdAt) {
-        this.id = id;
-        this.groupId = groupId;
-        this.payerUserId = payerUserId;
-        this.amount = amount;
-        this.recipientBankCode = recipientBankCode;
-        this.recipientAccountNumber = recipientAccountNumber;
-        this.recipientName = recipientName;
-        this.recipientBankName = recipientBankName;
-        this.expiresAt = expiresAt;
-        this.isUsed = isUsed != null ? isUsed : false;
-        this.createdAt = createdAt;
-    }
 
     public static PaymentSession create(String id, UUID groupId, UUID payerUserId, Long amount,
                                         String recipientBankCode, String recipientAccountNumber,
