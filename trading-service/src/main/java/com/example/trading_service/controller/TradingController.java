@@ -77,6 +77,21 @@ public class TradingController {
         }
     }
 
+    // 보유 종목 조회 (StockResponse 형식)
+    @GetMapping("/portfolio/stocks")
+    public ResponseEntity<ApiResponse<List<StockResponse>>> getPortfolioStocks(Authentication authentication) {
+        UUID userId = getUserIdFromAuthentication(authentication);
+        
+        try {
+            List<StockResponse> stocks = tradingService.getPortfolioStocks(userId);
+            return ResponseEntity.ok(ApiResponse.success(stocks));
+        } catch (BusinessException e) {
+            // 계좌가 없으면 자동으로 생성
+            tradingService.createInvestmentAccount(userId);
+            List<StockResponse> stocks = tradingService.getPortfolioStocks(userId);
+            return ResponseEntity.ok(ApiResponse.success(stocks));
+        }
+    }
 
     // 포트폴리오 요약 정보 조회
     @GetMapping("/portfolio/summary")
