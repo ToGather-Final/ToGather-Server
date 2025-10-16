@@ -24,49 +24,33 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createSampleStocks() {
-        // 한국 주식
-        Stock samsung = new Stock();
-        samsung.setStockCode("005930");
-        samsung.setStockName("삼성전자");
-        samsung.setCountry(Stock.Country.KR);
-        samsung.setEnabled(true);
-        stockRepository.save(samsung);
+        // 시가총액 기준 상위 10개 한국 주식
+        createStock("005930", "삼성전자", Stock.Country.KR);
+        createStock("000660", "SK하이닉스", Stock.Country.KR);
+        createStock("035420", "NAVER", Stock.Country.KR);
+        createStock("207940", "삼성바이오로직스", Stock.Country.KR);
+        createStock("006400", "삼성SDI", Stock.Country.KR);
+        createStock("051910", "LG화학", Stock.Country.KR);
+        createStock("035720", "카카오", Stock.Country.KR);
+        createStock("068270", "셀트리온", Stock.Country.KR);
+        createStock("005380", "현대차", Stock.Country.KR);
+        createStock("323410", "카카오뱅크", Stock.Country.KR);
 
-        Stock lgChem = new Stock();
-        lgChem.setStockCode("051910");
-        lgChem.setStockName("LG화학");
-        lgChem.setCountry(Stock.Country.KR);
-        lgChem.setEnabled(true);
-        stockRepository.save(lgChem);
+        // TIGER ETF 5개
+        createStock("069500", "KODEX 200", Stock.Country.KR);
+        createStock("122630", "KODEX 레버리지", Stock.Country.KR);
+        createStock("114800", "KODEX 인버스", Stock.Country.KR);
+        createStock("091160", "KODEX 반도체", Stock.Country.KR);
+        createStock("091170", "KODEX 은행", Stock.Country.KR);
+    }
 
-        Stock naver = new Stock();
-        naver.setStockCode("035420");
-        naver.setStockName("NAVER");
-        naver.setCountry(Stock.Country.KR);
-        naver.setEnabled(true);
-        stockRepository.save(naver);
-
-        // 미국 주식
-        Stock apple = new Stock();
-        apple.setStockCode("AAPL");
-        apple.setStockName("Apple Inc.");
-        apple.setCountry(Stock.Country.US);
-        apple.setEnabled(true);
-        stockRepository.save(apple);
-
-        Stock tesla = new Stock();
-        tesla.setStockCode("TSLA");
-        tesla.setStockName("Tesla Inc.");
-        tesla.setCountry(Stock.Country.US);
-        tesla.setEnabled(true);
-        stockRepository.save(tesla);
-
-        Stock google = new Stock();
-        google.setStockCode("GOOGL");
-        google.setStockName("Alphabet Inc.");
-        google.setCountry(Stock.Country.US);
-        google.setEnabled(true);
-        stockRepository.save(google);
+    private void createStock(String stockCode, String stockName, Stock.Country country) {
+        Stock stock = new Stock();
+        stock.setStockCode(stockCode);
+        stock.setStockName(stockName);
+        stock.setCountry(country);
+        stock.setEnabled(true);
+        stockRepository.save(stock);
     }
 }
 

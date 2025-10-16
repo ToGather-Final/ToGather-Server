@@ -22,20 +22,20 @@ public class Vote {
 
     @Id
     @org.hibernate.annotations.UuidGenerator
-    @Column(name = "voteId", columnDefinition = "BINARY(16)")
+    @Column(name = "vote_id", columnDefinition = "BINARY(16)")
     private UUID voteId;
 
-    @Column(name = "proposalId", columnDefinition = "BINARY(16)", nullable = false)
+    @Column(name = "proposal_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID proposalId;
 
-    @Column(name = "userId", columnDefinition = "BINARY(16)", nullable = false)
+    @Column(name = "user_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID userId; // 투표자
 
     @Enumerated(EnumType.STRING)
     @Column(name = "choice", nullable = false, length = 20)
     private VoteChoice choice; // AGREE: 찬성, DISAGREE: 반대
 
-    @Column(name = "createdAt", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

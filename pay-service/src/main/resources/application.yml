@@ -5,18 +5,18 @@ app:
   database:
     url: ${DB_URL:jdbc:mysql://localhost:3306/togather_db}
     username: ${DB_USERNAME:admin}
-    password: ${DB_PASSWORD:togather1234}
+    password: ${DB_PASSWORD:}
   redis:
     host: ${SPRING_DATA_REDIS_HOST:localhost}
     port: ${SPRING_DATA_REDIS_PORT:6379}
-    password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+    password: ${SPRING_DATA_REDIS_PASSWORD:}
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: 5672
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
   jwt:
-    secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+    secret: ${JWT_SECRET_KEY:}
     issuer: ${JWT_ISSUER:togather}
     access-exp-seconds: ${JWT_ACCESS_EXP:1800}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
@@ -31,6 +31,7 @@ spring:
   config:
     import:
       - optional:classpath:application-common.yml
+      - optional:file:application-dev.yml
   application:
     name: pay-service
   datasource:
@@ -48,7 +49,7 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:togather1234}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
       timeout: 2000ms
       connect-timeout: 2000ms
   rabbitmq:
@@ -74,6 +75,15 @@ logging:
 
 jwt:
   secret-key: ${JWT_SECRET_KEY}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  override-with-generic-response: false
+
 ---
 # ===============================================
 # 🌳 (2) dev 프로파일: 개발 환경 전용 설정
@@ -85,7 +95,7 @@ spring:
   datasource:
     url: ${app.database.url:jdbc:mysql://localhost:3307/togather_db}
     username: ${app.database.username:admin}
-    password: ${app.database.password:togather1234}
+    password: ${app.database.password:}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     properties:
@@ -94,11 +104,11 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
     show-sql: true
-
-jwt:
-  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
-  refresh-exp-days: ${JWT_REFRESH_EXP:7}
+#
+#jwt:
+#  secret: ${JWT_SECRET_KEY:TogatherSecretkey}
+#  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+#  refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 server:
   port: 8083

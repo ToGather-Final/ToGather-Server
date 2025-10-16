@@ -28,17 +28,7 @@ public class UserController {
             throw new IllegalArgumentException("인증이 필요합니다.");
         }
 
-        UUID userId;
-
-        if (authentication.getPrincipal() instanceof String) {
-            userId = UUID.fromString((String) authentication.getPrincipal());
-        } else if (authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.User) {
-            // @WithMockUser에서 생성된 Spring Security User 객체인 경우
-            String username = ((org.springframework.security.core.userdetails.User) authentication.getPrincipal()).getUsername();
-            userId = UUID.fromString(username);
-        } else {
-            userId = (UUID) authentication.getPrincipal();
-        }
+        UUID userId = (UUID) authentication.getPrincipal();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
@@ -51,16 +41,7 @@ public class UserController {
             throw new IllegalArgumentException("인증이 필요합니다.");
         }
 
-        UUID userId;
-
-        if (authentication.getPrincipal() instanceof String) {
-            userId = UUID.fromString((String) authentication.getPrincipal());
-        } else if (authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.User) {
-            String username = ((org.springframework.security.core.userdetails.User) authentication.getPrincipal()).getUsername();
-            userId = UUID.fromString(username);
-        } else {
-            userId = (UUID) authentication.getPrincipal();
-        }
+        UUID userId = (UUID) authentication.getPrincipal();
 
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         validateNickname(request.nickname());
@@ -73,6 +54,13 @@ public class UserController {
     public ResponseEntity<Map<String, Boolean>> checkUsernameExists(@RequestParam String username) {
         boolean exists = userRepository.existsByUsername(username);
         return ResponseEntity.ok(Map.of("exists", exists));
+    }
+
+    @GetMapping("/{userId}/nickname")
+    public ResponseEntity<Map<String, String>> getUserNickname(@PathVariable UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        return ResponseEntity.ok(Map.of("nickname", user.getNickname()));
     }
 
     private void validateNickname(String nickname) {

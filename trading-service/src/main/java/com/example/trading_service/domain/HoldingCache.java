@@ -17,11 +17,13 @@ public class HoldingCache {
     @Column(name = "holding_id", nullable = false, updatable = false)
     private UUID holdingId; // PK
 
-    @Column(name = "investment_account_id", nullable = false)
-    private UUID investmentAccountId; // 주식 계좌 아이디
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "investment_account_id", nullable = false)
+    private InvestmentAccount investmentAccount;
 
-    @Column(name = "stock_id", nullable = false)
-    private UUID stockId; // 주식 아이디
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stock_id", nullable = false)
+    private Stock stock;
 
     @Column(name = "quantity", nullable = false)
     private int quantity; // 현재 보유 수량

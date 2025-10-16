@@ -7,10 +7,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.UUID;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+@Slf4j
 public class JwtUtil {
 
     @Value("${app.jwt.secret}")
@@ -22,7 +25,7 @@ public class JwtUtil {
     @Value("${app.jwt.access-exp-seconds:1800}")
     private long accessTokenExpireSeconds;
 
-//    public String issue(UUID userId) {
+    //    public String issue(UUID userId) {
 //        LocalDateTime now = LocalDateTime.now();
 //        Date issuedAt = Date.from(now.atZone(ZoneId.systemDefault()).toInstant());
 //        Date expiration = Date.from(now.plusSeconds(accessTokenExpireSeconds).atZone(ZoneId.systemDefault()).toInstant());
@@ -36,11 +39,7 @@ public class JwtUtil {
 //                .compact();
 //    }
     public String issue(UUID userId) {
-        System.out.println("=== JWT 생성 시작 ===");
-        System.out.println("userId: " + userId);
-        System.out.println("secret: " + secret);
-        System.out.println("issuer: " + issuer);
-        System.out.println("accessTokenExpireSeconds: " + accessTokenExpireSeconds);
+        log.debug("JWT 생성 시작 - userId: {}", userId);
 
         try {
             LocalDateTime now = LocalDateTime.now();
@@ -55,23 +54,11 @@ public class JwtUtil {
                     .signWith(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
                     .compact();
 
-            System.out.println("JWT 생성 성공: " + token);
+            log.debug("JWT 생성 성공");
             return token;
         } catch (Exception e) {
-            System.out.println("JWT 생성 실패: " + e.getMessage());
-            e.printStackTrace();
+            log.error("JWT 생성 실패: {}", e.getMessage(), e);
             throw e;
         }
-    }
-
-
-    public UUID verifyAndGetUserId(String token) {
-        String subject = Jwts.parserBuilder()
-                .setSigningKey(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
-        return UUID.fromString(subject);
     }
 }

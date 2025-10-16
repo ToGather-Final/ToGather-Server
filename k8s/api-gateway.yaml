@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2  # 최소 2개로 증가
+  replicas: 2
   selector:
     matchLabels:
       app: api-gateway
@@ -17,76 +17,82 @@ spec:
     spec:
       serviceAccountName: api-gateway
       containers:
-      - name: api-gateway
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/api-gateway:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8000
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "main"
-        - name: SPRING_DATASOURCE_URL
-          value: ""  # 데이터소스 URL 비활성화
-        - name: SPRING_DATASOURCE_USERNAME
-          value: ""  # 데이터소스 사용자명 비활성화
-        - name: SPRING_DATASOURCE_PASSWORD
-          value: ""  # 데이터소스 비밀번호 비활성화
-        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
-          value: "none"  # JPA DDL 비활성화
-        - name: SPRING_JPA_SHOW_SQL
-          value: "false"  # SQL 로그 비활성화
-        # 로깅 설정 (INFO 레벨로 변경)
-        - name: LOGGING_LEVEL_COM_EXAMPLE_API_GATEWAY
-          value: "INFO"  # DEBUG -> INFO로 변경하여 오버헤드 감소
-        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY
-          value: "WARN"  # INFO -> WARN으로 변경
-        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_REACTIVE
-          value: "WARN"
-        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
-          value: "WARN"
-        - name: LOGGING_LEVEL_REACTOR_NETTY
-          value: "WARN"
-        # JVM 최적화
-        - name: JAVA_OPTS
-          value: "-Xms256m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication"
-        # Redis 연결 설정
-        - name: SPRING_DATA_REDIS_HOST
-          value: "redis"
-        - name: SPRING_DATA_REDIS_PORT
-          value: "6379"
-        - name: SPRING_DATA_REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: togather-secrets
-              key: REDIS_PASSWORD
-        envFrom:
-          - configMapRef:
-              name: togather-config    # RabbitMQ 정보가 담긴 ConfigMap
-          - secretRef:
-              name: togather-secrets   # 비밀번호가 담긴 Secret
-        resources:
-          requests:
-            memory: "384Mi"  # 256Mi -> 384Mi
-            cpu: "200m"      # 100m -> 200m (2배 증가)
-          limits:
-            memory: "768Mi"
-            cpu: "800m"      # 500m -> 800m (60% 증가)
-        livenessProbe:
-          httpGet:
-            path: /actuator/health/liveness
-            port: 8000
-          initialDelaySeconds: 60  # 90 -> 60초로 단축
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /actuator/health/readiness
-            port: 8000
-          initialDelaySeconds: 45  # 80 -> 45초로 단축
-          periodSeconds: 5         # 10 -> 5초로 단축
-          timeoutSeconds: 3        # 5 -> 3초로 단축
-          failureThreshold: 3
+        - name: api-gateway
+          image: ${ECR_REGISTRY}/togather/api-gateway:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "main"
+            - name: SPRING_DATASOURCE_URL
+              value: ""  # 데이터소스 URL 비활성화
+            - name: SPRING_DATASOURCE_USERNAME
+              value: ""  # 데이터소스 사용자명 비활성화
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: ""  # 데이터소스 비밀번호 비활성화
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: "none"  # JPA DDL 비활성화
+            - name: SPRING_JPA_SHOW_SQL
+              value: "false"  # SQL 로그 비활성화
+            # 로깅 설정 (성능 최적화를 위해 WARN 레벨로 변경)
+            - name: LOGGING_LEVEL_COM_EXAMPLE_API_GATEWAY
+              value: "WARN"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY
+              value: "WARN"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_REACTIVE
+              value: "WARN"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
+              value: "WARN"
+            - name: LOGGING_LEVEL_REACTOR_NETTY
+              value: "WARN"
+            # 성능 최적화 설정
+            - name: SPRING_WEBFLUX_MULTIPART_MAX_IN_MEMORY_SIZE
+              value: "1MB"
+            - name: SPRING_WEBFLUX_MULTIPART_MAX_DISK_USAGE_PER_PART
+              value: "10MB"
+            - name: SERVER_TOMCAT_THREADS_MAX
+              value: "200"
+            - name: SERVER_TOMCAT_THREADS_MIN_SPARE
+              value: "10"
+            # Redis 연결 설정
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            - name: SPRING_DATA_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: togather-secrets
+                  key: REDIS_PASSWORD
+          envFrom:
+            - configMapRef:
+                name: togather-config    # RabbitMQ 정보가 담긴 ConfigMap
+            - secretRef:
+                name: togather-secrets   # 비밀번호가 담긴 Secret
+          resources:
+            requests:
+              memory: "384Mi"  # 256Mi -> 384Mi
+              cpu: "200m"      # 100m -> 200m (2배 증가)
+            limits:
+              memory: "768Mi"
+              cpu: "800m"      # 500m -> 800m (60% 증가)
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8000
+            initialDelaySeconds: 60  # 90 -> 60초로 단축
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8000
+            initialDelaySeconds: 45  # 80 -> 45초로 단축
+            periodSeconds: 5         # 10 -> 5초로 단축
+            timeoutSeconds: 3        # 5 -> 3초로 단축
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
@@ -94,7 +100,7 @@ metadata:
   name: api-gateway
   namespace: togather
   annotations:
-    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
     alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
     alb.ingress.kubernetes.io/healthy-threshold-count: '2'
@@ -103,6 +109,6 @@ spec:
   selector:
     app: api-gateway
   ports:
-  - port: 8000
-    targetPort: 8000
+    - port: 8000
+      targetPort: 8000
   type: ClusterIP

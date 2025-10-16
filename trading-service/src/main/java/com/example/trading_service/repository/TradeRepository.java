@@ -13,14 +13,14 @@ import java.util.UUID;
 public interface TradeRepository extends JpaRepository<Trade, UUID> {
     
     // 주문별 체결 내역 조회
-    List<Trade> findByOrderIdOrderByCreatedAtDesc(UUID orderId);
+    List<Trade> findByOrder_OrderIdOrderByCreatedAtDesc(UUID orderId);
     
     // 투자 계좌별 체결 내역 조회 (주문을 통해)
-    @Query("SELECT t FROM Trade t JOIN Order o ON t.orderId = o.orderId WHERE o.investmentAccountId = :accountId ORDER BY t.createdAt DESC")
+    @Query("SELECT t FROM Trade t JOIN t.order o WHERE o.investmentAccount.investmentAccountId = :accountId ORDER BY t.createdAt DESC")
     List<Trade> findByInvestmentAccountId(@Param("accountId") UUID accountId);
     
     // 특정 종목의 체결 내역 조회
-    @Query("SELECT t FROM Trade t JOIN Order o ON t.orderId = o.orderId WHERE o.investmentAccountId = :accountId AND o.stockId = :stockId ORDER BY t.createdAt DESC")
+    @Query("SELECT t FROM Trade t JOIN t.order o WHERE o.investmentAccount.investmentAccountId = :accountId AND o.stock.id = :stockId ORDER BY t.createdAt DESC")
     List<Trade> findByInvestmentAccountIdAndStockId(@Param("accountId") UUID accountId, @Param("stockId") UUID stockId);
 }
 

@@ -3,14 +3,13 @@ package com.example.pay_service.service;
 import com.example.pay_service.domain.*;
 import com.example.pay_service.dto.TransferRequest;
 import com.example.pay_service.dto.TransferResponse;
-import com.example.pay_service.exception.InsufficientFundsException;
 import com.example.pay_service.exception.PayServiceException;
-import com.example.pay_service.repository.AccountRepository;
-import com.example.pay_service.repository.IdempotencyKeyRepository;
-import com.example.pay_service.repository.LedgerEntryRepository;
-import com.example.pay_service.repository.TransferRepository;
+import com.example.pay_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,8 +23,8 @@ import java.util.UUID;
 public class TransferService {
 
     private final TransferRepository transferRepository;
-    private final AccountRepository accountRepository;
-    private final LedgerEntryRepository ledgerEntryRepository;
+    private final PayAccountRepository payAccountRepository;
+    private final PayAccountLedgerRepository payAccountLedgerRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     @Transactional
@@ -40,72 +39,56 @@ public class TransferService {
             }
         }
 
-        List<Account> userCmaAccounts = accountRepository.findByOwnerUserIdAndTypeAndIsActiveTrue(userId, AccountType.CMA);
-        if (userCmaAccounts.isEmpty()) {
-            throw new PayServiceException("CMA_ACCOUNT_NOT_FOUND", "CMA 계좌를 찾을 수 없습니다.");
-        }
-        Account fromAccount = userCmaAccounts.get(0);
-
-        Account toAccount = accountRepository.findGroupPayAccountByGroupId(groupId)
+        PayAccount toAccount = payAccountRepository.findGroupPayAccountByGroupId(groupId)
                 .orElseThrow(() -> new PayServiceException("GROUP_PAY_ACCOUNT_NOT_FOUND", "그룹 페이 계좌를 찾을 수 없습니다."));
 
-        if (!fromAccount.hasSufficientBalance(request.amount())) {
-            throw new InsufficientFundsException("잔액이 부족합니다.");
-        }
-
         Transfer transfer = Transfer.create(
-                fromAccount.getId(),
+                null,
                 toAccount.getId(),
                 request.amount(),
                 request.clientRequestId()
         );
+        transferRepository.save(transfer);
 
         try {
-            UUID txId = UUID.randomUUID();
-            LedgerEntry debitEntry = LedgerEntry.createDebitEntry(
-                    txId,
-                    fromAccount.getId(),
-                    request.amount(),
-                    TxType.TRANSFER,
-                    transfer.getId(),
-                    "PAY_MONEY_RECHARGE"
-            );
-
-            LedgerEntry creditEntry = LedgerEntry.createCreditEntry(
-                    txId,
-                    toAccount.getId(),
-                    request.amount(),
-                    TxType.TRANSFER,
-                    transfer.getId(),
-                    "PAY_MONEY_RECHARGE"
-            );
-
-            fromAccount.debit(request.amount());
-            toAccount.credit(request.amount());
+            PayAccount updatedToAccount = PayAccount.builder()
+                    .id(toAccount.getId())
+                    .ownerUserId(toAccount.getOwnerUserId())
+                    .balance(toAccount.getBalance() + request.amount())
+                    .nickname(toAccount.getNickname())
+                    .isActive(toAccount.getIsActive())
+                    .groupId(toAccount.getGroupId())
+                    .build();
 
             transfer.markAsSucceeded();
-            debitEntry.markAsCompleted();
-            creditEntry.markAsCompleted();
-
+            payAccountRepository.save(updatedToAccount);
             transferRepository.save(transfer);
-            accountRepository.save(fromAccount);
-            accountRepository.save(toAccount);
-            ledgerEntryRepository.save(debitEntry);
-            ledgerEntryRepository.save(creditEntry);
+
+            PayAccountLedger ledgerEntry = PayAccountLedger.builder()
+                    .payAccountId(toAccount.getId())
+                    .transactionType(TransactionType.TRANSFER_IN)
+                    .amount(request.amount())
+                    .balanceAfter(updatedToAccount.getBalance())
+                    .description("페이머니 충전")
+                    .relatedTransferId(transfer.getId())
+                    .build();
+
+            payAccountLedgerRepository.save(ledgerEntry);
 
             if (request.clientRequestId() != null) {
-                IdempotencyKey idempotencyKey = IdempotencyKey.create(request.clientRequestId(), fromAccount.getId());
+                IdempotencyKey idempotencyKey = IdempotencyKey.create(request.clientRequestId(), toAccount.getId());
                 idempotencyKey.markAsUsed(transfer.getId());
                 idempotencyKeyRepository.save(idempotencyKey);
             }
 
-            log.info("페이머니 충전 성공: transferId={}, amount={}", transfer.getId(), request.amount());
-            return createTransferResponse(transfer, toAccount.getBalance());
+            log.info("페이머니 충전 성공: transferId={}, amount={}",transfer.getId(), request.amount());
+            return createTransferResponse(transfer, updatedToAccount.getBalance());
+
         } catch (Exception e) {
             log.error("페이머니 충전 실패: {}", e.getMessage());
             transfer.markAsFailed(e.getMessage());
             transferRepository.save(transfer);
-            throw new PayServiceException("RECHARGE_FAILED", "페이머니 충전 실퍠: " + e.getMessage());
+            throw new PayServiceException("TRANSFER_REQUEST_FAILED", "자금 이체 요청 실패: " + e.getMessage());
         }
     }
 
@@ -119,8 +102,10 @@ public class TransferService {
 
     @Transactional(readOnly = true)
     public List<TransferResponse> getTransferHistory(UUID accountId, int page, int size) {
-        List<Transfer> transfers = transferRepository.findByAccountIdOrderByCreatedAtDesc(accountId);
-        return transfers.stream()
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Transfer> transferPage = transferRepository.findByToAccountIdOrderByCreatedAtDesc(accountId, pageable);
+
+        return transferPage.stream()
                 .map(this::createTransferResponse)
                 .toList();
     }

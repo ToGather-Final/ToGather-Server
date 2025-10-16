@@ -2,73 +2,75 @@ package com.example.api_gateway.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
+import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
+import java.util.UUID;
 
+/**
+ * API Gateway의 JWT 토큰 검증 유틸리티
+ */
+@Slf4j
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
-    private String secretKey;
+    @Value("${JWT_SECRET_KEY}")
+    private String secret;
 
+    /**
+     * JWT 시크릿 키 생성
+     */
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secretKey.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
-
-    public Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-    }
-
-    private Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
-    public Boolean validateToken(String token, String username) {
-        final String extractedUsername = extractUsername(token);
-        return (extractedUsername.equals(username) && !isTokenExpired(token));
-    }
-
-    public Boolean validateToken(String token) {
+    /**
+     * JWT 토큰에서 사용자 ID 추출
+     */
+    public UUID getUserIdFromToken(String token) {
         try {
-            extractAllClaims(token);
-            return !isTokenExpired(token);
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            String userIdStr = claims.getSubject();
+            return UUID.fromString(userIdStr);
         } catch (Exception e) {
+            log.warn("JWT 토큰에서 사용자 ID 추출 실패: {}", e.getMessage());
+            throw new IllegalArgumentException("유효하지 않은 JWT 토큰입니다.", e);
+        }
+    }
+
+    /**
+     * JWT 토큰 유효성 검증
+     */
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token);
+            log.debug("JWT 토큰 검증 성공");
+            return true;
+        } catch (Exception e) {
+            log.warn("JWT 토큰 검증 실패: {}", e.getMessage());
             return false;
         }
     }
 
-    public Map<String, Object> extractUserInfo(String token) {
-        Claims claims = extractAllClaims(token);
-        Map<String, Object> userInfo = new HashMap<>();
-        userInfo.put("username", claims.getSubject());
-        userInfo.put("userId", claims.get("userId"));
-        userInfo.put("email", claims.get("email"));
-        userInfo.put("roles", claims.get("roles"));
-        return userInfo;
+    /**
+     * JWT 토큰 검증 후 사용자 ID 반환
+     */
+    public UUID verifyAndGetUserId(String token) {
+        if (!validateToken(token)) {
+            throw new IllegalArgumentException("유효하지 않은 JWT 토큰입니다.");
+        }
+        return getUserIdFromToken(token);
     }
 }

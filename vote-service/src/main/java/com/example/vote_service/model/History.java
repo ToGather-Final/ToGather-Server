@@ -21,18 +21,18 @@ public class History {
 
     @Id
     @org.hibernate.annotations.UuidGenerator
-    @Column(name = "historyId", columnDefinition = "BINARY(16)")
+    @Column(name = "history_id", columnDefinition = "BINARY(16)")
     private UUID historyId;
 
-    @Column(name = "groupId", columnDefinition = "BINARY(16)", nullable = false)
+    @Column(name = "group_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID groupId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "historyCategory", nullable = false, length = 20)
+    @Column(name = "history_category", nullable = false, length = 20)
     private HistoryCategory historyCategory;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "historyType", nullable = false, length = 30)
+    @Column(name = "history_type", nullable = false, length = 30)
     private HistoryType historyType;
 
     @Column(name = "title", nullable = false, length = 255)
@@ -44,7 +44,28 @@ public class History {
     @Column(name = "payload", columnDefinition = "JSON")
     private String payload;
 
-    @Column(name = "createdAt", nullable = false, updatable = false)
+    @Column(name = "price")
+    private Integer price;
+
+    @Column(name = "quantity")
+    private Integer quantity;
+
+    @Column(name = "total_amount")
+    private Integer totalAmount;
+
+    @Column(name = "investment_account_id", columnDefinition = "BINARY(16)")
+    private UUID investmentAccountId;
+
+    @Column(name = "order_id", columnDefinition = "BINARY(16)")
+    private UUID orderId;
+
+    @Column(name = "stock_id", columnDefinition = "BINARY(16)")
+    private UUID stockId;
+
+    @Column(name = "transaction_type", length = 20)
+    private String transactionType;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
@@ -53,7 +74,7 @@ public class History {
     }
 
     /**
-     * 정적 팩토리 메서드 - History 생성
+     * 정적 팩토리 메서드 - History 생성 (기본값 설정)
      */
     public static History create(UUID groupId, HistoryCategory category, HistoryType type, 
                                 String title, String payload) {
@@ -64,6 +85,37 @@ public class History {
         history.title = title;
         history.date = LocalDateTime.now().toString().substring(0, 19); // YYYY-MM-DD HH:mm:ss
         history.payload = payload;
+        
+        // 모든 필드에 기본값 설정 (필요한 것만, 나머지는 null)
+        history.price = 0;
+        history.quantity = 0;
+        history.totalAmount = 0;
+        history.investmentAccountId = null; // 투표 히스토리에는 불필요
+        history.orderId = null; // 투표 히스토리에는 불필요
+        history.stockId = null; // 투표 히스토리에는 불필요
+        history.transactionType = null; // 투표 히스토리에는 불필요
+        
+        return history;
+    }
+
+    /**
+     * 정적 팩토리 메서드 - History 생성 (가격 포함)
+     */
+    public static History create(UUID groupId, HistoryCategory category, HistoryType type, 
+                                String title, String payload, Integer price) {
+        History history = create(groupId, category, type, title, payload); // 기본값으로 생성
+        history.price = price != null ? price : 0; // 가격만 덮어쓰기
+        return history;
+    }
+
+    /**
+     * 정적 팩토리 메서드 - History 생성 (가격, 수량 포함)
+     */
+    public static History create(UUID groupId, HistoryCategory category, HistoryType type, 
+                                String title, String payload, Integer price, Integer quantity) {
+        History history = create(groupId, category, type, title, payload); // 기본값으로 생성
+        history.price = price != null ? price : 0; // 가격 덮어쓰기
+        history.quantity = quantity != null ? quantity : 0; // 수량 덮어쓰기
         return history;
     }
 

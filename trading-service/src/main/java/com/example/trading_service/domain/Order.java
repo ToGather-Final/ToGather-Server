@@ -17,11 +17,13 @@ public class Order {
     @Column(name = "order_id", nullable = false, updatable = false)
     private UUID orderId;
 
-    @Column(name = "investment_account_id", nullable = false)
-    private UUID investmentAccountId; // FK, 실제로는 UUID 값만
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "investment_account_id", nullable = false)
+    private InvestmentAccount investmentAccount;
 
-    @Column(name = "stock_id", nullable = false)
-    private UUID stockId; // FK, 실제로는 UUID 값만
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stock_id", nullable = false)
+    private Stock stock;
 
     @Column(name = "order_type", nullable = false)
     @Enumerated(EnumType.STRING)

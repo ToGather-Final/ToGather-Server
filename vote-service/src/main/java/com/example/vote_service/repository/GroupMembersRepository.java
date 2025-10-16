@@ -3,6 +3,8 @@ package com.example.vote_service.repository;
 import com.example.vote_service.model.GroupMembers;
 import com.example.vote_service.model.GroupMembersId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -24,13 +26,14 @@ public interface GroupMembersRepository extends JpaRepository<GroupMembers, Grou
 
     /**
      * 특정 사용자가 속한 그룹 ID 조회 (단일 그룹)
-     * 자동 생성 SQL: SELECT group_id FROM group_members WHERE user_id = ?
+     * - 복합 키 엔티티에서 groupId만 조회하기 위해 JPQL 사용
      */
-    List<UUID> findGroupIdsByUserId(UUID userId);
+    @Query("SELECT g.groupId FROM GroupMembers g WHERE g.userId = :userId")
+    Optional<UUID> findFirstGroupIdByUserId(@Param("userId") UUID userId);
     
     /**
-     * 특정 사용자가 속한 단일 그룹 ID 조회
-     * 자동 생성 SQL: SELECT group_id FROM group_members WHERE user_id = ? LIMIT 1
+     * 그룹의 모든 멤버 ID 조회
      */
-    Optional<UUID> findFirstGroupIdByUserId(UUID userId);
+    @Query("SELECT g.userId FROM GroupMembers g WHERE g.groupId = :groupId")
+    List<UUID> findUserIdsByGroupId(@Param("groupId") UUID groupId);
 }

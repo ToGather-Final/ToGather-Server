@@ -2,38 +2,57 @@ package com.example.trading_service.domain;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
+@Setter
 @Entity
 @Table(name = "cash_transaction")
 public class CashTransaction {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "cash_transaction_id", nullable = false, updatable = false)
-    private UUID cashTransactionId; // 체결 아이디 (PK)
+    @Column(name = "transaction_id", nullable = false, updatable = false)
+    private UUID transactionId;
 
-    @Column(name = "investment_account_id", nullable = false)
-    private UUID investmentAccountId; // 주식 계좌 아이디 (FK, 값만 저장)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "investment_account_id", nullable = false)
+    private InvestmentAccount investmentAccount;
 
-    @Column(name = "type", nullable = false)
     @Enumerated(EnumType.STRING)
-    private Type type; // 종류 (DEPOSIT, WITHDRAW)
+    @Column(name = "transaction_type", nullable = false)
+    private TransactionType transactionType; // DEPOSIT, WITHDRAWAL, BUY, SELL
 
-    @Column(name = "price", nullable = false)
-    private int price; // 금액
+    @Column(name = "amount", nullable = false, precision = 19, scale = 2)
+    private BigDecimal amount;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt; // 생성일자
+    @Column(name = "balance_after", nullable = false, precision = 19, scale = 2)
+    private BigDecimal balanceAfter; // 거래 후 잔고
+
+    @Column(name = "description", length = 255)
+    private String description;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
 
-    public enum Type {
-        DEPOSIT, WITHDRAW
+    public enum TransactionType {
+        DEPOSIT,    // 입금
+        WITHDRAWAL, // 출금
+        BUY,        // 매수
+        SELL        // 매도
     }
 }
+
+
+
+
+
+

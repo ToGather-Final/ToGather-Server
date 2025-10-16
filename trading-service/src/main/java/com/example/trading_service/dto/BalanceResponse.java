@@ -16,5 +16,3 @@ public class BalanceResponse {
     private Float totalProfit; // 총 평가손익
     private Float totalProfitRate; // 총 수익률
 }
-
-

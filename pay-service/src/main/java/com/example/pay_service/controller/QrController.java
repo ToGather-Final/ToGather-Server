@@ -26,13 +26,9 @@ public class QrController {
     @GetMapping("/resolve")
     public ResponseEntity<QrResolveResponse> resolve(
             @RequestParam("m") String merchantToken,
-            @RequestParam(value = "a", required = false) Long amount
+            @RequestParam(value = "a", required = false) Long amount,
+            @AuthenticationPrincipal UUID userId
     ) {
-        UUID userId = UserPrincipal.getCurrentUserId();
-        if (userId == null) {
-            throw new UnauthorizedException("User not authenticated");
-        }
-
         log.info("QR 해석 요청: merchantToken={}, amount={}, userId={}", merchantToken, amount, userId);
 
         QrResolveResponse response = qrService.resolve(merchantToken, amount, userId);

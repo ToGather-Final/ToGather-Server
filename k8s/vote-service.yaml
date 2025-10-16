@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: vote-service
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/vote-service:latest
+        image: ${ECR_REGISTRY}/togather/vote-service:latest
         ports:
         - containerPort: 8080
         env:
