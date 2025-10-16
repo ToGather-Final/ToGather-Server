@@ -239,7 +239,7 @@ public class VoteService {
             
             log.info("그룹 정족수 조회 완료 - groupId: {}, 정족수: {}", 
                     groupId, rule.voteQuorum());
-            
+
             tallyVotes(proposalId, 0, rule.voteQuorum()); // totalMembers는 사용하지 않으므로 0으로 설정
             
             log.info("투표 마감 집계 완료 - proposalId: {}", proposalId);
