@@ -1,7 +1,6 @@
 package com.example.vote_service.client;
 
 import com.example.vote_service.config.FeignConfig;
-import com.example.vote_service.dto.GroupMemberCountResponse;
 import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.dto.UserMeResponse;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -17,27 +16,14 @@ import java.util.UUID;
 @FeignClient(name = "user-service", url = "http://localhost:8082", configuration = FeignConfig.class)
 public interface UserServiceClient {
 
-    /**
-     * 그룹 규칙 조회
-     * GET /groups/{groupId}/rules
-     */
-    @GetMapping("/groups/{groupId}/rules")
-    GroupRuleResponse getGroupRule(@PathVariable UUID groupId);
 
     /**
-     * 그룹 멤버 수 조회
-     * GET /groups/{groupId}/members/count
-     */
-    @GetMapping("/groups/{groupId}/members/count")
-    GroupMemberCountResponse getGroupMemberCount(@PathVariable UUID groupId);
-
-    /**
-     * 시스템용 그룹 정족수 조회
-     * GET /groups/{groupId}/quorum
+     * 시스템용 그룹 투표 정족수 조회
+     * GET /internal/{groupId}/vote-quorum
      * - 인증 없이 조회 (시스템 내부용)
      */
-    @GetMapping("/groups/{groupId}/quorum")
-    GroupRuleResponse getQuorumInternal(@PathVariable UUID groupId);
+    @GetMapping("/internal/{groupId}/vote-quorum")
+    GroupRuleResponse getVoteQuorumInternal(@PathVariable UUID groupId);
 
     /**
      * 사용자 닉네임 조회
