@@ -4,12 +4,38 @@ metadata:
   name: togather-ingress
   namespace: togather
   annotations:
+    # ✅ ALB 기본 설정
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/load-balancer-name: togather-alb
+
+    # ✅ SSL/TLS 설정
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: ${CERTIFICATE_ARN}
+
+    # ✅ HTTP → HTTPS 리다이렉션 액션 정의
+    alb.ingress.kubernetes.io/actions.ssl-redirect: >
+      {"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}
+
+    # ✅ Health Check 설정
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+
+    # ✅ Access Log 설정 (S3 버킷)
+    alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=true,access_logs.s3.bucket=togather-alb-logs,access_logs.s3.prefix=togather
+
 spec:
   ingressClassName: alb
   rules:
-    - http:
+    # ===============================================
+    # 🌐 메인 도메인 (xn--o79aq2k062a.store)
+    # ===============================================
+    - host: xn--o79aq2k062a.store
+      http:
         paths:
           - path: /api
             pathType: Prefix
@@ -25,3 +51,49 @@ spec:
                 name: nextjs-client
                 port:
                   number: 3000
+
+    # ===============================================
+    # 🌐 서브 도메인 (www.xn--o79aq2k062a.store)
+    # ===============================================
+    - host: www.xn--o79aq2k062a.store
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nextjs-client
+                port:
+                  number: 3000
+
+    # ===============================================
+    # 🔒 HTTP 요청 → HTTPS로 리다이렉션
+    # ===============================================
+    - host: xn--o79aq2k062a.store
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ssl-redirect
+                port:
+                  name: use-annotation
+
+    - host: www.xn--o79aq2k062a.store
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ssl-redirect
+                port:
+                  name: use-annotation

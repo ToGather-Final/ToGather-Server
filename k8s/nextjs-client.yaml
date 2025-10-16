@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: nextjs-client
-          image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/client:latest
+          image: ${ECR_REGISTRY}/togather/client:latest
           ports:
             - containerPort: 3000
 ---

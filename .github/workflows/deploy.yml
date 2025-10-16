@@ -151,12 +151,18 @@ jobs:
         kubectl apply -f k8s/api-gateway-rbac.yaml -n ${{ env.EKS_NAMESPACE }}
 
         # 4. 환경변수 치환 후 나머지 모든 리소스 배포
-        # ECR_REGISTRY 환경변수를 k8s 파일들에 치환
+        # ECR_REGISTRY와 CERTIFICATE_ARN 환경변수를 k8s 파일들에 치환
+        export ECR_REGISTRY=${{ env.ECR_REGISTRY }}
+        export CERTIFICATE_ARN=${{ secrets.CERTIFICATE_ARN }}
+        
+        # 환경변수 치환이 필요한 파일들 배포
         envsubst < k8s/api-gateway.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/user-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/trading-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/pay-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/vote-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/nextjs-client.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/ingress.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         
         # 나머지 리소스들 (ConfigMap, Service, Ingress 등) 배포
         kubectl apply -f k8s/configmap.yaml -n ${{ env.EKS_NAMESPACE }}

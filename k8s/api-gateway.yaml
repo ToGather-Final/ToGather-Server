@@ -18,7 +18,7 @@ spec:
       serviceAccountName: api-gateway
       containers:
       - name: api-gateway
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/api-gateway:latest
+        image: ${ECR_REGISTRY}/togather/api-gateway:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
