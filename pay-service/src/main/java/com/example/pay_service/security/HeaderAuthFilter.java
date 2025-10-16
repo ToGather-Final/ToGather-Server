@@ -19,6 +19,13 @@ import java.util.UUID;
 public class HeaderAuthFilter extends OncePerRequestFilter {
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        // actuator 경로는 필터 적용 제외
+        return path.startsWith("/actuator");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
 
         if (SecurityContextHolder.getContext().getAuthentication() != null) {
@@ -34,14 +41,14 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
                 UsernamePasswordAuthenticationToken authentication = UsernamePasswordAuthenticationToken.authenticated(userId, null, Collections.emptyList());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                log.info("인증 성공 - X-User-Id 헤더: {}", userId);
+                log.debug("인증 성공 - X-User-Id: {}", userId);
             } catch (IllegalArgumentException e) {
                 log.warn("잘못된 X-User-Id 헤더: {}", userIdHeader);
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return;
             }
         } else {
-            log.warn("인증 실패 - X-User-Id 헤더 없음");
+            log.debug("X-User-Id 헤더 없음");
         }
 
         chain.doFilter(request, response);

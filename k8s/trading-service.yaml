@@ -23,10 +23,6 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "main"
-        # JVM 최적화
-        - name: JAVA_OPTS
-          value: "-Xms256m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication"
-        # 로깅 최적화
         - name: LOGGING_LEVEL_ROOT
           value: "WARN"
         - name: LOGGING_LEVEL_COM_EXAMPLE
@@ -40,26 +36,26 @@ spec:
               name: togather-secrets
         resources:
           requests:
-            memory: "384Mi"  # 256Mi -> 384Mi
-            cpu: "200m"      # 100m -> 200m
+            memory: "256Mi"
+            cpu: "150m"
           limits:
             memory: "768Mi"
-            cpu: "800m"      # 500m -> 800m
+            cpu: "600m"
         livenessProbe:
           httpGet:
             path: /actuator/health
             port: 8080
-          initialDelaySeconds: 90   # 180 -> 90초로 단축
-          periodSeconds: 20         # 30 -> 20초로 단축
+          initialDelaySeconds: 90
+          periodSeconds: 20
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /actuator/health
             port: 8080
-          initialDelaySeconds: 60   # 120 -> 60초로 단축
-          periodSeconds: 5          # 10 -> 5초로 단축
-          timeoutSeconds: 3         # 5 -> 3초로 단축
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
           failureThreshold: 3
 ---
 apiVersion: v1

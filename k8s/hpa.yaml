@@ -8,34 +8,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: api-gateway
-  minReplicas: 2
-  maxReplicas: 3
+  minReplicas: 1
+  maxReplicas: 2
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60
+          averageUtilization: 70
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 70
-  behavior: # 스케일링 동작 최적화
+          averageUtilization: 75
+  behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30  # 빠른 스케일 업
+      stabilizationWindowSeconds: 60
       policies:
         - type: Percent
           value: 100
-          periodSeconds: 30
+          periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 120  # 천천히 스케일 다운
+      stabilizationWindowSeconds: 300
       policies:
         - type: Percent
           value: 50
-          periodSeconds: 60
+          periodSeconds: 120
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -47,34 +47,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: user-service
-  minReplicas: 2
-  maxReplicas: 3
+  minReplicas: 1
+  maxReplicas: 2
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60
+          averageUtilization: 70
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 70  # 80 -> 70으로 낮춤
+          averageUtilization: 75
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 60
       policies:
       - type: Percent
         value: 100
-        periodSeconds: 30
+        periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 120
+      stabilizationWindowSeconds: 300
       policies:
       - type: Percent
         value: 50
-        periodSeconds: 60
+        periodSeconds: 120
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -86,34 +86,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: trading-service
-  minReplicas: 1  # 1 유지
-  maxReplicas: 2  # 1 -> 2로 증가 (필요시 확장)
+  minReplicas: 1
+  maxReplicas: 2
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60
+          averageUtilization: 70
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 70
+          averageUtilization: 75
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 60
       policies:
       - type: Percent
         value: 100
-        periodSeconds: 30
+        periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 180  # 더 오래 유지
+      stabilizationWindowSeconds: 300
       policies:
       - type: Percent
         value: 50
-        periodSeconds: 90
+        periodSeconds: 120
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -125,34 +125,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: pay-service
-  minReplicas: 1  # 1 유지
-  maxReplicas: 2  # 1 -> 2로 증가
+  minReplicas: 1
+  maxReplicas: 2
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60
+          averageUtilization: 70
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 70
+          averageUtilization: 75
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 60
       policies:
       - type: Percent
         value: 100
-        periodSeconds: 30
+        periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 180
+      stabilizationWindowSeconds: 300
       policies:
       - type: Percent
         value: 50
-        periodSeconds: 90
+        periodSeconds: 120
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -164,34 +164,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: vote-service
-  minReplicas: 1  # 1 유지
-  maxReplicas: 2  # 1 -> 2로 증가
+  minReplicas: 1
+  maxReplicas: 2
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60
+          averageUtilization: 70
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 70
+          averageUtilization: 75
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 60
       policies:
       - type: Percent
         value: 100
-        periodSeconds: 30
+        periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 180
+      stabilizationWindowSeconds: 300
       policies:
       - type: Percent
         value: 50
-        periodSeconds: 90
+        periodSeconds: 120
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -203,18 +203,31 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: nextjs-client
-  minReplicas: 2
-  maxReplicas: 3
+  minReplicas: 1
+  maxReplicas: 2
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60  # CPU 60% 이상 시 스케일 아웃
+          averageUtilization: 70
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 70  # 메모리 70% 이상 시 스케일 아웃
+          averageUtilization: 75
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 120
