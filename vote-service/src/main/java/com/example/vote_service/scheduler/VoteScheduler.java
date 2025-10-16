@@ -1,0 +1,89 @@
+package com.example.vote_service.scheduler;
+
+import com.example.vote_service.client.TradingServiceClient;
+import com.example.vote_service.client.UserServiceClient;
+import com.example.vote_service.dto.GroupMemberCountResponse;
+import com.example.vote_service.dto.GroupRuleResponse;
+import com.example.vote_service.model.Proposal;
+import com.example.vote_service.model.ProposalStatus;
+import com.example.vote_service.repository.ProposalRepository;
+import com.example.vote_service.service.ProposalService;
+import com.example.vote_service.service.VoteService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * 투표 자동 집계 스케줄러
+ * - 주기적으로 마감 시간이 지난 제안들을 집계
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class VoteScheduler {
+
+    private final ProposalRepository proposalRepository;
+    private final VoteService voteService;
+    private final UserServiceClient userServiceClient;
+    private final TradingServiceClient tradingServiceClient;
+    private final ProposalService proposalService;
+
+    /**
+     * 매 분마다 실행되어 마감된 투표를 자동 집계
+     * TODO: user-service에서 GroupRule과 멤버 수를 가져와서 정확한 집계 수행
+     */
+    @Scheduled(cron = "0 * * * * *") // 매 분 0초에 실행
+    public void tallyExpiredVotes() {
+        log.info("투표 자동 집계 스케줄러 시작");
+
+        // 진행 중(OPEN) 상태의 모든 제안 조회
+        List<Proposal> openProposals = proposalRepository.findByStatus(ProposalStatus.OPEN);
+
+        for (Proposal proposal : openProposals) {
+            // 마감 시간이 지난 제안만 집계
+            if (proposal.isExpired()) {
+                try {
+                    log.info("제안 집계 시작: proposalId={}, proposalName={}", 
+                            proposal.getProposalId(), proposal.getProposalName());
+
+                    // user-service API 호출하여 GroupRule과 멤버 수 가져오기
+                    try {
+                        GroupRuleResponse rule = userServiceClient.getGroupRule(proposal.getGroupId());
+                        GroupMemberCountResponse memberCount = userServiceClient.getGroupMemberCount(proposal.getGroupId());
+                        
+                        log.info("그룹 정보 조회 완료 - groupId: {}, 정족수: {}, 멤버 수: {}", 
+                                proposal.getGroupId(), rule.voteQuorum(), memberCount.count());
+                        
+                        voteService.tallyVotes(proposal.getProposalId(), memberCount.count(), rule.voteQuorum());
+                    } catch (Exception e) {
+                        log.error("user-service API 호출 실패, 기본값으로 집계 진행 - groupId: {}, error: {}", 
+                                proposal.getGroupId(), e.getMessage());
+                        
+                        // API 호출 실패 시 기본값으로 집계
+                        int totalMembers = 10; // 기본값
+                        int voteQuorum = 2;    // 기본값
+                        voteService.tallyVotes(proposal.getProposalId(), totalMembers, voteQuorum);
+                    }
+
+                    Proposal updatedProposal = proposalRepository.findById(proposal.getProposalId()).orElse(null);
+                    if (updatedProposal != null && updatedProposal.getStatus() == ProposalStatus.APPROVED) {
+                        log.info("투표 가결 확인 - 거래 실행 시작: proposalId={}", proposal.getProposalId());
+                        proposalService.executeVoteBasedTrading(proposal.getProposalId());
+                    }
+
+                    log.info("제안 집계 완료: proposalId={}", proposal.getProposalId());
+                } catch (Exception e) {
+                    log.error("제안 집계 실패: proposalId={}, error={}", 
+                            proposal.getProposalId(), e.getMessage(), e);
+                }
+            }
+        }
+
+        log.info("투표 자동 집계 스케줄러 종료");
+    }
+}
+

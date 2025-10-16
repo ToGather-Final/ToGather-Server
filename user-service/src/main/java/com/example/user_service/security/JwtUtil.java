@@ -25,7 +25,7 @@ public class JwtUtil {
     @Value("${app.jwt.access-exp-seconds:1800}")
     private long accessTokenExpireSeconds;
 
-//    public String issue(UUID userId) {
+    //    public String issue(UUID userId) {
 //        LocalDateTime now = LocalDateTime.now();
 //        Date issuedAt = Date.from(now.atZone(ZoneId.systemDefault()).toInstant());
 //        Date expiration = Date.from(now.plusSeconds(accessTokenExpireSeconds).atZone(ZoneId.systemDefault()).toInstant());
