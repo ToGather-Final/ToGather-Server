@@ -127,3 +127,29 @@ spec:
       target:
         type: Utilization
         averageUtilization: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nextjs-client-hpa
+  namespace: togather
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nextjs-client
+  minReplicas: 1  # 최소 2개 유지 (콜드 스타트 방지)
+  maxReplicas: 1  # 최대 5개까지 확장
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60  # CPU 60% 이상 시 스케일 아웃
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70  # 메모리 70% 이상 시 스케일 아웃

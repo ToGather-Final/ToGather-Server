@@ -335,6 +335,37 @@ jobs:
         kubectl get pods -n ${{ env.EKS_NAMESPACE }}
         kubectl get services -n ${{ env.EKS_NAMESPACE }}
         kubectl get ingress -n ${{ env.EKS_NAMESPACE }}
+    
+    - name: Prewarm Next.js Client
+      if: github.ref == 'refs/heads/main'
+      run: |
+        echo "🔥 Next.js 클라이언트 Prewarming 시작..."
+        SITE_URL="https://투게더.store"
+        
+        # 배포 완료 대기 (최대 2분)
+        echo "⏳ Next.js 클라이언트 준비 대기 중..."
+        for i in {1..24}; do
+          if kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' | grep -q "True"; then
+            echo "✅ Next.js 클라이언트 준비 완료!"
+            break
+          fi
+          echo "대기 중... ($i/24)"
+          sleep 5
+        done
+        
+        # Prewarming 요청 (5회)
+        echo "🔥 워밍업 요청 전송 중..."
+        for i in {1..5}; do
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$SITE_URL" || echo "000")
+          if [ "$STATUS_CODE" = "200" ]; then
+            echo "✅ 워밍업 요청 $i/5 성공 (HTTP $STATUS_CODE)"
+          else
+            echo "⚠️ 워밍업 요청 $i/5 실패 (HTTP $STATUS_CODE)"
+          fi
+          sleep 1
+        done
+        
+        echo "🎉 Prewarming 완료! 사용자들이 빠른 응답을 경험할 수 있습니다."
 
     - name: Diagnostics on failure
       if: failure()
