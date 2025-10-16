@@ -142,7 +142,7 @@ spring:
       feign: DEBUG
 
 server:
-  port: 8084
+  port: 8080
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
@@ -152,4 +152,4 @@ jwt:
 user-service:
   url: ${USER_SERVICE_URL:http://user-service:8080}
 trading-service:
-  url: ${TRADING_SERVICE_URL:http://trading-service:8081}
+  url: ${TRADING_SERVICE_URL:http://trading-service:8080}
