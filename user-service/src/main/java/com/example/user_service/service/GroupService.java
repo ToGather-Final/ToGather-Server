@@ -108,6 +108,16 @@ public class GroupService {
         return groupRuleRepository.findByGroupId(groupId).orElseThrow(() -> new NoSuchElementException("그룹 규칙이 없습니다."));
     }
 
+    /**
+     * 시스템용 그룹 규칙 조회
+     * - 인증 없이 조회 (시스템 내부용)
+     */
+    @Transactional(readOnly = true)
+    public GroupRule getRuleInternal(UUID groupId) {
+        return groupRuleRepository.findByGroupId(groupId).orElseThrow(() -> new NoSuchElementException("그룹 규칙이 없습니다."));
+    }
+
+
     @Transactional
     public void addMember(UUID groupId, GroupMemberAddRequest request, UUID operatorId) {
         assertOperatorIsOwner(groupId, operatorId);

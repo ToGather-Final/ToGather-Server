@@ -30,7 +30,8 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
                path.startsWith("/auth/refresh") ||
                path.startsWith("/swagger-ui") || 
                path.startsWith("/v3/api-docs") ||
-               path.startsWith("/actuator");
+               path.startsWith("/actuator") ||
+               path.contains("/quorum"); // 시스템용 정족수 조회 API 제외
     }
 
     @Override

@@ -1,8 +1,11 @@
 package com.example.vote_service.service;
 
 import com.example.vote_service.client.UserServiceClient;
+import com.example.vote_service.dto.GroupMemberCountResponse;
+import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.dto.UserMeResponse;
+import com.example.vote_service.event.VoteExpirationEvent;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.ProposalStatus;
 import com.example.vote_service.repository.ProposalRepository;
@@ -11,10 +14,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +39,8 @@ public class ProposalService {
     private final HistoryService historyService;
     private final UserServiceClient userServiceClient;
     private final ObjectMapper objectMapper;
+    private final TaskScheduler taskScheduler;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 제안 생성
@@ -67,9 +75,8 @@ public class ProposalService {
         // 3. payload를 유효한 JSON으로 변환
         String validatedPayload = validateAndConvertPayload(request.payload());
         
-        // 4. 투표 생성
-        // 투표 종료 시간은 임시로 5분 후로 설정
-        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
+        // 4. 투표 기간 설정 (그룹 규칙에서 가져오기)
+        LocalDateTime closeAt = calculateVoteCloseTime(groupId);
         
         Proposal proposal = Proposal.create(
                 groupId,
@@ -93,6 +100,12 @@ public class ProposalService {
             request.price(),
             request.quantity()
         );
+        
+        // 6. 투표 마감 시간에 정확히 실행되는 작업 스케줄
+        scheduleVoteExpiration(saved.getProposalId(), closeAt, groupId);
+        
+        log.info("투표 생성 완료 - proposalId: {}, closeAt: {}", 
+                saved.getProposalId(), closeAt);
         
         return saved.getProposalId();
     }
@@ -190,6 +203,62 @@ public class ProposalService {
     private void validateGroupMembership(UUID userId, UUID groupId) {
         if (!groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)) {
             throw new IllegalArgumentException("해당 그룹의 멤버가 아닙니다.");
+        }
+    }
+
+    /**
+     * 투표 마감 시간 계산
+     * - 현재는 기본값 5분 사용 (user-service에 voteDurationHours 필드가 없음)
+     * - 추후 user-service에서 투표 기간 설정 기능이 추가되면 API 호출로 변경 예정
+     * 
+     * @param groupId 그룹 ID
+     * @return 투표 마감 시간
+     */
+    private LocalDateTime calculateVoteCloseTime(UUID groupId) {
+        // TODO: user-service에서 voteDurationHours 필드가 추가되면 API 호출로 변경
+        // 현재는 기본값 5분 사용
+        // LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
+        // log.info("투표 마감 시간 설정 (기본값 5분) - groupId: {}, closeAt: {}", groupId, closeAt);
+        
+        // 디버깅용: 1분으로 설정
+        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(1);
+        log.info("투표 마감 시간 설정 (디버깅용 1분) - groupId: {}, closeAt: {}", groupId, closeAt);
+        
+        return closeAt;
+    }
+
+    /**
+     * 투표 마감 시간에 정확히 실행되는 작업 스케줄
+     * - closeAt 시간에 딱 한 번만 실행되어 가결/부결 판단
+     * 
+     * @param proposalId 제안 ID
+     * @param closeAt 마감 시간
+     * @param groupId 그룹 ID
+     */
+    private void scheduleVoteExpiration(UUID proposalId, LocalDateTime closeAt, UUID groupId) {
+        try {
+            // closeAt 시간을 Instant로 변환
+            var instant = closeAt.atZone(ZoneId.systemDefault()).toInstant();
+            
+            log.info("투표 마감 스케줄 등록 - proposalId: {}, closeAt: {}", proposalId, closeAt);
+            
+            // closeAt 시간에 딱 한 번 실행되는 작업 스케줄
+            taskScheduler.schedule(() -> {
+                try {
+                    log.info("투표 마감 시간 도달, 이벤트 발행 - proposalId: {}, scheduledTime: {}", 
+                            proposalId, LocalDateTime.now());
+                    
+                    // 순환 참조 없이 이벤트로 투표 마감 알림
+                    eventPublisher.publishEvent(new VoteExpirationEvent(proposalId, groupId));
+                    
+                } catch (Exception e) {
+                    log.error("투표 마감 이벤트 발행 실패 - proposalId: {}, error: {}", proposalId, e.getMessage(), e);
+                }
+            }, instant);
+            
+        } catch (Exception e) {
+            log.error("투표 마감 스케줄 등록 실패 - proposalId: {}, closeAt: {}, error: {}", 
+                    proposalId, closeAt, e.getMessage(), e);
         }
     }
 

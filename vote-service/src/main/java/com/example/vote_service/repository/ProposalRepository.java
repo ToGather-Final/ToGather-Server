@@ -31,7 +31,7 @@ public interface ProposalRepository extends JpaRepository<Proposal, UUID> {
     List<Proposal> findByUserId(UUID userId);
 
     /**
-     * 특정 상태의 모든 제안 조회 (스케줄러용)
+     * 특정 상태의 모든 제안 조회
      */
     List<Proposal> findByStatus(ProposalStatus status);
 }
