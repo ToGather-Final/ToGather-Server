@@ -1,6 +1,10 @@
 package com.example.vote_service.service;
 
+import com.example.vote_service.client.UserServiceClient;
+import com.example.vote_service.dto.GroupMemberCountResponse;
+import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.dto.VoteRequest;
+import com.example.vote_service.event.VoteExpirationEvent;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.Vote;
 import com.example.vote_service.model.VoteChoice;
@@ -8,6 +12,7 @@ import com.example.vote_service.repository.VoteRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +33,7 @@ public class VoteService {
     private final ProposalService proposalService;
     private final GroupMembersRepository groupMembersRepository;
     private final HistoryService historyService;
+    private final UserServiceClient userServiceClient;
 
     /**
      * 투표하기
@@ -52,17 +58,23 @@ public class VoteService {
         // 이미 투표했는지 확인
         Optional<Vote> existingVote = voteRepository.findByProposalIdAndUserId(proposalId, userId);
         
+        Vote savedVote;
         if (existingVote.isPresent()) {
             // 투표 변경
             Vote vote = existingVote.get();
             vote.changeChoice(request.choice());
-            return vote.getVoteId();
+            savedVote = vote;
         } else {
             // 새 투표 생성
             Vote vote = Vote.create(proposalId, userId, request.choice());
-            Vote saved = voteRepository.save(vote);
-            return saved.getVoteId();
+            savedVote = voteRepository.save(vote);
         }
+
+        // 투표 완료
+        // 마감 시간(closeAt)에 스케줄러가 자동으로 가결/부결 판단
+        log.info("투표 완료 - proposalId: {}, userId: {}", proposalId, userId);
+        
+        return savedVote.getVoteId();
     }
 
     /**
@@ -116,7 +128,7 @@ public class VoteService {
 
     /**
      * 투표 결과 집계 및 제안 상태 업데이트
-     * - 투표 마감 시간에 호출됨 (스케줄러 또는 수동)
+     * - 투표 마감 시간에 호출됨 (closeAt 기준)
      * - GroupRule의 voteQuorum(정족수)을 사용하여 가결/부결 결정
      * 
      * @param proposalId 제안 ID
@@ -179,6 +191,7 @@ public class VoteService {
         }
     }
 
+
     /**
      * 투표 결과 집계 (간단 버전 - 정족수 정보 없이)
      * TODO: user-service에서 GroupRule과 멤버 수를 가져와서 위의 메서드 호출
@@ -204,6 +217,34 @@ public class VoteService {
             proposalService.approveProposal(proposalId);
         } else {
             proposalService.rejectProposal(proposalId);
+        }
+    }
+
+    /**
+     * 투표 마감 이벤트 리스너
+     * - ProposalService에서 발행하는 VoteExpirationEvent를 처리
+     * - 순환 참조 없이 투표 마감 시 집계 수행
+     */
+    @EventListener
+    @Transactional
+    public void handleVoteExpiration(VoteExpirationEvent event) {
+        UUID proposalId = event.proposalId();
+        UUID groupId = event.groupId();
+        
+        log.info("투표 마감 이벤트 수신 - proposalId: {}, groupId: {}", proposalId, groupId);
+        
+        try {
+            // user-service에서 정족수 정보 가져오기 (시스템용 API 사용)
+            GroupRuleResponse rule = userServiceClient.getQuorumInternal(groupId);
+            
+            log.info("그룹 정족수 조회 완료 - groupId: {}, 정족수: {}", 
+                    groupId, rule.voteQuorum());
+            
+            tallyVotes(proposalId, 0, rule.voteQuorum()); // totalMembers는 사용하지 않으므로 0으로 설정
+            
+            log.info("투표 마감 집계 완료 - proposalId: {}", proposalId);
+        } catch (Exception e) {
+            log.error("투표 마감 집계 실패 - proposalId: {}, error: {}", proposalId, e.getMessage(), e);
         }
     }
 
