@@ -63,10 +63,20 @@ jobs:
         chmod +x gradlew
         ./gradlew build -x test
 
+#    - name: Build and push Next.js Client image
+#      run: |
+#        docker build -t $ECR_REGISTRY/togather/client:${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
+#        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
+#        docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
+#        docker push $ECR_REGISTRY/togather/client:latest
     - name: Build and push Next.js Client image
       run: |
-        docker build -t $ECR_REGISTRY/togather/client:${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
-        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
+        docker build \
+          --build-arg NEXT_PUBLIC_API_BASE_URL=${{ secrets.PROD_API_BASE_URL }} \
+          -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
+          -f ./togather-client/Dockerfile ./togather-client
+
+        docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
         docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
         docker push $ECR_REGISTRY/togather/client:latest
 
