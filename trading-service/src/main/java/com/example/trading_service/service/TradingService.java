@@ -73,7 +73,7 @@ public class TradingService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         // 잔고 업데이트
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId())
+        BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
         
         balance.setBalance(balance.getBalance() + request.getAmount().intValue());
@@ -241,7 +241,7 @@ public class TradingService {
 
     // 잔고 업데이트
     private void updateBalance(UUID accountId, float amount) {
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(accountId)
+        BalanceCache balance = balanceCacheRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
         
         balance.setBalance(balance.getBalance() + (int) amount);
@@ -251,7 +251,7 @@ public class TradingService {
     // 보유 종목 업데이트
     private void updateHolding(UUID accountId, UUID stockId, int quantity, float price, boolean isBuy) {
         Optional<HoldingCache> existingHolding = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndStock_Id(accountId, stockId);
+                .findByAccountIdAndStockId(accountId, stockId);
         
         if (isBuy) {
             // 매수
@@ -388,11 +388,8 @@ public class TradingService {
     }
 
     private StockResponse convertToStockResponse(Stock stock) {
-        // 실시간 주식 가격 조회
-        float currentPrice = getCurrentStockPrice(stock.getStockCode());
-        Map<String, Float> changeInfo = getStockChangeInfo(stock.getStockCode());
-        float changeAmount = changeInfo.get("changeAmount");
-        float changeRate = changeInfo.get("changeRate");
+        // 캐시된 주식 가격 정보 조회 (일관성 보장)
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
         
         return new StockResponse(
                 stock.getId(),
@@ -401,9 +398,9 @@ public class TradingService {
                 stock.getStockImage(),
                 stock.getCountry().toString(),
                 "300", // 기본값: 주식 (300), ETF는 500
-                currentPrice,
-                changeAmount,
-                changeRate,
+                priceInfo.getCurrentPrice().floatValue(),
+                priceInfo.getChangePrice().floatValue(),
+                priceInfo.getChangeRate(),
                 stock.isEnabled()
         );
     }
@@ -603,6 +600,40 @@ public class TradingService {
                 order.getStatus().toString(),
                 order.getCreatedAt(),
                 order.getUpdatedAt()
+        );
+    }
+
+    // 보유 종목을 StockResponse 형식으로 조회
+    @Transactional(readOnly = true)
+    public List<StockResponse> getPortfolioStocks(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        
+        // 보유 종목 조회
+        List<HoldingCache> holdings = holdingCacheRepository.findByAccountId(account.getInvestmentAccountId());
+        
+        return holdings.stream()
+                .map(holding -> convertHoldingToStockResponse(holding))
+                .collect(Collectors.toList());
+    }
+
+    // HoldingCache를 StockResponse로 변환
+    private StockResponse convertHoldingToStockResponse(HoldingCache holding) {
+        Stock stock = holding.getStock();
+        
+        // 캐시된 주식 가격 정보 조회 (일관성 보장)
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
+        
+        return new StockResponse(
+                stock.getId(),
+                stock.getStockCode(),
+                stock.getStockName(),
+                stock.getStockImage(),
+                stock.getCountry().toString(),
+                "300", // 기본값: 주식 (300), ETF는 500
+                priceInfo.getCurrentPrice().floatValue(),
+                priceInfo.getChangePrice().floatValue(),
+                priceInfo.getChangeRate(),
+                stock.isEnabled()
         );
     }
 }
