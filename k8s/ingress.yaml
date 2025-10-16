@@ -25,9 +25,6 @@ metadata:
     alb.ingress.kubernetes.io/healthy-threshold-count: '2'
     alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
 
-    # ✅ Access Log 설정 (S3 버킷)
-    alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=true,access_logs.s3.bucket=togather-alb-logs,access_logs.s3.prefix=togather
-
 spec:
   ingressClassName: alb
   rules:
