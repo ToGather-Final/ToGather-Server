@@ -8,21 +8,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: api-gateway
-  minReplicas: 1
-  maxReplicas: 1
+  minReplicas: 2
+  maxReplicas: 3
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 60  # 70 -> 60으로 낮춤 (더 빨리 스케일)
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 80
+        averageUtilization: 70  # 80 -> 70으로 낮춤
+  behavior:  # 스케일링 동작 최적화
+    scaleUp:
+      stabilizationWindowSeconds: 30  # 빠른 스케일 업
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 120  # 천천히 스케일 다운
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -34,21 +47,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: user-service
-  minReplicas: 1
-  maxReplicas: 1
+  minReplicas: 2  # 1 -> 2로 증가
+  maxReplicas: 3  # 1 -> 3로 증가
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 60  # 70 -> 60으로 낮춤
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 80
+        averageUtilization: 70  # 80 -> 70으로 낮춤
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -60,21 +86,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: trading-service
-  minReplicas: 1
-  maxReplicas: 1
+  minReplicas: 1  # 1 유지
+  maxReplicas: 2  # 1 -> 2로 증가 (필요시 확장)
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 60
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 80
+        averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 180  # 더 오래 유지
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 90
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -86,21 +125,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: pay-service
-  minReplicas: 1
-  maxReplicas: 1
+  minReplicas: 1  # 1 유지
+  maxReplicas: 2  # 1 -> 2로 증가
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 60
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 80
+        averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 90
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -112,18 +164,31 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: vote-service
-  minReplicas: 1
-  maxReplicas: 1
+  minReplicas: 1  # 1 유지
+  maxReplicas: 2  # 1 -> 2로 증가
   metrics:
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 70
+        averageUtilization: 60
   - type: Resource
     resource:
       name: memory
       target:
         type: Utilization
-        averageUtilization: 80
+        averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 90
