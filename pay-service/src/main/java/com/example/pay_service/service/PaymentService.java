@@ -6,12 +6,15 @@ import com.example.pay_service.dto.PaymentResponse;
 import com.example.pay_service.exception.AccountNotOwnedException;
 import com.example.pay_service.exception.InsufficientFundsException;
 import com.example.pay_service.exception.PayServiceException;
-import com.example.pay_service.repository.AccountRepository;
 import com.example.pay_service.repository.IdempotencyKeyRepository;
-import com.example.pay_service.repository.LedgerEntryRepository;
+import com.example.pay_service.repository.PayAccountLedgerRepository;
+import com.example.pay_service.repository.PayAccountRepository;
 import com.example.pay_service.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,8 +28,8 @@ import java.util.UUID;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
-    private final AccountRepository accountRepository;
-    private final LedgerEntryRepository ledgerEntryRepository;
+    private final PayAccountRepository payAccountRepository;
+    private final PayAccountLedgerRepository payAccountLedgerRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final PaymentSessionService paymentSessionService;
 
@@ -44,70 +47,65 @@ public class PaymentService {
         }
 
         PaymentSession session = paymentSessionService.getSessionOrThrow(request.paymentSessionId());
-        if (session.isUsed()){
+        if (session.isUsed()) {
             throw new PayServiceException("SESSION_USED", "Payment session already used");
         }
 
         UUID payerAccountId = UUID.fromString(request.payerAccountId());
-        Account payerAccount = accountRepository.findByIdAndOwnerUserIdAndIsActiveTrue(payerAccountId, userId)
+        PayAccount payerAccount = payAccountRepository.findByIdAndOwnerUserIdAndIsActiveTrue(payerAccountId, userId)
                 .orElseThrow(() -> new AccountNotOwnedException("Account not owned by user"));
 
         if (!payerAccount.hasSufficientBalance(request.amount())) {
             throw new InsufficientFundsException("Insufficient balance");
         }
 
-        Account merchantAccount = accountRepository.findByIdAndIsActiveTrue(session.getMerchantAccountId())
-                .orElseThrow(() -> new PayServiceException("MERCHANT_ACCOUNT_NOT_FOUND", "Merchant account not found"));
-
-        Payment payment = Payment.create(
+        Payment payment = Payment.createFromSession(
                 request.paymentSessionId(),
                 payerAccountId,
-                session.getMerchantId(),
-                request.amount(),
+                session,
                 request.clientRequestId()
         );
 
         try {
-            UUID txId = UUID.randomUUID();
-            LedgerEntry debitEntry = LedgerEntry.createDebitEntry(
-                    txId,
-                    payerAccountId,
-                    request.amount(),
-                    TxType.PAYMENT,
-                    payment.getId(),
-                    "PAYMENT:" + request.paymentSessionId()
-            );
-
-            LedgerEntry creditEntry = LedgerEntry.createCreditEntry(
-                    txId,
-                    session.getMerchantAccountId(),
-                    request.amount(),
-                    TxType.PAYMENT,
-                    payment.getId(),
-                    "PAYMENT:" + request.paymentSessionId()
-            );
-
-            payerAccount.debit(request.amount());
-            merchantAccount.credit(request.amount());
+            // PayAccount는 불변 객체이므로 새로운 객체 생성
+            PayAccount updatedPayerAccount = PayAccount.builder()
+                    .id(payerAccount.getId())
+                    .ownerUserId(payerAccount.getOwnerUserId())
+                    .balance(payerAccount.getBalance() - request.amount()) // 잔액 차감
+                    .nickname(payerAccount.getNickname())
+                    .isActive(payerAccount.getIsActive())
+                    .groupId(payerAccount.getGroupId())
+                    .build();
 
             payment.markAsSucceeded();
 
             paymentRepository.save(payment);
-            accountRepository.save(payerAccount);
-            accountRepository.save(merchantAccount);
-            ledgerEntryRepository.save(debitEntry);
-            ledgerEntryRepository.save(creditEntry);
+            payAccountRepository.save(updatedPayerAccount);
 
+            paymentSessionService.markAsUsed(request.paymentSessionId());
+
+            // PayAccountLedger 생성 (Builder 패턴 사용)
+            PayAccountLedger ledgerEntry = PayAccountLedger.builder()
+                    .payAccountId(payerAccountId)
+                    .transactionType(TransactionType.PAYMENT)
+                    .amount(request.amount())
+                    .balanceAfter(updatedPayerAccount.getBalance())
+                    .description("결제: " + payment.getRecipientDisplayName())
+                    .relatedPaymentId(payment.getId())
+                    .build();
+
+            payAccountLedgerRepository.save(ledgerEntry);
+
+            // 멱등성 키 저장
             if (request.clientRequestId() != null) {
                 IdempotencyKey idempotencyKey = IdempotencyKey.create(request.clientRequestId(), payerAccountId);
                 idempotencyKey.markAsUsed(payment.getId());
                 idempotencyKeyRepository.save(idempotencyKey);
             }
 
-            paymentSessionService.markAsUsed(request.paymentSessionId());
+            log.info("결제 성공: {}", payment.getPaymentSummary());
+            return createPaymentResponse(payment, updatedPayerAccount.getBalance());
 
-            log.info("결제 성공: paymentId={},amount={}", payment.getId(), request.amount());
-            return createPaymentResponse(payment, payerAccount.getBalance());
         } catch (Exception e) {
             log.error("결제 실패: {}", e.getMessage());
             payment.markAsFailed(e.getMessage());
@@ -125,11 +123,10 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> getPaymentHistory(UUID accountId, int page, int size) {
-        List<Payment> payments = paymentRepository.findByPayerAccountIdOrderByCreatedAtDesc(accountId);
-        return payments.stream()
-                .map(this::createPaymentResponse)
-                .toList();
+    public Page<PaymentResponse> getPaymentHistory(UUID accountId, int page, int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Payment> paymentPage = paymentRepository.findByPayerAccountIdOrderByCreatedAtDesc(accountId, pageable);
+        return paymentPage.map(this::createPaymentResponse);
     }
 
     private PaymentResponse createPaymentResponse(Payment payment) {
@@ -142,8 +139,8 @@ public class PaymentService {
                 payment.getStatus(),
                 payment.getAmount(),
                 payment.getCurrency(),
-                payment.getMerchantId().toString(),
-                "가맹점",
+                payment.getRecipientName(), // merchantId 대신 recipientName 사용
+                payment.getRecipientBankName(), // "가맹점" 대신 실제 은행명 사용
                 payment.getPayerAccountId().toString(),
                 payment.getPostedAt(),
                 balanceAfter

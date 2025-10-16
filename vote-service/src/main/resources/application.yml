@@ -100,6 +100,17 @@ jwt:
 
 user-service:
   url: ${USER_SERVICE_URL:http://localhost:8080}
+trading-service:
+  url: ${TRADING_SERVICE_URL:http://localhost:8081}
+
+# Feign 클라이언트 설정
+feign:
+  client:
+    config:
+      default:
+        loggerLevel: FULL
+        connectTimeout: 5000
+        readTimeout: 10000
 
 server:
   port: 8084
@@ -127,6 +138,8 @@ spring:
   logging:
     level:
       com.example.vote_service: INFO
+      com.example.vote_service.client.UserServiceClient: DEBUG
+      feign: DEBUG
 
 server:
   port: 8080
@@ -138,3 +151,5 @@ jwt:
 
 user-service:
   url: ${USER_SERVICE_URL:http://user-service:8080}
+trading-service:
+  url: ${TRADING_SERVICE_URL:http://trading-service:8080}

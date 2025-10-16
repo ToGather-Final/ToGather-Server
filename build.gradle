@@ -55,6 +55,8 @@ subprojects {
 		runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 		implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
 
+        implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
 		compileOnly "org.projectlombok:lombok"
 		annotationProcessor "org.projectlombok:lombok"
 
@@ -141,6 +143,7 @@ project(":vote-service") {
 			exclude group: 'io.lettuce', module: 'lettuce-core'
 		}
 		implementation 'redis.clients:jedis'
+
 	}
 }
 

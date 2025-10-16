@@ -1,56 +1,56 @@
 package com.example.vote_service.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import com.example.vote_service.config.FeignConfig;
+import com.example.vote_service.dto.GroupMemberCountResponse;
+import com.example.vote_service.dto.GroupRuleResponse;
+import com.example.vote_service.dto.UserMeResponse;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.UUID;
 
 /**
- * User Service 클라이언트
- * - user-service와 통신하여 사용자 정보 조회
+ * User Service API 클라이언트
+ * - Feign을 사용하여 user-service와 통신
  */
-@Slf4j
-@Component
-@RequiredArgsConstructor
-public class UserServiceClient {
+@FeignClient(name = "user-service", url = "http://localhost:8082", configuration = FeignConfig.class)
+public interface UserServiceClient {
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+    /**
+     * 그룹 규칙 조회
+     * GET /groups/{groupId}/rules
+     */
+    @GetMapping("/groups/{groupId}/rules")
+    GroupRuleResponse getGroupRule(@PathVariable UUID groupId);
 
-    @Value("${user-service.url}")
-    private String userServiceUrl;
+    /**
+     * 그룹 멤버 수 조회
+     * GET /groups/{groupId}/members/count
+     */
+    @GetMapping("/groups/{groupId}/members/count")
+    GroupMemberCountResponse getGroupMemberCount(@PathVariable UUID groupId);
+
+    /**
+     * 시스템용 그룹 정족수 조회
+     * GET /groups/{groupId}/quorum
+     * - 인증 없이 조회 (시스템 내부용)
+     */
+    @GetMapping("/groups/{groupId}/quorum")
+    GroupRuleResponse getQuorumInternal(@PathVariable UUID groupId);
 
     /**
      * 사용자 닉네임 조회
+     * GET /users/{userId}/nickname
      */
-    public String getUserNickname(UUID userId) {
-        log.info("사용자 닉네임 조회 시작 - userId: {}", userId);
-        log.info("user-service URL: {}", userServiceUrl);
-        
-        try {
-            String url = userServiceUrl + "/users/" + userId + "/nickname";
-            log.info("API 호출 URL: {}", url);
-            
-            String jsonResponse = restTemplate.getForObject(url, String.class);
-            log.info("API 응답: {}", jsonResponse);
-            
-            if (jsonResponse != null) {
-                JsonNode jsonNode = objectMapper.readTree(jsonResponse);
-                String nickname = jsonNode.get("nickname").asText();
-                log.info("사용자 닉네임 조회 성공 - userId: {}, nickname: {}", userId, nickname);
-                return nickname;
-            }
-            
-            log.warn("API 응답이 null입니다 - userId: {}", userId);
-            return "알 수 없는 사용자";
-        } catch (Exception e) {
-            log.error("사용자 닉네임 조회 실패 - userId: {}, error: {}", userId, e.getMessage(), e);
-            return "알 수 없는 사용자"; // 기본값 반환
-        }
-    }
+    @GetMapping("/users/{userId}/nickname")
+    String getUserNickname(@PathVariable UUID userId);
+
+    /**
+     * 현재 인증된 사용자 정보 조회
+     * GET /users/me
+     * - X-User-Id 헤더를 통해 사용자 ID 전달
+     */
+    @GetMapping("/users/me")
+    UserMeResponse getCurrentUser();
 }

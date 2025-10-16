@@ -45,6 +45,7 @@ public class SecurityConfig{
         http.authorizeHttpRequests(reg -> {
             reg.requestMatchers("/actuator/**").permitAll();
             reg.requestMatchers("/auth/**").permitAll();
+
             reg.requestMatchers("/users/**").permitAll();
             reg.requestMatchers("/groups/**").permitAll();
             reg.requestMatchers("/swagger-ui/**").permitAll();

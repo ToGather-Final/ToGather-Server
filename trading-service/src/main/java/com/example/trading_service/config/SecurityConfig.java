@@ -28,18 +28,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            // CORS는 API Gateway에서 처리
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // 주식 조회는 인증 불필요
-                .requestMatchers("/trading/stocks", "/trading/stocks/**").permitAll()
-                // Actuator 엔드포인트는 인증 불필요 (Health Check용)
-                .requestMatchers("/actuator/**").permitAll()
-                // 나머지는 인증 필요
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(userIdAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .csrf(AbstractHttpConfigurer::disable)
+                // CORS는 API Gateway에서 처리
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // 주식 조회는 인증 불필요
+                        .requestMatchers("/trading/stocks", "/trading/stocks/**").permitAll()
+                        // Swagger UI 및 API 문서는 인증 불필요
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/index.html", "/swagger-resources/**", "/webjars/**").permitAll()
+                        // favicon.ico 허용
+                        .requestMatchers("/favicon.ico").permitAll()
+                        // 나머지는 인증 필요
+                        // Actuator 엔드포인트는 인증 불필요 (Health Check용)
+                        .requestMatchers("/actuator/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(userIdAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

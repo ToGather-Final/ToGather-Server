@@ -27,7 +27,7 @@ public class Transfer {
     @Column(name = "id", columnDefinition = "BINARY(16)")
     private UUID id;
 
-    @Column(name = "from_account_id", columnDefinition = "BINARY(16)", nullable = false)
+    @Column(name = "from_account_id", columnDefinition = "BINARY(16)", nullable = true)
     private UUID fromAccountId;
 
     @Column(name = "to_account_id", columnDefinition = "BINARY(16)", nullable = false)

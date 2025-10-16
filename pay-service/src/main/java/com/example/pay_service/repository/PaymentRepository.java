@@ -17,40 +17,22 @@ import java.util.UUID;
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
-    Optional<Payment> findById(UUID id);
-
-    Optional<Payment> findByClientRequestId(String clientRequestId);
+    Optional<Payment> findBySessionId(String sessionId);
 
     List<Payment> findByPayerAccountIdOrderByCreatedAtDesc(UUID payerAccountId);
 
+    Optional<Payment> findByClientRequestId(String clientRequestId);
+
+    List<Payment> findByStatusOrderByCreatedAtDesc(PaymentStatus status);
+
+    @Query("SELECT p FROM Payment p WHERE p.createdAt BETWEEN :startDate AND :endDate ORDER BY p.createdAt DESC")
+    List<Payment> findByCreatedAtBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT p FROM Payment p WHERE p.recipientBankCode = :bankCode AND p.recipientAccountNumber = :accountNumber ORDER BY p.createdAt DESC")
+    List<Payment> findByRecipientAccount(@Param("bankCode") String bankCode, @Param("accountNumber") String accountNumber);
+
+    @Query("SELECT p FROM Payment p JOIN PayAccount pa ON p.payerAccountId = pa.id WHERE pa.groupId = :groupId ORDER BY p.createdAt DESC")
+    List<Payment> findByGroupId(@Param("groupId") UUID groupId);
+
     Page<Payment> findByPayerAccountIdOrderByCreatedAtDesc(UUID payerAccountId, Pageable pageable);
-
-    @Query("SELECT p FROM Payment p WHERE p.payerAccountId = :payerAccountId " + "AND p.createdAt BETWEEN :from AND :to " + "ORDER BY p.createdAt DESC")
-    Page<Payment> findByPayerAccountIdAndCreatedAtBetween(
-            @Param("payerAccountId") UUID payerAccountId,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to,
-            Pageable pageable);
-
-    @Query("SELECT p FROM Payment p WHERE p.merchantId = :merchantId " +
-            "AND p.status = :status " +
-            "ORDER BY p.createdAt DESC")
-    List<Payment> findByMerchantIdAndStatusOrderByCreatedAtDesc(
-            @Param("merchantId") UUID merchantId,
-            @Param("status") PaymentStatus status
-    );
-
-    @Query("SELECT COUNT(p) FROM Payment p WHERE p.payerAccountId = :payerAccountId " +
-            "AND p.status = 'SUCCEEDED' " +
-            "AND DATE(p.createdAt) = CURRENT_DATE")
-    Long countSuccessfulPaymentsTodayByPayerAccountId(@Param("payerAccountId") UUID payerAccountId);
-
-    @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.payerAccountId = :payerAccountId " +
-            "AND p.status = 'SUCCEEDED' " +
-            "AND DATE(p.createdAt) = CURRENT_DATE")
-    Long sumSuccessfulPaymentsTodayByPayerAccountId(@Param("payerAccountId") UUID payerAccountId);
-
-    Optional<Payment> findBySessionId(String sessionId);
-
-    boolean existsByClientRequestId(String clientRequestId);
 }

@@ -15,6 +15,8 @@ public record ProposalCreateRequest(
         @NotBlank String proposalName,
         @NotNull ProposalCategory category,
         @NotNull ProposalAction action,
-        Object payload // JSON 객체 또는 문자열 (제안 이유 등)
+        Object payload, // JSON 객체 또는 문자열 (제안 이유 등)
+        Integer price, // 가격 (매수/매도 금액, 충전 금액 등)
+        Integer quantity // 수량 (주식 수량 등)
 ) {
 }
