@@ -73,7 +73,7 @@ public class TradingService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         // 잔고 업데이트
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(account.getInvestmentAccountId())
+        BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
         
         balance.setBalance(balance.getBalance() + request.getAmount().intValue());
@@ -126,8 +126,42 @@ public class TradingService {
         // 실시간 가격 정보 조회
         StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode);
         
-        // 간단한 차트 데이터 조회 (30일)
-        List<ChartData> chartData = chartService.getStockChart(stockCode, 30);
+        // 간단한 차트 데이터 조회 (80일)
+        List<ChartData> chartData = chartService.getStockChart(stockCode, 80);
+
+        return StockInfoResponse.builder()
+                .stockId(stock.getId().toString())
+                .stockCode(stock.getStockCode())
+                .stockName(stock.getStockName())
+                .market("KOSPI") // TODO: 실제 시장 정보로 변경
+                .currentPrice(priceInfo.getCurrentPrice())
+                .changeAmount(priceInfo.getChangePrice())
+                .changeRate(priceInfo.getChangeRate())
+                .changeDirection(priceInfo.getChangePrice().compareTo(BigDecimal.ZERO) > 0 ? "up" : 
+                               priceInfo.getChangePrice().compareTo(BigDecimal.ZERO) < 0 ? "down" : "unchanged")
+                .volume(priceInfo.getVolume())
+                .highPrice(priceInfo.getHighPrice())
+                .lowPrice(priceInfo.getLowPrice())
+                .openPrice(priceInfo.getOpenPrice())
+                .prevClosePrice(priceInfo.getPrevClosePrice())
+                .marketCap(null) // TODO: 시가총액 계산 로직 추가
+                .chartData(chartData)
+                .resistanceLine(calculateResistanceLine(chartData))
+                .supportLine(calculateSupportLine(chartData))
+                .build();
+    }
+
+    // 주식 차트 정보 조회 (기본 정보 + 차트 데이터)
+    @Transactional(readOnly = true)
+    public StockInfoResponse getStockChartWithInfo(String stockCode, String periodDiv) {
+        Stock stock = stockRepository.findByStockCode(stockCode)
+                .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
+
+        // 실시간 가격 정보 조회
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode);
+        
+        // 차트 데이터 조회 (기간분류코드 사용)
+        List<ChartData> chartData = chartService.getStockChartByPeriod(stockCode, periodDiv);
 
         return StockInfoResponse.builder()
                 .stockId(stock.getId().toString())
@@ -207,7 +241,7 @@ public class TradingService {
 
     // 잔고 업데이트
     private void updateBalance(UUID accountId, float amount) {
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(accountId)
+        BalanceCache balance = balanceCacheRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
         
         balance.setBalance(balance.getBalance() + (int) amount);
@@ -217,7 +251,7 @@ public class TradingService {
     // 보유 종목 업데이트
     private void updateHolding(UUID accountId, UUID stockId, int quantity, float price, boolean isBuy) {
         Optional<HoldingCache> existingHolding = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndStock_Id(accountId, stockId);
+                .findByAccountIdAndStockId(accountId, stockId);
         
         if (isBuy) {
             // 매수
@@ -317,6 +351,9 @@ public class TradingService {
                         if (changeAmount < 0) {
                             changeRate = -Math.abs(changeRate);
                         }
+                        
+                        // 소수점 두 자리로 반올림
+                        changeRate = Math.round(changeRate * 100.0f) / 100.0f;
                     }
                     
                     return Map.of("changeAmount", changeAmount, "changeRate", changeRate);
@@ -351,11 +388,8 @@ public class TradingService {
     }
 
     private StockResponse convertToStockResponse(Stock stock) {
-        // 실시간 주식 가격 조회
-        float currentPrice = getCurrentStockPrice(stock.getStockCode());
-        Map<String, Float> changeInfo = getStockChangeInfo(stock.getStockCode());
-        float changeAmount = changeInfo.get("changeAmount");
-        float changeRate = changeInfo.get("changeRate");
+        // 캐시된 주식 가격 정보 조회 (일관성 보장)
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
         
         return new StockResponse(
                 stock.getId(),
@@ -364,9 +398,9 @@ public class TradingService {
                 stock.getStockImage(),
                 stock.getCountry().toString(),
                 "300", // 기본값: 주식 (300), ETF는 500
-                currentPrice,
-                changeAmount,
-                changeRate,
+                priceInfo.getCurrentPrice().floatValue(),
+                priceInfo.getChangePrice().floatValue(),
+                priceInfo.getChangeRate(),
                 stock.isEnabled()
         );
     }
@@ -392,6 +426,9 @@ public class TradingService {
             float currentPrice = parseFloat(output.get("stck_prpr"));
             float changeAmount = parseFloat(output.get("prdy_vrss"));
             float changeRate = parseFloat(output.get("prdy_ctrt"));
+            
+            // 소수점 두 자리로 반올림
+            changeRate = Math.round(changeRate * 100.0f) / 100.0f;
             long volume = parseLong(output.get("acml_vol"));
             float highPrice = parseFloat(output.get("stck_hgpr"));
             float lowPrice = parseFloat(output.get("stck_lwpr"));
@@ -563,6 +600,40 @@ public class TradingService {
                 order.getStatus().toString(),
                 order.getCreatedAt(),
                 order.getUpdatedAt()
+        );
+    }
+
+    // 보유 종목을 StockResponse 형식으로 조회
+    @Transactional(readOnly = true)
+    public List<StockResponse> getPortfolioStocks(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        
+        // 보유 종목 조회
+        List<HoldingCache> holdings = holdingCacheRepository.findByAccountId(account.getInvestmentAccountId());
+        
+        return holdings.stream()
+                .map(holding -> convertHoldingToStockResponse(holding))
+                .collect(Collectors.toList());
+    }
+
+    // HoldingCache를 StockResponse로 변환
+    private StockResponse convertHoldingToStockResponse(HoldingCache holding) {
+        Stock stock = holding.getStock();
+        
+        // 캐시된 주식 가격 정보 조회 (일관성 보장)
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
+        
+        return new StockResponse(
+                stock.getId(),
+                stock.getStockCode(),
+                stock.getStockName(),
+                stock.getStockImage(),
+                stock.getCountry().toString(),
+                "300", // 기본값: 주식 (300), ETF는 500
+                priceInfo.getCurrentPrice().floatValue(),
+                priceInfo.getChangePrice().floatValue(),
+                priceInfo.getChangeRate(),
+                stock.isEnabled()
         );
     }
 }

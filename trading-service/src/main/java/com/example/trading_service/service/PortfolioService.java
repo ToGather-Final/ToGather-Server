@@ -34,7 +34,7 @@ public class PortfolioService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+                .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         
         return holdings.stream()
                 .map(this::convertToHoldingResponse)
@@ -46,7 +46,7 @@ public class PortfolioService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<HoldingCache> holdings = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+                .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         
         float totalInvested = 0;
         float totalValue = 0;
@@ -86,7 +86,7 @@ public class PortfolioService {
         
         // 기존 보유 종목이 있으면 생성하지 않음
         List<HoldingCache> existingHoldings = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
+                .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         if (!existingHoldings.isEmpty()) {
             log.info("이미 보유 종목이 존재합니다. 사용자: {}", userId);
             return;

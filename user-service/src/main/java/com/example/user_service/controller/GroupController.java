@@ -3,7 +3,6 @@ package com.example.user_service.controller;
 import com.example.user_service.dto.*;
 import com.example.user_service.domain.Group;
 import com.example.user_service.domain.GroupMember;
-import com.example.user_service.domain.GroupRule;
 import com.example.user_service.service.GroupService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -72,11 +71,14 @@ public class GroupController {
     }
 
     @PostMapping
-    public ResponseEntity<GroupIdResponse> create(@Valid @RequestBody GroupCreateRequest request,
+    public ResponseEntity<GroupCreateResponse> create(@Valid @RequestBody GroupCreateRequest request,
                                                   Authentication authentication) {
         UUID ownerId = (UUID) authentication.getPrincipal();
         UUID groupId = groupService.createGroup(ownerId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new GroupIdResponse(groupId));
+
+        String invitationCode = groupService.issueInvitation(groupId, ownerId);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(new GroupCreateResponse(groupId, invitationCode));
     }
 
     @PostMapping("/{groupId}/members")
@@ -88,15 +90,6 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @PutMapping("/{groupId}/rules")
-    public ResponseEntity<Void> updateRule(@PathVariable UUID groupId,
-                                           @Valid @RequestBody GroupRuleUpdateRequest request,
-                                           Authentication authentication) {
-        UUID operatorId = (UUID) authentication.getPrincipal();
-        groupService.updateRule(groupId, request, operatorId);
-        return ResponseEntity.ok().build();
-    }
-
     @PostMapping("/{groupId}/invites")
     public ResponseEntity<InvitationCodeResponse> issueInvite(@PathVariable UUID groupId,
                                                               Authentication authentication) {
@@ -105,13 +98,22 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new InvitationCodeResponse(code));
     }
 
-    @GetMapping("/{groupId}/rules")
-    public ResponseEntity<GroupRuleResponse> getRule(@PathVariable UUID groupId,
-                                                     Authentication authentication) {
-        UUID userId = (UUID) authentication.getPrincipal();
-        GroupRule rule = groupService.getRule(groupId, userId);
-        GroupRuleResponse body = new GroupRuleResponse(rule.getVoteQuorum());
-        return ResponseEntity.ok(body);
+    @PutMapping("/{groupId}/goal-amount")
+    public ResponseEntity<Void> updateGoalAmount(@PathVariable UUID groupId,
+                                                 @Valid @RequestBody GoalAmountUpdateRequest request,
+                                                 Authentication authentication) {
+        UUID operatorId = (UUID) authentication.getPrincipal();
+        groupService.updateGoalAmount(groupId, request.goalAmount(),operatorId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{groupId}/quorum")
+    public ResponseEntity<Void> updateQuorum(@PathVariable UUID groupId,
+             @Valid @RequestBody QuorumUpdateRequest request,
+                                             Authentication authentication) {
+        UUID operatorId = (UUID) authentication.getPrincipal();
+        groupService.updateQuorumSettings(groupId, request.voteQuorum(), request.dissolutionQuorum(), operatorId);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/invites/{code}/accept")
@@ -134,6 +136,19 @@ public class GroupController {
         UUID userId = (UUID) authentication.getPrincipal();
         List<GroupStatusResponse> response = groupService.getMyGroupsStatus(userId);
         return ResponseEntity.ok(response);
+    }
+
+    // 시스템용 조회 기능
+    @GetMapping("/internal/{groupId}/settings")
+    public ResponseEntity<GroupSettingsResponse> getGroupSettingsInternal(@PathVariable UUID groupId) {
+        GroupSettingsResponse response = groupService.getGroupSettingsInternal(groupId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/internal/{groupId}/vote-quorum")
+    public ResponseEntity<Integer> getVoteQuorumInternal(@PathVariable UUID groupId) {
+        Integer voteQuorum = groupService.getVoteQuorumInternal(groupId);
+        return ResponseEntity.ok(voteQuorum);
     }
 
     private String resolveRole(UUID memberUserId, UUID ownerUserId) {

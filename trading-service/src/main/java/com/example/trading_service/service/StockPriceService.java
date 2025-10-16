@@ -68,7 +68,8 @@ public class StockPriceService {
             StockPriceResponse response = new StockPriceResponse();
             response.setCurrentPrice(new BigDecimal(output.get("stck_prpr").toString()));
             response.setChangePrice(new BigDecimal(output.get("prdy_vrss").toString()));
-            response.setChangeRate(new BigDecimal(output.get("prdy_vrss_sign").toString()));
+            float changeRate = Float.parseFloat(output.get("prdy_ctrt").toString().replace(",", ""));
+            response.setChangeRate(Math.round(changeRate * 100.0f) / 100.0f);
             response.setVolume(Long.parseLong(output.get("acml_vol").toString()));
             response.setHighPrice(new BigDecimal(output.get("stck_hgpr").toString()));
             response.setLowPrice(new BigDecimal(output.get("stck_lwpr").toString()));

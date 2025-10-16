@@ -73,6 +73,7 @@ springdoc:
     path: /swagger-ui.html
   override-with-generic-response: false
 
+
 ---
 # ===============================================
 # 🌳 dev 프로파일 (개발 환경)
@@ -107,6 +108,9 @@ kis:
 server:
   port: 8081
 
+pay-service:
+  url: ${PAY_SERVICE_URL:http://localhost:8083}
+
 ---
 # ===============================================
 # 🚀 main 프로파일 (운영 환경)
@@ -140,3 +144,6 @@ kis:
   base-url: ${KIS_BASE_URL:https://openapi.koreainvestment.com:9443}
   appkey: ${KIS_APPKEY:}
   appsecret: ${KIS_APPSECRET:}
+
+pay-service:
+  url: ${PAY_SERVICE_URL:http://pay-service:8080}

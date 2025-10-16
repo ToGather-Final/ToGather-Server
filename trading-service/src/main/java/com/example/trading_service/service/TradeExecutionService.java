@@ -67,7 +67,7 @@ public class TradeExecutionService {
 
     // 잔고 업데이트
     private void updateBalance(UUID accountId, float amount) {
-        BalanceCache balance = balanceCacheRepository.findByInvestmentAccount_InvestmentAccountId(accountId)
+        BalanceCache balance = balanceCacheRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new RuntimeException("잔고 정보를 찾을 수 없습니다"));
         
         balance.setBalance(balance.getBalance() + (int) amount);
@@ -77,7 +77,7 @@ public class TradeExecutionService {
     // 보유 종목 업데이트
     private void updateHolding(UUID accountId, UUID stockId, int quantity, float price, boolean isBuy) {
         Optional<HoldingCache> existingHolding = holdingCacheRepository
-                .findByInvestmentAccount_InvestmentAccountIdAndStock_Id(accountId, stockId);
+                .findByAccountIdAndStockId(accountId, stockId);
         
         if (isBuy) {
             // 매수

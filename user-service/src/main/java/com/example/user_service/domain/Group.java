@@ -3,6 +3,7 @@ package com.example.user_service.domain;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -36,6 +37,9 @@ public class Group {
     @Column(name = "maxMembers", nullable = false)
     private Integer maxMembers;
 
+    @Column(name = "voteQuorum", nullable = false)
+    private Integer voteQuorum;
+
     @Column(name = "dissolutionQuorum",nullable = false)
     private Integer dissolutionQuorum;
 
@@ -54,13 +58,14 @@ public class Group {
         this.createdAt = LocalDateTime.now();
     }
 
-    public static Group create(String groupName, UUID ownerId, Integer goalAmount, Integer initialAmount, Integer maxMembers, Integer dissolutionQuorum) {
+    public static Group create(String groupName, UUID ownerId, Integer goalAmount, Integer initialAmount, Integer maxMembers,Integer voteQuorum, Integer dissolutionQuorum) {
         Group group = new Group();
         group.groupName = groupName;
         group.ownerId = ownerId;
         group.goalAmount = goalAmount;
         group.initialAmount = initialAmount;
         group.maxMembers = maxMembers;
+        group.voteQuorum = voteQuorum;
         group.dissolutionQuorum = dissolutionQuorum;
         group.status = GroupStatus.WAITING;
         group.currentMembers = 1;
@@ -80,5 +85,50 @@ public class Group {
 
     public boolean isWaiting() {
         return this.status == GroupStatus.WAITING;
+    }
+
+    public void updateSettings(Optional<Integer> voteQuorum,
+                               Optional<Integer> dissolutionQuorum,
+                               Optional<Integer> goalAmount) {
+
+        voteQuorum.ifPresent(quorum -> {
+            if (quorum <= 0) {
+                throw new IllegalArgumentException("투표 찬성 인원수는 1명 이상이어야 합니다");
+            }
+            this.voteQuorum = quorum;
+        });
+
+        dissolutionQuorum.ifPresent(quorum -> {
+            if (quorum <= 0) {
+                throw new IllegalArgumentException("그룹 해체 인원수는 1명 이상이어야 합니다");
+            }
+            this.dissolutionQuorum = quorum;
+        });
+
+        goalAmount.ifPresent(amount -> {
+            if (amount <= 0) {
+                throw new IllegalArgumentException("목표 금액은 0원보다 커야 합니다");
+            }
+            this.goalAmount = amount;
+        });
+    }
+
+    public void updateGoalAmount(Integer goalAmount) {
+        if (goalAmount == null || goalAmount <= 0) {
+            throw new IllegalArgumentException("목표 금액은 0원보다 커야 합니다");
+        }
+        this.goalAmount = goalAmount;
+    }
+
+    public void updateQuorumSetting(Integer voteQuorum, Integer dissolutionQuorum) {
+        if (voteQuorum == null || voteQuorum <= 0) {
+            throw new IllegalArgumentException("투표 찬성 인원수는 1명 이상이어야 합니다");
+        }
+        if (dissolutionQuorum == null || dissolutionQuorum <= 0) {
+            throw new IllegalArgumentException("그룹 해체 인원수는 1명 이상이어야 합니다");
+        }
+
+        this.voteQuorum = voteQuorum;
+        this.dissolutionQuorum = dissolutionQuorum;
     }
 }

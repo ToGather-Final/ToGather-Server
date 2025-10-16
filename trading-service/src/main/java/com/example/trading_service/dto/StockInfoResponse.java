@@ -19,7 +19,7 @@ public class StockInfoResponse {
     private String market;
     private BigDecimal currentPrice;
     private BigDecimal changeAmount;
-    private BigDecimal changeRate;
+    private Float changeRate;
     private String changeDirection; // "up", "down", "unchanged"
     private Long volume;
     private BigDecimal highPrice;
