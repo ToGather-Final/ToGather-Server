@@ -1,12 +1,16 @@
 package com.example.vote_service.service;
 
+import com.example.vote_service.client.TradingServiceClient;
 import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.GroupMemberCountResponse;
 import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.dto.UserMeResponse;
+import com.example.vote_service.dto.VoteTradingRequest;
+import com.example.vote_service.dto.VoteTradingResponse;
 import com.example.vote_service.event.VoteExpirationEvent;
 import com.example.vote_service.model.Proposal;
+import com.example.vote_service.model.ProposalCategory;
 import com.example.vote_service.model.ProposalStatus;
 import com.example.vote_service.repository.ProposalRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
@@ -38,6 +42,7 @@ public class ProposalService {
     private final GroupMembersRepository groupMembersRepository;
     private final HistoryService historyService;
     private final UserServiceClient userServiceClient;
+    private final TradingServiceClient tradingServiceClient;
     private final ObjectMapper objectMapper;
     private final TaskScheduler taskScheduler;
     private final ApplicationEventPublisher eventPublisher;
@@ -189,6 +194,26 @@ public class ProposalService {
         log.info("✅ 그룹 조회 성공 - userId: {}, groupId: {}", userId, groupId);
         log.info("===== 그룹 조회 완료 =====");
         return groupId;
+    }
+
+    public void executeVoteBasedTrading(UUID proposalId) {
+        Proposal proposal = getProposal(proposalId);
+
+        if (proposal.getStatus() == ProposalStatus.APPROVED && proposal.getCategory() == ProposalCategory.TRADE) {
+            try {
+                VoteTradingRequest request = new VoteTradingRequest(
+                        proposalId,
+                        proposal.getGroupId(),
+                        proposal.getAction().name(),
+                        proposal.getPayload()
+                );
+
+                VoteTradingResponse response = tradingServiceClient.executeVoteBasedTrading(request);
+                log.info("투표 기반 거래 실행 완료: {}", response);
+            } catch (Exception e) {
+                log.error("투표 기반 거래 실행 실패: {}", e.getMessage());
+            }
+        }
     }
 
     /**
