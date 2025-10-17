@@ -48,7 +48,7 @@ spec:
     kind: Deployment
     name: user-service
   minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지
-  maxReplicas: 3  # 🚀 최대 4개까지 확장 가능
+  maxReplicas: 2
   metrics:
     - type: Resource
       resource:

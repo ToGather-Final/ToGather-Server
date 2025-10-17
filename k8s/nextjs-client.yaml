@@ -5,6 +5,11 @@ metadata:
   namespace: togather
 spec:
   replicas: 2  # 🚀 2-Node 환경: 각 노드에 1개씩 배치
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1         # rolling update 시 일시적으로 +1개 허용 (총 3개)
+      maxUnavailable: 0   # rolling update 시 0개 다운되어도 됨(2개 유지) 항상 최소 2개 유지 (가용성 보장)
   selector:
     matchLabels:
       app: nextjs-client
@@ -32,21 +37,21 @@ spec:
           ports:
             - containerPort: 3000
           resources:
-            # 🚀 2-Node 환경: 더 많은 리소스 할당 가능
+            # 🚀 클러스터 균형 고려 (백엔드 표준: 150m/384Mi)
             requests:
-              memory: "768Mi"    # (렌더링 성능 향상)
-              cpu: "500m"        # (빠른 응답)
+              memory: "256Mi"    # 백엔드의 67% (프론트엔드는 경량)
+              cpu: "100m"        # 백엔드의 67% (정적 컨텐츠 제공)
             limits:
-              memory: "1024Mi"   # (충분한 여유)
-              cpu: "1000m"       # (빠른 렌더링)
+              memory: "768Mi"    # 백엔드와 동일 (이미지 캐싱 대응)
+              cpu: "500m"        # 트래픽 급증 대응
           env:
             - name: NODE_ENV
               value: "production"
             - name: NEXT_TELEMETRY_DISABLED
               value: "1"
-            # 🚀 Node.js 성능 최적화 (메모리 증가)
+            # 🚀 Node.js 성능 최적화 (limit 768Mi에 맞춤)
             - name: NODE_OPTIONS
-              value: "--max-old-space-size=1280 --max-semi-space-size=256"
+              value: "--max-old-space-size=640 --max-semi-space-size=128"
             # Next.js 성능 최적화
             - name: NEXT_PUBLIC_ANALYTICS_ID
               value: ""

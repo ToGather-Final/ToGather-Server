@@ -7,6 +7,11 @@ metadata:
     app: trading-service
 spec:
   replicas: 2  # 🚀 2-Node 환경: 고가용성 보장
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1         # 일시적으로 +1개 허용 (총 3개)
+      maxUnavailable: 0   # 항상 최소 2개 유지 (가용성 보장)
   selector:
     matchLabels:
       app: trading-service
