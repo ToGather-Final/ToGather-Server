@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/accounts")
+@RequestMapping("/pay/accounts")
 @RequiredArgsConstructor
 @Slf4j
 public class AccountController {
