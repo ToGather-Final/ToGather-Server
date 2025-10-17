@@ -8,6 +8,8 @@ import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.dto.UserMeResponse;
 
+import com.example.vote_service.dto.payload.PayPayload;
+import com.example.vote_service.dto.payload.TradePayload;
 import com.example.vote_service.event.VoteExpirationEvent;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.ProposalCategory;
@@ -343,47 +345,44 @@ public class ProposalService {
             return "{}";
         }
     }
-    
-    /**
-     * 투표 생성 히스토리 생성 (카테고리별 처리)
-     */
+
     private void createVoteCreatedHistory(Proposal proposal, ProposalCreateRequest request, String proposerName) {
         try {
             if (request.isTradeCategory()) {
                 // TRADE 카테고리: TradePayload에서 정보 추출
                 TradePayload tradePayload = objectMapper.convertValue(request.payload(), TradePayload.class);
                 historyService.createVoteCreatedHistory(
-                    proposal.getUserId(),
-                    proposal.getProposalId(),
-                    request.proposalName(),
-                    proposerName,
-                    tradePayload.price(),
-                    tradePayload.quantity()
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        tradePayload.price(),
+                        tradePayload.quantity()
                 );
             } else if (request.isPayCategory()) {
                 // PAY 카테고리: PayPayload에서 정보 추출
                 PayPayload payPayload = objectMapper.convertValue(request.payload(), PayPayload.class);
                 historyService.createVoteCreatedHistory(
-                    proposal.getUserId(),
-                    proposal.getProposalId(),
-                    request.proposalName(),
-                    proposerName,
-                    payPayload.amountPerPerson(), // price: 인당 충전 금액
-                    1  // quantity: 기본값 1 (인당)
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        payPayload.amountPerPerson(), // price: 인당 충전 금액
+                        1  // quantity: 기본값 1 (인당)
                 );
             } else {
                 // 기타 카테고리: 기본값 사용
                 historyService.createVoteCreatedHistory(
-                    proposal.getUserId(),
-                    proposal.getProposalId(),
-                    request.proposalName(),
-                    proposerName,
-                    0, // price 기본값
-                    0  // quantity 기본값
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        0, // price 기본값
+                        0  // quantity 기본값
                 );
             }
         } catch (Exception e) {
-            log.error("투표 생성 히스토리 생성 실패 - proposalId: {}, error: {}", 
+            log.error("투표 생성 히스토리 생성 실패 - proposalId: {}, error: {}",
                     proposal.getProposalId(), e.getMessage(), e);
         }
     }

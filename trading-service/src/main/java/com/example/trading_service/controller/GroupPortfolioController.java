@@ -6,7 +6,6 @@ import com.example.trading_service.dto.GroupGoalStatusResponse;
 import com.example.trading_service.service.GroupPortfolioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -30,14 +29,14 @@ public class GroupPortfolioController {
      */
     @Operation(summary = "그룹 포트폴리오 조회", description = "특정 그룹의 투자 포트폴리오 정보를 조회합니다. (홈 화면용)")
     @ApiResponses(value = {
-        @SwaggerApiResponse(responseCode = "200", description = "그룹 포트폴리오 조회 성공"),
-        @SwaggerApiResponse(responseCode = "400", description = "그룹 포트폴리오 조회 실패")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "그룹 포트폴리오 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "그룹 포트폴리오 조회 실패")
     })
     @GetMapping("/{groupId}")
     public ResponseEntity<ApiResponse<GroupPortfolioResponse>> getGroupPortfolio(
             @Parameter(description = "그룹 ID", required = true) @PathVariable UUID groupId) {
         log.info("그룹 포트폴리오 조회 요청 - 그룹 ID: {}", groupId);
-        
+
         try {
             GroupPortfolioResponse portfolio = groupPortfolioService.getGroupPortfolio(groupId);
             return ResponseEntity.ok(ApiResponse.success(portfolio));
@@ -54,8 +53,8 @@ public class GroupPortfolioController {
      */
     @Operation(summary = "그룹 목표 달성 상태 확인", description = "특정 그룹의 투자 목표 달성 상태를 확인합니다.")
     @ApiResponses(value = {
-        @SwaggerApiResponse(responseCode = "200", description = "그룹 목표 달성 상태 확인 성공"),
-        @SwaggerApiResponse(responseCode = "400", description = "그룹 목표 달성 상태 확인 실패")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "그룹 목표 달성 상태 확인 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "그룹 목표 달성 상태 확인 실패")
     })
     @GetMapping("/{groupId}/goal-status")
     public ResponseEntity<ApiResponse<GroupGoalStatusResponse>> getGroupGoalStatus(
