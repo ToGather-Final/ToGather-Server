@@ -50,20 +50,19 @@ public class VoteScheduler {
 
                     // user-service API 호출하여 투표 정족수 가져오기
                     try {
-                        var voteQuorumResponse = userServiceClient.getVoteQuorumInternal(proposal.getGroupId());
+                        Integer voteQuorum = userServiceClient.getVoteQuorumInternal(proposal.getGroupId());
                         
                         log.info("그룹 투표 정족수 조회 완료 - groupId: {}, 정족수: {}", 
-                                proposal.getGroupId(), voteQuorumResponse.voteQuorum());
+                                proposal.getGroupId(), voteQuorum);
                         
                         // 정족수만 사용하여 투표 집계 (멤버 수는 필요 없음)
-                        voteService.tallyVotes(proposal.getProposalId(), 0, voteQuorumResponse.voteQuorum());
-                    } catch (Exception e) {
-                        log.error("user-service API 호출 실패, 기본값으로 집계 진행 - groupId: {}, error: {}", 
-                                proposal.getGroupId(), e.getMessage());
-                        
-                        // API 호출 실패 시 기본값으로 집계
-                        int voteQuorum = 2;    // 기본값
                         voteService.tallyVotes(proposal.getProposalId(), 0, voteQuorum);
+                    } catch (Exception e) {
+                        log.error("❌ user-service API 호출 실패로 투표 집계 중단 - proposalId: {}, groupId: {}, error: {}", 
+                                proposal.getProposalId(), proposal.getGroupId(), e.getMessage(), e);
+                        
+                        // API 호출 실패 시 투표 집계를 중단하고 다음 제안으로 넘어감
+                        continue;
                     }
 
                     Proposal updatedProposal = proposalRepository.findById(proposal.getProposalId()).orElse(null);

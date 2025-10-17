@@ -23,7 +23,7 @@ public interface UserServiceClient {
      * - 인증 없이 조회 (시스템 내부용)
      */
     @GetMapping("/internal/{groupId}/vote-quorum")
-    GroupRuleResponse getVoteQuorumInternal(@PathVariable UUID groupId);
+    Integer getVoteQuorumInternal(@PathVariable UUID groupId);
 
     /**
      * 사용자 닉네임 조회

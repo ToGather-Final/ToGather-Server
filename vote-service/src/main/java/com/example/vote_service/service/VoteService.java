@@ -1,9 +1,10 @@
 package com.example.vote_service.service;
 
 import com.example.vote_service.client.UserServiceClient;
-import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.dto.VoteRequest;
+import com.example.vote_service.dto.payload.TradePayload;
 import com.example.vote_service.event.VoteExpirationEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.Vote;
 import com.example.vote_service.model.VoteChoice;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,6 +35,7 @@ public class VoteService {
     private final GroupMembersRepository groupMembersRepository;
     private final HistoryService historyService;
     private final UserServiceClient userServiceClient;
+    private final ObjectMapper objectMapper;
 
     /**
      * 투표하기
@@ -167,18 +170,8 @@ public class VoteService {
 
         if (isApproved) {
             proposalService.approveProposal(proposalId);
-            // 히스토리 생성 (VOTE_APPROVED)
-            // TODO: 실제 매매 정보를 payload에 포함해야 함
-            historyService.createVoteApprovedHistory(
-                proposal.getGroupId(),
-                proposalId,
-                "2024-01-01 15:00:00", // scheduledAt - TODO: 실제 실행 예정 시간
-                "BUY", // side - TODO: 실제 매매 방향
-                "삼성전자", // stockName - TODO: 실제 주식명
-                100, // shares - TODO: 실제 주식 수량
-                70000, // unitPrice - TODO: 실제 주가
-                "KRW" // currency - TODO: 실제 통화
-            );
+            // 히스토리 생성 (VOTE_APPROVED) - 실제 payload에서 정보 읽어오기
+            createVoteApprovedHistoryFromProposal(proposal);
         } else {
             proposalService.rejectProposal(proposalId);
             // 히스토리 생성 (VOTE_REJECTED)
@@ -234,16 +227,20 @@ public class VoteService {
         
         try {
             // user-service에서 정족수 정보 가져오기 (시스템용 API 사용)
-            GroupRuleResponse rule = userServiceClient.getVoteQuorumInternal(groupId);
+            Integer voteQuorum = userServiceClient.getVoteQuorumInternal(groupId);
             
             log.info("그룹 정족수 조회 완료 - groupId: {}, 정족수: {}", 
-                    groupId, rule.voteQuorum());
+                    groupId, voteQuorum);
 
-            tallyVotes(proposalId, 0, rule.voteQuorum()); // totalMembers는 사용하지 않으므로 0으로 설정
+            tallyVotes(proposalId, 0, voteQuorum); // totalMembers는 사용하지 않으므로 0으로 설정
             
             log.info("투표 마감 집계 완료 - proposalId: {}", proposalId);
         } catch (Exception e) {
-            log.error("투표 마감 집계 실패 - proposalId: {}, error: {}", proposalId, e.getMessage(), e);
+            log.error("❌ user-service API 호출 실패로 투표 마감 집계 실패 - proposalId: {}, groupId: {}, error: {}", 
+                    proposalId, groupId, e.getMessage(), e);
+            
+            // API 호출 실패 시 투표 집계를 중단 (기본값 사용하지 않음)
+            throw new RuntimeException("투표 정족수 조회 실패로 인한 집계 중단", e);
         }
     }
 
@@ -259,6 +256,50 @@ public class VoteService {
     private void validateGroupMembership(UUID userId, UUID groupId) {
         if (!groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)) {
             throw new IllegalArgumentException("해당 그룹의 멤버가 아닙니다.");
+        }
+    }
+    
+    /**
+     * Proposal에서 실제 정보를 읽어와서 VOTE_APPROVED 히스토리 생성
+     */
+    private void createVoteApprovedHistoryFromProposal(Proposal proposal) {
+        try {
+            if (proposal.getCategory().name().equals("TRADE")) {
+                // TRADE 카테고리: payload에서 실제 매매 정보 읽어오기
+                TradePayload tradePayload = objectMapper.readValue(proposal.getPayload(), TradePayload.class);
+                
+                historyService.createVoteApprovedHistory(
+                    proposal.getGroupId(),
+                    proposal.getProposalId(),
+                    LocalDateTime.now().plusHours(1).toString(), // scheduledAt - 1시간 후 실행 예정
+                    proposal.getAction().name(), // side - BUY/SELL
+                    tradePayload.stockName(), // stockName
+                    tradePayload.quantity(), // shares
+                    tradePayload.price(), // unitPrice
+                    "KRW", // currency
+                    tradePayload.stockId() // stockId - DB의 stock_id 컬럼에 저장
+                );
+                
+                log.info("✅ 실제 매매 정보로 히스토리 생성 - stockName: {}, quantity: {}, price: {}", 
+                        tradePayload.stockName(), tradePayload.quantity(), tradePayload.price());
+            } else {
+                // 다른 카테고리: 기본값 사용
+                historyService.createVoteApprovedHistory(
+                    proposal.getGroupId(),
+                    proposal.getProposalId(),
+                    LocalDateTime.now().plusHours(1).toString(),
+                    proposal.getAction().name(),
+                    "기본주식",
+                    1,
+                    1000,
+                    "KRW",
+                    null // stockId - PAY 카테고리 등에서는 null
+                );
+            }
+        } catch (Exception e) {
+            log.error("❌ VOTE_APPROVED 히스토리 생성 실패 - proposalId: {}, error: {}", 
+                    proposal.getProposalId(), e.getMessage(), e);
+            // 실패 시 히스토리 생성하지 않음 (에러 로그만 남김)
         }
     }
 }
