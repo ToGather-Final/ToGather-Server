@@ -34,6 +34,12 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 주식 조회는 인증 불필요
                 .requestMatchers("/trading/stocks", "/trading/stocks/**").permitAll()
+                // WebSocket API는 인증 불필요
+                .requestMatchers("/api/websocket/**").permitAll()
+                // WebSocket 연결 엔드포인트는 인증 불필요
+                .requestMatchers("/ws/**").permitAll()
+                // RewritePath로 변환된 경로들도 허용
+                .requestMatchers("/status", "/reconnect", "/test-approval-key", "/cache-status", "/cached-orderbook/**").permitAll()
                 // Swagger UI 및 API 문서는 인증 불필요
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/index.html", "/swagger-resources/**", "/webjars/**").permitAll()
                 // favicon.ico 허용

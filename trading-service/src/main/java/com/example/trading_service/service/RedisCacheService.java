@@ -24,12 +24,14 @@ public class RedisCacheService {
     private static final String USER_BALANCE_KEY = "user:balance:";
     private static final String USER_HOLDINGS_KEY = "user:holdings:";
     private static final String KIS_TOKEN_KEY = "kis:token";
+    private static final String WEBSOCKET_ORDERBOOK_KEY = "websocket:orderbook:";
     
     // 캐시 TTL (Time To Live)
     private static final Duration STOCK_PRICE_TTL = Duration.ofMinutes(1); // 1분
     private static final Duration USER_BALANCE_TTL = Duration.ofMinutes(5); // 5분
     private static final Duration USER_HOLDINGS_TTL = Duration.ofMinutes(10); // 10분
     private static final Duration KIS_TOKEN_TTL = Duration.ofHours(23); // 23시간
+    private static final Duration WEBSOCKET_ORDERBOOK_TTL = Duration.ofSeconds(30); // 30초 (실시간 데이터)
 
     /**
      * 주식 가격 캐싱
@@ -196,6 +198,107 @@ public class RedisCacheService {
             log.debug("패턴 캐시 삭제 완료 - 패턴: {}", pattern);
         } catch (Exception e) {
             log.error("패턴 캐시 삭제 실패 - 패턴: {}", pattern, e);
+        }
+    }
+
+    /**
+     * WebSocket 호가 데이터 캐싱
+     */
+    public void cacheWebSocketOrderBook(String stockCode, Object orderBookData) {
+        String key = WEBSOCKET_ORDERBOOK_KEY + stockCode;
+        try {
+            // Redis 연결 상태 확인
+            if (redisTemplate.getConnectionFactory() == null) {
+                log.warn("⚠️ Redis 연결 팩토리가 null - 캐싱 건너뜀: {}", stockCode);
+                return;
+            }
+            
+            // 기존 캐시 삭제 (직렬화 문제 해결을 위해)
+            redisTemplate.delete(key);
+            
+            redisTemplate.opsForValue().set(key, orderBookData, WEBSOCKET_ORDERBOOK_TTL);
+            log.info("✅ WebSocket 호가 데이터 캐싱 완료 - 종목코드: {} (JSON 직렬화)", stockCode);
+            
+            // 캐싱 검증: 바로 조회해서 확인 (오류 발생해도 계속 진행)
+            try {
+                Object cached = redisTemplate.opsForValue().get(key);
+                if (cached != null) {
+                    log.info("🔍 캐싱 검증 성공 - 종목코드: {}, 타입: {}", stockCode, cached.getClass().getSimpleName());
+                } else {
+                    log.warn("⚠️ 캐싱 검증 실패 - 종목코드: {}", stockCode);
+                }
+            } catch (Exception validationError) {
+                log.warn("⚠️ 캐싱 검증 중 오류 발생 - 종목코드: {} - {}", stockCode, validationError.getMessage());
+                // 검증 오류는 무시하고 계속 진행
+            }
+        } catch (IllegalStateException e) {
+            if (e.getMessage().contains("STOPPING")) {
+                log.warn("⚠️ Redis 연결 팩토리가 STOPPING 상태 - 캐싱 건너뜀: {}", stockCode);
+            } else {
+                log.error("❌ Redis 연결 상태 오류 - 종목코드: {} - {}", stockCode, e.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("❌ WebSocket 호가 데이터 캐싱 실패 - 종목코드: {} - {}", stockCode, e.getMessage(), e);
+            log.error("🔍 캐싱 실패 상세 정보 - 데이터 타입: {}, 데이터 내용: {}", 
+                    orderBookData != null ? orderBookData.getClass().getSimpleName() : "null",
+                    orderBookData);
+            // Redis 연결 문제 시 캐싱을 건너뛰고 계속 진행
+        }
+    }
+
+    /**
+     * WebSocket 호가 데이터 조회
+     */
+    public Object getCachedWebSocketOrderBook(String stockCode) {
+        String key = WEBSOCKET_ORDERBOOK_KEY + stockCode;
+        try {
+            Object cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                log.info("🔍 WebSocket 호가 데이터 캐시 히트 - 종목코드: {}, 타입: {}", stockCode, cached.getClass().getSimpleName());
+                return cached;
+            } else {
+                log.warn("⚠️ WebSocket 호가 데이터 캐시 미스 - 종목코드: {} (캐시 없음)", stockCode);
+            }
+        } catch (Exception e) {
+            log.error("❌ WebSocket 호가 데이터 캐시 조회 실패 - 종목코드: {}", stockCode, e);
+        }
+        return null;
+    }
+
+    /**
+     * WebSocket 호가 데이터 캐시 삭제
+     */
+    public void evictWebSocketOrderBook(String stockCode) {
+        String key = WEBSOCKET_ORDERBOOK_KEY + stockCode;
+        try {
+            redisTemplate.delete(key);
+            log.debug("WebSocket 호가 데이터 캐시 삭제 - 종목코드: {}", stockCode);
+        } catch (Exception e) {
+            log.error("WebSocket 호가 데이터 캐시 삭제 실패 - 종목코드: {}", stockCode, e);
+        }
+    }
+
+    /**
+     * 모든 WebSocket 호가 데이터 캐시 삭제
+     */
+    public void evictAllWebSocketOrderBooks() {
+        try {
+            redisTemplate.delete(redisTemplate.keys(WEBSOCKET_ORDERBOOK_KEY + "*"));
+            log.debug("모든 WebSocket 호가 데이터 캐시 삭제 완료");
+        } catch (Exception e) {
+            log.error("모든 WebSocket 호가 데이터 캐시 삭제 실패", e);
+        }
+    }
+
+    /**
+     * Redis 키 패턴으로 조회 (WebSocketOrderBookService에서 사용)
+     */
+    public java.util.Set<String> getKeysByPattern(String pattern) {
+        try {
+            return redisTemplate.keys(pattern);
+        } catch (Exception e) {
+            log.error("Redis 키 패턴 조회 실패 - 패턴: {}", pattern, e);
+            return java.util.Set.of();
         }
     }
 

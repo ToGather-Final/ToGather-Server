@@ -113,6 +113,15 @@ spring:
           filters:
             - StripPrefix=1
 
+        # WebSocket 서비스 (트레이딩 서비스 내부)
+        - id: websocket-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/websocket/**
+          filters:
+            - RewritePath=/api/websocket/(?<segment>.*), /${segment}
+
+            
         # 트레이딩 서비스
         - id: trading-service
           uri: http://localhost:8081
@@ -120,6 +129,12 @@ spring:
             - Path=/api/trading/**
           filters:
             - StripPrefix=1
+
+        # WebSocket 연결 엔드포인트
+        - id: websocket-connection
+          uri: http://localhost:8081
+          predicates:
+            - Path=/ws/**
 
         # 결제 서비스
         - id: pay-service
@@ -198,12 +213,22 @@ spring:
             - Path=/api/notification/**
           filters:
             - StripPrefix=1
+        - id: websocket-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/websocket/**
+          filters:
+            - RewritePath=/api/websocket/(?<segment>.*), /${segment}
         - id: trading-service-route
           uri: lb://trading-service
           predicates:
             - Path=/api/trading/**
           filters:
             - StripPrefix=1
+        - id: websocket-connection-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/ws/**
         - id: pay-service-route
           uri: lb://pay-service
           predicates:

@@ -27,7 +27,7 @@ public class StockInfoResponse {
     private BigDecimal openPrice;
     private BigDecimal prevClosePrice;
     private Long marketCap;
-    private List<ChartData> chartData;
+    private Object chartData; // ChartData 또는 SimpleChartData
     private BigDecimal resistanceLine;
     private BigDecimal supportLine;
 }
