@@ -24,14 +24,16 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/qr/resolve", "/payments/**", "/accounts/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .httpBasic(httpBasic -> httpBasic.disable())
-                .formLogin(formLogin -> formLogin.disable())
-                .addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .formLogin(formLogin -> formLogin.disable());
+
+        // /actuator/** 경로를 제외한 나머지에만 headerAuthFilter 적용
+        http.addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

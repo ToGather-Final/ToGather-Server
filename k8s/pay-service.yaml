@@ -17,12 +17,18 @@ spec:
     spec:
       containers:
       - name: pay-service
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/pay-service:latest
+        image: ${ECR_REGISTRY}/togather/pay-service:latest
         ports:
         - containerPort: 8080
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "main"
+        - name: LOGGING_LEVEL_ROOT
+          value: "WARN"
+        - name: LOGGING_LEVEL_COM_EXAMPLE
+          value: "INFO"
+        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
+          value: "INFO"
         envFrom:
           - configMapRef:
               name: togather-config
@@ -33,25 +39,25 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100m"
+            cpu: "150m"
           limits:
             memory: "768Mi"
-            cpu: "500m"
+            cpu: "600m"
         livenessProbe:
           httpGet:
             path: /actuator/health
             port: 8080
-          initialDelaySeconds: 180
-          periodSeconds: 30
+          initialDelaySeconds: 90
+          periodSeconds: 20
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /actuator/health
             port: 8080
-          initialDelaySeconds: 120
-          periodSeconds: 10
-          timeoutSeconds: 5
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
           failureThreshold: 3
 ---
 apiVersion: v1

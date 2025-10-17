@@ -6,7 +6,7 @@ metadata:
   labels:
     app: user-service
 spec:
-  replicas: 1
+  replicas: 2  # 🚀 2-Node 환경: 고가용성 보장
   selector:
     matchLabels:
       app: user-service
@@ -15,14 +15,31 @@ spec:
       labels:
         app: user-service
     spec:
+      # Pod Anti-Affinity: 각 노드에 고르게 분산
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - user-service
+                topologyKey: kubernetes.io/hostname
       containers:
       - name: user-service
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/user-service:latest
+        image: ${ECR_REGISTRY}/togather/user-service:latest
         ports:
         - containerPort: 8080
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "main"
+        - name: LOGGING_LEVEL_ROOT
+          value: "WARN"
+        - name: LOGGING_LEVEL_COM_EXAMPLE
+          value: "INFO"
         envFrom:
           - configMapRef:
               name: togather-config
@@ -33,25 +50,25 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "100m"
+            cpu: "150m"
           limits:
             memory: "768Mi"
-            cpu: "500m"
+            cpu: "600m"
         livenessProbe:
           httpGet:
             path: /actuator/health
             port: 8080
-          initialDelaySeconds: 180
-          periodSeconds: 30
+          initialDelaySeconds: 90
+          periodSeconds: 20
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /actuator/health
             port: 8080
-          initialDelaySeconds: 120
-          periodSeconds: 10
-          timeoutSeconds: 5
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
           failureThreshold: 3
 ---
 apiVersion: v1
