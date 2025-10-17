@@ -25,6 +25,19 @@ metadata:
     alb.ingress.kubernetes.io/healthy-threshold-count: '2'
     alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
 
+    # 🚀 성능 최적화 (모바일 네트워크 대응)
+    alb.ingress.kubernetes.io/load-balancer-attributes: >
+      idle_timeout.timeout_seconds=120,
+      routing.http.drop_invalid_header_fields.enabled=true,
+      routing.http2.enabled=true
+
+    # 🚀 타임아웃 설정 (느린 네트워크 대응)
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/target-group-attributes: >
+      deregistration_delay.timeout_seconds=30,
+      stickiness.enabled=true,
+      stickiness.lb_cookie.duration_seconds=86400
+
 spec:
   ingressClassName: alb
   rules:

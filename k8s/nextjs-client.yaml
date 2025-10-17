@@ -34,11 +34,11 @@ spec:
           resources:
             # 🚀 2-Node 환경: 더 많은 리소스 할당 가능
             requests:
-              memory: "768Mi"    # 메모리 증가 (렌더링 성능 향상)
-              cpu: "300m"        # CPU 증가 (빠른 응답)
+              memory: "768Mi"    # (렌더링 성능 향상)
+              cpu: "500m"        # (빠른 응답)
             limits:
-              memory: "1536Mi"   # 최대 1.5GB (충분한 여유)
-              cpu: "1000m"       # 최대 1 core (빠른 렌더링)
+              memory: "1024Mi"   # (충분한 여유)
+              cpu: "1000m"       # (빠른 렌더링)
           env:
             - name: NODE_ENV
               value: "production"
