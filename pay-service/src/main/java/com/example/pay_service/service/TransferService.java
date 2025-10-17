@@ -1,8 +1,8 @@
 package com.example.pay_service.service;
 
+import com.example.module_common.dto.pay.PayRechargeRequest;
+import com.example.module_common.dto.pay.PayRechargeResponse;
 import com.example.pay_service.domain.*;
-import com.example.pay_service.dto.TransferRequest;
-import com.example.pay_service.dto.TransferResponse;
 import com.example.pay_service.exception.PayServiceException;
 import com.example.pay_service.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class TransferService {
     private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     @Transactional
-    public TransferResponse executeTransfer(TransferRequest request, UUID userId, UUID groupId) {
+    public PayRechargeResponse executeTransfer(PayRechargeRequest request, UUID userId, UUID groupId) {
         log.info("페이머니 충전 시작: amount={}, userId={}, groupId={}", request.amount(), userId, groupId);
 
         if (request.clientRequestId() != null) {
@@ -93,7 +93,7 @@ public class TransferService {
     }
 
     @Transactional(readOnly = true)
-    public TransferResponse getTransfer(UUID transferId) {
+    public PayRechargeResponse getTransfer(UUID transferId) {
         Transfer transfer = transferRepository.findById(transferId)
                 .orElseThrow(() -> new PayServiceException("TRANSFER_NOT_FOUND", "송금 내역을 찾을 수 없습니다"));
 
@@ -101,7 +101,7 @@ public class TransferService {
     }
 
     @Transactional(readOnly = true)
-    public List<TransferResponse> getTransferHistory(UUID accountId, int page, int size) {
+    public List<PayRechargeResponse> getTransferHistory(UUID accountId, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Transfer> transferPage = transferRepository.findByToAccountIdOrderByCreatedAtDesc(accountId, pageable);
 
@@ -110,16 +110,17 @@ public class TransferService {
                 .toList();
     }
 
-    private TransferResponse createTransferResponse(Transfer transfer) {
+    private PayRechargeResponse createTransferResponse(Transfer transfer) {
         return createTransferResponse(transfer, null);
     }
 
-    private TransferResponse createTransferResponse(Transfer transfer, Long currentBalance) {
-        return TransferResponse.createSuccessResponse(
-                transfer.getId(),
+    private PayRechargeResponse createTransferResponse(Transfer transfer, Long balanceAfter) {
+        return new PayRechargeResponse(
+                transfer.getId().toString(),
                 transfer.getAmount(),
+                transfer.getStatus().toString(),
                 transfer.getCreatedAt(),
-                currentBalance
+                balanceAfter
         );
     }
 }
