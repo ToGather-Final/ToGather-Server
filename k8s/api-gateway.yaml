@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 1
+  replicas: 2  # 🚀 2-Node 환경: 고가용성 보장
   selector:
     matchLabels:
       app: api-gateway
@@ -16,6 +16,19 @@ spec:
         app: api-gateway
     spec:
       serviceAccountName: api-gateway
+      # Pod Anti-Affinity: 각 노드에 고르게 분산
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - api-gateway
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: api-gateway
           image: ${ECR_REGISTRY}/togather/api-gateway:latest

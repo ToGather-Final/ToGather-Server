@@ -6,7 +6,7 @@ metadata:
   labels:
     app: user-service
 spec:
-  replicas: 1
+  replicas: 2  # 🚀 2-Node 환경: 고가용성 보장
   selector:
     matchLabels:
       app: user-service
@@ -15,6 +15,19 @@ spec:
       labels:
         app: user-service
     spec:
+      # Pod Anti-Affinity: 각 노드에 고르게 분산
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - user-service
+                topologyKey: kubernetes.io/hostname
       containers:
       - name: user-service
         image: ${ECR_REGISTRY}/togather/user-service:latest

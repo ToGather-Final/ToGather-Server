@@ -4,7 +4,7 @@ metadata:
   name: nextjs-client
   namespace: togather
 spec:
-  replicas: 1
+  replicas: 2  # 🚀 2-Node 환경: 각 노드에 1개씩 배치
   selector:
     matchLabels:
       app: nextjs-client
@@ -13,28 +13,40 @@ spec:
       labels:
         app: nextjs-client
     spec:
+      # Pod Anti-Affinity: 각 노드에 고르게 분산
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - nextjs-client
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: nextjs-client
           image: ${ECR_REGISTRY}/togather/client:latest
           ports:
             - containerPort: 3000
           resources:
-            # t3.large 노드에 최적화된 리소스 할당 (콜드 스타트 개선)
-            # 전체 8GB 중 Next.js에 1GB 할당 (12.5%)
+            # 🚀 2-Node 환경: 더 많은 리소스 할당 가능
             requests:
-              memory: "512Mi"    # 빠른 부팅을 위한 메모리 증가
-              cpu: "200m"        # 빠른 부팅을 위한 CPU 증가
+              memory: "768Mi"    # 메모리 증가 (렌더링 성능 향상)
+              cpu: "300m"        # CPU 증가 (빠른 응답)
             limits:
-              memory: "1Gi"      # 최대 메모리 (1GB)
-              cpu: "800m"        # 최대 CPU (0.8 core) - 부팅 시 더 많은 CPU
+              memory: "1536Mi"   # 최대 1.5GB (충분한 여유)
+              cpu: "1000m"       # 최대 1 core (빠른 렌더링)
           env:
             - name: NODE_ENV
               value: "production"
             - name: NEXT_TELEMETRY_DISABLED
               value: "1"
-            # Node.js 성능 최적화 (메모리 증가)
+            # 🚀 Node.js 성능 최적화 (메모리 증가)
             - name: NODE_OPTIONS
-              value: "--max-old-space-size=896 --max-semi-space-size=128"
+              value: "--max-old-space-size=1280 --max-semi-space-size=256"
             # Next.js 성능 최적화
             - name: NEXT_PUBLIC_ANALYTICS_ID
               value: ""
@@ -42,32 +54,31 @@ spec:
               value: ""
             - name: NODE_NO_WARNINGS
               value: "1"
-          # t3.large 노드에 최적화된 Health Check (콜드 스타트 개선)
+          # 🚀 Health Check 최적화 (빠른 응답)
           livenessProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 60    # 부팅 시간 단축
-            periodSeconds: 30          # CPU 부하 최소화
-            timeoutSeconds: 10         # 네트워크 지연 고려
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            timeoutSeconds: 8
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 30    # 빠른 준비 상태 감지
-            periodSeconds: 10          # 자주 체크
-            timeoutSeconds: 5          # 빠른 응답
-            failureThreshold: 3
-          # t3.large 노드에 최적화된 시작 설정 (콜드 스타트 개선)
+            initialDelaySeconds: 20
+            periodSeconds: 8
+            timeoutSeconds: 5
+            failureThreshold: 2
           startupProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 10    # 빠른 시작
-            periodSeconds: 5           # 자주 체크
-            timeoutSeconds: 3          # 빠른 응답
-            failureThreshold: 24       # 최대 2분 대기
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 20
 ---
 apiVersion: v1
 kind: Service
