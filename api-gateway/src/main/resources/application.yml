@@ -221,7 +221,13 @@ spring:
         - id: user-service-route
           uri: lb://user-service
           predicates:
-            - Path=/api/user/**
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
+        - id: group-service-route
+          uri: lb://user-service
+          predicates:
+            - Path=/api/groups/**
           filters:
             - StripPrefix=1
         - id: vote-service-route
@@ -258,10 +264,52 @@ spring:
           uri: lb://trading-service
           predicates:
             - Path=/ws/**
-        - id: pay-service-route
+        - id: vote-trading-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/vote-trading/**
+          filters:
+            - StripPrefix=1
+        - id: group-trading-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/group-trading/**
+          filters:
+            - StripPrefix=1
+        - id: batch-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/batch/**
+          filters:
+            - StripPrefix=1
+        - id: admin-kis-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/admin/kis/**
+          filters:
+            - StripPrefix=1
+        - id: payments-service-route
           uri: lb://pay-service
           predicates:
-            - Path=/api/pay/**
+            - Path=/api/payments/**
+          filters:
+            - StripPrefix=1
+        - id: accounts-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/accounts/**
+          filters:
+            - StripPrefix=1
+        - id: qr-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/qr/**
+          filters:
+            - StripPrefix=1
+        - id: transfers-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/transfers/**
           filters:
             - StripPrefix=1
         - id: accounts-service-route

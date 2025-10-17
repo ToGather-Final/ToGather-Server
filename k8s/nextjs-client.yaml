@@ -4,7 +4,7 @@ metadata:
   name: nextjs-client
   namespace: togather
 spec:
-  replicas: 1
+  replicas: 2  # 🚀 2-Node 환경: 각 노드에 1개씩 배치
   selector:
     matchLabels:
       app: nextjs-client
@@ -13,11 +13,72 @@ spec:
       labels:
         app: nextjs-client
     spec:
+      # Pod Anti-Affinity: 각 노드에 고르게 분산
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - nextjs-client
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: nextjs-client
-          image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/client:latest
+          image: ${ECR_REGISTRY}/togather/client:latest
           ports:
             - containerPort: 3000
+          resources:
+            # 🚀 2-Node 환경: 더 많은 리소스 할당 가능
+            requests:
+              memory: "768Mi"    # 메모리 증가 (렌더링 성능 향상)
+              cpu: "300m"        # CPU 증가 (빠른 응답)
+            limits:
+              memory: "1536Mi"   # 최대 1.5GB (충분한 여유)
+              cpu: "1000m"       # 최대 1 core (빠른 렌더링)
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+            # 🚀 Node.js 성능 최적화 (메모리 증가)
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=1280 --max-semi-space-size=256"
+            # Next.js 성능 최적화
+            - name: NEXT_PUBLIC_ANALYTICS_ID
+              value: ""
+            - name: NEXT_PUBLIC_VERCEL_ANALYTICS_ID
+              value: ""
+            - name: NODE_NO_WARNINGS
+              value: "1"
+          # 🚀 Health Check 최적화 (빠른 응답)
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            timeoutSeconds: 8
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 8
+            timeoutSeconds: 5
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 20
 ---
 apiVersion: v1
 kind: Service
