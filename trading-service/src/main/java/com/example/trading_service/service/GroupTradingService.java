@@ -2,11 +2,13 @@ package com.example.trading_service.service;
 
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.BuyRequest;
+import com.example.trading_service.dto.OrderBookResponse;
 import com.example.trading_service.dto.SellRequest;
 import com.example.trading_service.exception.BusinessException;
 import com.example.trading_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,8 @@ public class GroupTradingService {
     private final HistoryRepository historyRepository;
     private final InvestmentAccountRepository investmentAccountRepository;
     private final StockRepository stockRepository;
+    @Lazy
+    private final OrderBookService orderBookService;
 
     /**
      * 그룹 매수 주문 처리
@@ -59,7 +63,19 @@ public class GroupTradingService {
         log.info("분할 계산 - 원래 가격: {}, 멤버 수: {}, 멤버당 가격: {}, 멤버당 수량: {}", 
                 price, memberCount, pricePerMember, quantityPerMember);
 
-        // 2. 각 멤버별로 개인 주문 생성 및 실행
+        // 2. WebSocket 호가 데이터와 비교하여 체결 가능 여부 확인
+        Stock stock = stockRepository.findById(stockId)
+                .orElseThrow(() -> new BusinessException("주식을 찾을 수 없습니다.", "STOCK_NOT_FOUND"));
+        
+        boolean canExecuteAtRequestedPrice = checkExecutionPossibility(stock.getStockCode(), pricePerMember, "BUY");
+        
+        if (!canExecuteAtRequestedPrice) {
+            log.warn("⚠️ 그룹 매수 주문 - 현재 호가에서 체결 불가능: 종목코드={}, 요청가격={}", 
+                    stock.getStockCode(), pricePerMember);
+            // 체결 불가능해도 주문은 생성 (지정가 주문으로 대기)
+        }
+
+        // 3. 각 멤버별로 개인 주문 생성 및 실행
         List<Order> executedOrders = new ArrayList<>();
         int processedCount = 0;
 
@@ -126,7 +142,19 @@ public class GroupTradingService {
         log.info("분할 계산 - 원래 가격: {}, 멤버 수: {}, 멤버당 가격: {}, 멤버당 수량: {}", 
                 price, memberCount, pricePerMember, quantityPerMember);
 
-        // 3. 각 멤버별로 개인 매도 주문 생성 및 실행
+        // 3. WebSocket 호가 데이터와 비교하여 체결 가능 여부 확인
+        Stock stock = stockRepository.findById(stockId)
+                .orElseThrow(() -> new BusinessException("주식을 찾을 수 없습니다.", "STOCK_NOT_FOUND"));
+        
+        boolean canExecuteAtRequestedPrice = checkExecutionPossibility(stock.getStockCode(), pricePerMember, "SELL");
+        
+        if (!canExecuteAtRequestedPrice) {
+            log.warn("⚠️ 그룹 매도 주문 - 현재 호가에서 체결 불가능: 종목코드={}, 요청가격={}", 
+                    stock.getStockCode(), pricePerMember);
+            // 체결 불가능해도 주문은 생성 (지정가 주문으로 대기)
+        }
+
+        // 4. 각 멤버별로 개인 매도 주문 생성 및 실행
         List<Order> executedOrders = new ArrayList<>();
         int processedCount = 0;
 
@@ -166,20 +194,73 @@ public class GroupTradingService {
      * 그룹 멤버들의 투자 계좌 조회
      */
     private List<InvestmentAccount> getGroupMembers(UUID groupId) {
-        // TODO: 실제 그룹 서비스와 연동하여 그룹 멤버 조회
-        // 현재는 임시로 더미 데이터 반환
-        List<InvestmentAccount> members = new ArrayList<>();
-        
-        // 임시: 그룹 ID를 기반으로 멤버 계좌 생성 (실제로는 그룹 서비스에서 조회)
-        for (int i = 1; i <= 5; i++) {
-            InvestmentAccount account = new InvestmentAccount();
-            account.setInvestmentAccountId(UUID.randomUUID());
-            account.setUserId("user" + i);
-            // account.setAccountName("그룹" + groupId + "_멤버" + i); // InvestmentAccount에 accountName 필드가 없음
-            members.add(account);
+        try {
+            // TODO: 실제 그룹 서비스와 연동하여 그룹 멤버 조회
+            // 현재는 임시로 더미 데이터 반환 (그룹 서비스 연동 후 수정 필요)
+            
+            log.warn("⚠️ 그룹 멤버 조회 - 그룹 서비스 연동 필요: {}", groupId);
+            
+            // 임시: 그룹 ID를 기반으로 멤버 계좌 생성
+            // 실제로는 그룹 서비스에서 멤버 목록을 조회하고, 각 멤버의 투자 계좌를 찾아야 함
+            List<InvestmentAccount> members = new ArrayList<>();
+            
+            // 임시 더미 데이터 (개발/테스트용)
+            for (int i = 1; i <= 3; i++) { // 3명으로 줄임 (테스트용)
+                InvestmentAccount account = new InvestmentAccount();
+                account.setInvestmentAccountId(UUID.randomUUID());
+                account.setUserId("group_" + groupId + "_member_" + i);
+                members.add(account);
+            }
+            
+            log.info("임시 그룹 멤버 조회 완료 - 그룹ID: {}, 멤버 수: {}", groupId, members.size());
+            return members;
+            
+        } catch (Exception e) {
+            log.error("그룹 멤버 조회 실패 - 그룹ID: {} - {}", groupId, e.getMessage());
+            throw new BusinessException("그룹 멤버를 조회할 수 없습니다.", "GROUP_MEMBERS_FETCH_FAILED");
         }
-        
-        return members;
+    }
+
+    /**
+     * WebSocket 호가 데이터와 비교하여 체결 가능 여부 확인
+     */
+    private boolean checkExecutionPossibility(String stockCode, BigDecimal requestPrice, String orderType) {
+        try {
+            // WebSocket 호가 데이터 조회
+            OrderBookResponse orderBook = orderBookService.getOrderBook(stockCode);
+            
+            if (orderBook == null || orderBook.getAskPrices().isEmpty() || orderBook.getBidPrices().isEmpty()) {
+                log.warn("⚠️ 호가 데이터가 없어 체결 가능 여부 확인 불가: {}", stockCode);
+                return false;
+            }
+
+            float requestPriceFloat = requestPrice.floatValue();
+            
+            if ("BUY".equals(orderType)) {
+                // 매수 주문: 지정가 >= 최저 매도가
+                float lowestAskPrice = orderBook.getAskPrices().get(0).getPrice();
+                boolean canExecute = requestPriceFloat >= lowestAskPrice;
+                
+                log.info("🔍 매수 체결 가능 여부 - 종목코드: {}, 요청가격: {}, 최저매도가: {}, 체결가능: {}", 
+                        stockCode, requestPriceFloat, lowestAskPrice, canExecute);
+                return canExecute;
+                
+            } else if ("SELL".equals(orderType)) {
+                // 매도 주문: 지정가 <= 최고 매수가
+                float highestBidPrice = orderBook.getBidPrices().get(0).getPrice();
+                boolean canExecute = requestPriceFloat <= highestBidPrice;
+                
+                log.info("🔍 매도 체결 가능 여부 - 종목코드: {}, 요청가격: {}, 최고매수가: {}, 체결가능: {}", 
+                        stockCode, requestPriceFloat, highestBidPrice, canExecute);
+                return canExecute;
+            }
+            
+            return false;
+            
+        } catch (Exception e) {
+            log.error("❌ 체결 가능 여부 확인 중 오류 발생 - 종목코드: {} - {}", stockCode, e.getMessage());
+            return false;
+        }
     }
 
     /**

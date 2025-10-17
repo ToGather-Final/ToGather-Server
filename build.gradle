@@ -96,6 +96,9 @@ project(":api-gateway") {
 		runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
 		runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 
+		// SpringDoc OpenAPI (WebFlux)
+		implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.0.2'
+
 		// Lombok
 		compileOnly 'org.projectlombok:lombok'
 		annotationProcessor 'org.projectlombok:lombok'
@@ -168,6 +171,7 @@ project(":trading-service") {
 		implementation 'org.springframework.boot:spring-boot-starter-web'
 		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+		implementation 'org.springframework.boot:spring-boot-starter-websocket'
 		runtimeOnly 'com.mysql:mysql-connector-j'
 		testImplementation 'com.h2database:h2'
 		

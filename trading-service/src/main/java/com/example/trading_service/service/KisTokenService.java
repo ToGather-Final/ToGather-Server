@@ -115,6 +115,64 @@ public class KisTokenService {
     }
 
     /**
+     * WebSocket용 approval_key를 발급받습니다.
+     * 한투 API 문서에 따른 정확한 형식으로 요청
+     */
+    public String getWebSocketApprovalKey() {
+        try {
+            // 실전투자 도메인 사용 (실전투자 계좌)
+            String url = "https://openapi.koreainvestment.com:9443/oauth2/Approval";
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.add("authorization", "Bearer " + getValidAccessToken());
+            headers.add("appkey", appKey);
+            headers.add("appsecret", appSecret);
+            headers.add("tr_id", "CTCA0903M");
+            headers.add("custtype", "P");
+            
+            // 한투 API 문서에 따른 요청 본문 (secretkey 파라미터 추가)
+            String requestBody = String.format(
+                "{\"grant_type\":\"client_credentials\",\"appkey\":\"%s\",\"appsecret\":\"%s\",\"secretkey\":\"%s\"}",
+                appKey, appSecret, appSecret
+            );
+            
+            HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+            
+            log.info("approval_key 발급 요청: {}", url);
+            log.info("🔑 API 키 확인 - appkey: {}..., appsecret: {}...", 
+                appKey != null && appKey.length() > 10 ? appKey.substring(0, 10) : "없음",
+                appSecret != null && appSecret.length() > 10 ? appSecret.substring(0, 10) : "없음");
+            log.debug("요청 본문: {}", requestBody);
+            
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                url, HttpMethod.POST, entity, (Class<Map<String, Object>>) (Class<?>) Map.class
+            );
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> responseBody = response.getBody();
+                log.info("approval_key 응답: {}", responseBody);
+                
+                String approvalKey = (String) responseBody.get("approval_key");
+                
+                if (approvalKey != null) {
+                    log.info("WebSocket approval_key 발급 성공: {}...", approvalKey.substring(0, 20));
+                    return approvalKey;
+                } else {
+                    log.error("approval_key 발급 응답에서 approval_key가 누락되었습니다: {}", responseBody);
+                    throw new RuntimeException("approval_key 발급 실패: 응답 형식 오류");
+                }
+            } else {
+                log.error("approval_key 발급 실패: HTTP {} - {}", response.getStatusCode(), response.getBody());
+                throw new RuntimeException("approval_key 발급 실패: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            log.error("approval_key 발급 중 오류 발생", e);
+            throw new RuntimeException("approval_key 발급 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * 현재 토큰 상태를 확인합니다.
      */
     public Map<String, Object> getTokenStatus() {

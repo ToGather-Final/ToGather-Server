@@ -5,6 +5,7 @@ import com.example.trading_service.domain.InvestmentAccount;
 import com.example.trading_service.domain.Stock;
 import com.example.trading_service.dto.HoldingResponse;
 import com.example.trading_service.dto.PortfolioSummaryResponse;
+import com.example.trading_service.dto.StockPriceResponse;
 import com.example.trading_service.repository.HoldingCacheRepository;
 import com.example.trading_service.repository.InvestmentAccountRepository;
 import com.example.trading_service.repository.StockRepository;
@@ -103,16 +104,16 @@ public class PortfolioService {
         log.info("샘플 보유 종목이 생성되었습니다. 사용자: {}", userId);
     }
 
-    // HoldingResponse 변환 (실시간 가격 정보 포함)
+    // HoldingResponse 변환 (실시간 가격 정보 포함) - WebSocket 우선
     private HoldingResponse convertToHoldingResponse(HoldingCache holding) {
         // 주식 정보 조회
         Stock stock = holding.getStock();
         
-        // 실시간 주식 가격 및 변동률 조회
-        float currentPrice = getCurrentStockPrice(stock.getStockCode());
-        Map<String, Float> changeInfo = getStockChangeInfo(stock.getStockCode());
-        float changeAmount = changeInfo.get("changeAmount");
-        float changeRate = changeInfo.get("changeRate");
+        // WebSocket 우선으로 실시간 주식 가격 및 변동률 조회
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
+        float currentPrice = priceInfo.getCurrentPrice().floatValue();
+        float changeAmount = priceInfo.getChangePrice().floatValue();
+        float changeRate = priceInfo.getChangeRate();
         
         // 평가금액 및 수익률 계산
         float evaluatedPrice = currentPrice * holding.getQuantity();
