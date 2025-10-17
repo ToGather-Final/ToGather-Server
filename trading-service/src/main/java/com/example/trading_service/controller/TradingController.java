@@ -6,7 +6,6 @@ import com.example.trading_service.exception.BusinessException;
 import com.example.trading_service.util.AccountNumberGenerator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +32,8 @@ public class TradingController {
 
     @Operation(summary = "투자 계좌 개설", description = "사용자의 투자 계좌를 새로 개설합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "201", description = "투자 계좌 개설 성공"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "투자 계좌 개설 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
     })
     @PostMapping("/account/invest")
     public ResponseEntity<ApiResponse<UUID>> createInvestmentAccount(Authentication authentication) {
@@ -46,9 +45,9 @@ public class TradingController {
 
     @Operation(summary = "주식 매수", description = "지정된 종목을 매수 주문합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "매수 주문 성공"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 잔고 부족"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "매수 주문 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 잔고 부족"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
     })
     @PutMapping("/trade/buy")
     public ResponseEntity<ApiResponse<String>> buyStock(
@@ -61,9 +60,9 @@ public class TradingController {
 
     @Operation(summary = "주식 매도", description = "보유한 주식을 매도 주문합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "매도 주문 성공"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 보유 수량 부족"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "매도 주문 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 보유 수량 부족"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
     })
     @PutMapping("/trade/sell")
     public ResponseEntity<ApiResponse<String>> sellStock(
@@ -76,7 +75,7 @@ public class TradingController {
 
     // 예수금 충전
     @PutMapping("/trade/deposit")
-    public ResponseEntity<ApiResponse<String>> depositFunds(@Valid @RequestBody DepositRequest request, 
+    public ResponseEntity<ApiResponse<String>> depositFunds(@Valid @RequestBody DepositRequest request,
                                                           Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
         tradingService.depositFunds(userId, request);
@@ -85,8 +84,8 @@ public class TradingController {
 
     @Operation(summary = "보유 종목 조회", description = "사용자가 보유한 모든 종목의 실시간 가격 정보를 조회합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "보유 종목 조회 성공"),
-        @ApiResponse(responseCode = "401", description = "인증 실패")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "보유 종목 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
     })
     @GetMapping("/portfolio/holdings")
     public ResponseEntity<ApiResponse<List<HoldingResponse>>> getHoldings(Authentication authentication) {
@@ -146,7 +145,7 @@ public class TradingController {
 
     @Operation(summary = "주식 목록 조회", description = "전체 주식 목록을 조회합니다. 검색어가 있으면 해당 종목을 필터링합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "주식 목록 조회 성공")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "주식 목록 조회 성공")
     })
     @GetMapping("/stocks")
     public ResponseEntity<ApiResponse<List<StockResponse>>> getStocks(

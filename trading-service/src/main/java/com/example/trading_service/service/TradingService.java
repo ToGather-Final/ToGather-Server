@@ -8,6 +8,8 @@ import com.example.trading_service.dto.*;
 import com.example.trading_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +21,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.example.pay_service.security.UserPrincipal.getCurrentUserId;
 
 @Service
 @RequiredArgsConstructor
@@ -214,6 +215,14 @@ public class TradingService {
                 groupId
         );
         log.info("그룹 페이 계좌 충전 완료: {}", response);
+    }
+
+    private UUID getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof UUID) {
+            return (UUID) authentication.getPrincipal();
+        }
+        return null;
     }
 
     // 시장가 주문 처리
