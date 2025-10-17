@@ -167,103 +167,105 @@ spring:
       on-profile: "main"
   cloud:
     gateway:
-      routes: #deprecated전에 server: webflux: routes: 형태로 수정해야함.
-        - id: auth-service-route
-          uri: lb://user-service
-          predicates:
-            - Path=/api/auth/**
-          filters:
-            - StripPrefix=1
-        - id: user-service-route
-          uri: lb://user-service
-          predicates:
-            - Path=/api/users/**
-          filters:
-            - StripPrefix=1
-        - id: group-service-route
-          uri: lb://user-service
-          predicates:
-            - Path=/api/groups/**
-          filters:
-            - StripPrefix=1
-        - id: vote-service-route
-          uri: lb://vote-service
-          predicates:
-            - Path=/api/vote/**,/api/votes/**
-          filters:
-            - StripPrefix=1
-        - id: history-service-route
-          uri: lb://vote-service
-          predicates:
-            - Path=/api/history/**
-          filters:
-            - StripPrefix=1
-        - id: notification-service-route
-          uri: lb://vote-service
-          predicates:
-            - Path=/api/notification/**
-          filters:
-            - StripPrefix=1
-        - id: trading-service-route
-          uri: lb://trading-service
-          predicates:
-            - Path=/api/trading/**
-          filters:
-            - StripPrefix=1
-        - id: vote-trading-service-route
-          uri: lb://trading-service
-          predicates:
-            - Path=/api/vote-trading/**
-          filters:
-            - StripPrefix=1
-        - id: group-trading-service-route
-          uri: lb://trading-service
-          predicates:
-            - Path=/api/group-trading/**
-          filters:
-            - StripPrefix=1
-        - id: batch-service-route
-          uri: lb://trading-service
-          predicates:
-            - Path=/api/batch/**
-          filters:
-            - StripPrefix=1
-        - id: admin-kis-service-route
-          uri: lb://trading-service
-          predicates:
-            - Path=/api/admin/kis/**
-          filters:
-            - StripPrefix=1
-        - id: payments-service-route
-          uri: lb://pay-service
-          predicates:
-            - Path=/api/payments/**
-          filters:
-            - StripPrefix=1
-        - id: accounts-service-route
-          uri: lb://pay-service
-          predicates:
-            - Path=/api/accounts/**
-          filters:
-            - StripPrefix=1
-        - id: qr-service-route
-          uri: lb://pay-service
-          predicates:
-            - Path=/api/qr/**
-          filters:
-            - StripPrefix=1
-        - id: transfers-service-route
-          uri: lb://pay-service
-          predicates:
-            - Path=/api/transfers/**
-          filters:
-            - StripPrefix=1
-        - id: accounts-service-route
-          uri: lb://pay-service
-          predicates:
-            - Path=/api/accounts/**
-          filters:
-            - StripPrefix=1
+      server:
+        webflux:
+          routes:
+            - id: auth-service-route
+              uri: lb://user-service
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - StripPrefix=1
+            - id: user-service-route
+              uri: lb://user-service
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - StripPrefix=1
+            - id: group-service-route
+              uri: lb://user-service
+              predicates:
+                - Path=/api/groups/**
+              filters:
+                - StripPrefix=1
+            - id: vote-service-route
+              uri: lb://vote-service
+              predicates:
+                - Path=/api/vote/**,/api/votes/**
+              filters:
+                - StripPrefix=1
+            - id: history-service-route
+              uri: lb://vote-service
+              predicates:
+                - Path=/api/history/**
+              filters:
+                - StripPrefix=1
+            - id: notification-service-route
+              uri: lb://vote-service
+              predicates:
+                - Path=/api/notification/**
+              filters:
+                - StripPrefix=1
+            - id: trading-service-route
+              uri: lb://trading-service
+              predicates:
+                - Path=/api/trading/**
+              filters:
+                - StripPrefix=1
+            - id: vote-trading-service-route
+              uri: lb://trading-service
+              predicates:
+                - Path=/api/vote-trading/**
+              filters:
+                - StripPrefix=1
+            - id: group-trading-service-route
+              uri: lb://trading-service
+              predicates:
+                - Path=/api/group-trading/**
+              filters:
+                - StripPrefix=1
+            - id: batch-service-route
+              uri: lb://trading-service
+              predicates:
+                - Path=/api/batch/**
+              filters:
+                - StripPrefix=1
+            - id: admin-kis-service-route
+              uri: lb://trading-service
+              predicates:
+                - Path=/api/admin/kis/**
+              filters:
+                - StripPrefix=1
+            - id: payments-service-route
+              uri: lb://pay-service
+              predicates:
+                - Path=/api/payments/**
+              filters:
+                - StripPrefix=1
+            - id: accounts-service-route
+              uri: lb://pay-service
+              predicates:
+                - Path=/api/accounts/**
+              filters:
+                - StripPrefix=1
+            - id: qr-service-route
+              uri: lb://pay-service
+              predicates:
+                - Path=/api/qr/**
+              filters:
+                - StripPrefix=1
+            - id: transfers-service-route
+              uri: lb://pay-service
+              predicates:
+                - Path=/api/transfers/**
+              filters:
+                - StripPrefix=1
+            - id: accounts-service-route-2
+              uri: lb://pay-service
+              predicates:
+                - Path=/api/accounts/**
+              filters:
+                - StripPrefix=1
     kubernetes:
       discovery:
         enabled: true
