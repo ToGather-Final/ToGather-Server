@@ -31,7 +31,7 @@ public class HeaderAuthFilter extends OncePerRequestFilter {
                path.startsWith("/swagger-ui") || 
                path.startsWith("/v3/api-docs") ||
                path.startsWith("/actuator") ||
-               path.contains("/quorum"); // 시스템용 정족수 조회 API 제외
+               path.startsWith("/internal/"); // 내부 시스템 호출용 API 제외
     }
 
     @Override

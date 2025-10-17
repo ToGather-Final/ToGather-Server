@@ -126,4 +126,11 @@ public class History {
     public void setHistoryIdForTest(UUID historyId) {
         this.historyId = historyId;
     }
+    
+    /**
+     * 주식 ID 설정
+     */
+    public void setStockId(UUID stockId) {
+        this.stockId = stockId;
+    }
 }

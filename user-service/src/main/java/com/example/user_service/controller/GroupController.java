@@ -7,6 +7,7 @@ import com.example.user_service.service.GroupService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @RestController
 @RequestMapping("/groups")
 public class GroupController {
@@ -143,12 +145,6 @@ public class GroupController {
     public ResponseEntity<GroupSettingsResponse> getGroupSettingsInternal(@PathVariable UUID groupId) {
         GroupSettingsResponse response = groupService.getGroupSettingsInternal(groupId);
         return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/internal/{groupId}/vote-quorum")
-    public ResponseEntity<Integer> getVoteQuorumInternal(@PathVariable UUID groupId) {
-        Integer voteQuorum = groupService.getVoteQuorumInternal(groupId);
-        return ResponseEntity.ok(voteQuorum);
     }
 
     private String resolveRole(UUID memberUserId, UUID ownerUserId) {
