@@ -32,18 +32,16 @@ public class StockPriceService {
     private final RedisCacheService redisCacheService;
 
     /**
-     * 캐싱이 적용된 주식 가격 조회 (UUID 기반) - Redis 캐시 우선
+     * 캐싱이 적용된 주식 가격 조회 (UUID 기반)
      */
     public StockPriceResponse getCachedStockPrice(UUID stockId, String stockCode) {
         // 1. Redis 캐시에서 조회
         StockPriceResponse cachedPrice = redisCacheService.getCachedStockPrice(stockId);
         if (cachedPrice != null) {
-            log.info("🚀 Redis 캐시에서 주식 가격 반환: {}", stockCode);
             return cachedPrice;
         }
 
         // 2. 캐시에 없으면 API 호출
-        log.info("📡 API 호출로 주식 가격 조회: {}", stockCode);
         Map<String, Object> apiResponse = getCurrentPrice(stockCode);
         
         // 3. API 응답을 StockPriceResponse로 변환
@@ -54,7 +52,6 @@ public class StockPriceService {
         
         return priceResponse;
     }
-
 
     /**
      * API 응답을 StockPriceResponse로 변환
@@ -152,38 +149,16 @@ public class StockPriceService {
         }
     }
 
-    // 주식 차트 데이터 조회 (기간별 데이터)
+    // 주식 차트 데이터 조회 (일봉 데이터)
     public Map<String, Object> getStockChart(String stockCode, String period) {
-        // 기간별 조회 기간 설정
+        // 현재 날짜 기준으로 최근 1년 데이터 조회
         String endDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String startDate;
-        
-        // 기간별 조회 기간 설정
-        switch (period.toUpperCase()) {
-            case "D": // 일봉: 최근 1년
-                startDate = java.time.LocalDate.now().minusYears(1).format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-                break;
-            case "W": // 주봉: 최근 2년
-                startDate = java.time.LocalDate.now().minusYears(2).format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-                break;
-            case "M": // 월봉: 최근 5년
-                startDate = java.time.LocalDate.now().minusYears(5).format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-                break;
-            case "Y": // 연봉: 최근 10년
-                startDate = java.time.LocalDate.now().minusYears(10).format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-                break;
-            default: // 기본값: 일봉
-                startDate = java.time.LocalDate.now().minusYears(1).format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
-                break;
-        }
+        String startDate = java.time.LocalDate.now().minusYears(1).format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
         
         String url = baseUrl + "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
                 + "?FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=" + stockCode
                 + "&FID_INPUT_DATE_1=" + startDate + "&FID_INPUT_DATE_2=" + endDate
-                + "&FID_PERIOD_DIV_CODE=" + period.toUpperCase() + "&FID_ORG_ADJ_PRC=0";
-
-        log.info("차트 데이터 요청 - 종목코드: {}, 기간: {}, 조회기간: {} ~ {}", 
-                stockCode, period.toUpperCase(), startDate, endDate);
+                + "&FID_PERIOD_DIV_CODE=D&FID_ORG_ADJ_PRC=0";
 
         String accessToken = kisTokenService.getValidAccessToken();
 

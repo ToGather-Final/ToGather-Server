@@ -10,7 +10,6 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerA
 import org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration;
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
-import org.springframework.context.annotation.ComponentScan;
 
 @Slf4j
 @SpringBootApplication(exclude = {
@@ -28,7 +27,6 @@ import org.springframework.context.annotation.ComponentScan;
     org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration.class,
     org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration.class
 })
-@ComponentScan(basePackages = {"com.example.api_gateway"})
 public class ApiGatewayApplication {
 
 	public static void main(String[] args) {

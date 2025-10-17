@@ -86,7 +86,7 @@ public class ChartService {
 
     // 한투 API 차트 데이터를 ChartData로 변환
     private ChartData convertToChartData(Map<String, Object> chartItem) {
-        String time = (String) chartItem.get("stck_bsop_date"); // 날짜 (YYYYMMDD)
+        String time = (String) chartItem.get("stck_bsop_date"); // 날짜
         float open = parseFloat(chartItem.get("stck_oprc")); // 시가
         float high = parseFloat(chartItem.get("stck_hgpr")); // 고가
         float low = parseFloat(chartItem.get("stck_lwpr")); // 저가
@@ -206,7 +206,7 @@ public class ChartService {
         
         for (int i = 0; i < 90; i++) {
             LocalDate date = startDate.plusDays(i);
-            String dateStr = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String time = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             
             // 랜덤한 가격 변동 생성
             float variation = (float) (Math.random() - 0.5) * 20000; // ±10,000원 변동
@@ -216,7 +216,7 @@ public class ChartService {
             float low = Math.min(open, close) - (float) Math.random() * 5000;
             long volume = (long) (Math.random() * 1000000) + 500000; // 50만~150만 거래량
             
-            sampleData.add(new ChartData(dateStr, open, high, low, close, 0f, 0f, 0f, 0f, volume));
+            sampleData.add(new ChartData(time, open, high, low, close, 0f, 0f, 0f, 0f, volume));
             basePrice = close; // 다음 날의 기준가격
         }
         
