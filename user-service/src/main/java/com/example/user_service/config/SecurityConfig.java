@@ -45,6 +45,7 @@ public class SecurityConfig{
         http.authorizeHttpRequests(reg -> {
             reg.requestMatchers("/actuator/**").permitAll();
             reg.requestMatchers("/auth/**").permitAll();
+            reg.requestMatchers("/internal/**").permitAll();  // 내부 시스템 호출용 API 인증 제외
 
             reg.requestMatchers("/users/**").permitAll();
             reg.requestMatchers("/groups/**").permitAll();
