@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/accounts")
+@RequestMapping("/pay/accounts")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "계좌 관리", description = "사용자 계좌 및 그룹 페이 계좌 관리 관련 API")

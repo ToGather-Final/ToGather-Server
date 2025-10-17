@@ -170,5 +170,8 @@ project(":trading-service") {
 		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 		runtimeOnly 'com.mysql:mysql-connector-j'
 		testImplementation 'com.h2database:h2'
+		
+		// OpenFeign 의존성 추가
+		implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 	}
 }

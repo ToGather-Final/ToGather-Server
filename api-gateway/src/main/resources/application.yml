@@ -128,6 +128,14 @@ spring:
             - Path=/api/pay/**
           filters:
             - StripPrefix=1
+
+        # 계좌 서비스 (pay-service에서 제공)
+        - id: accounts-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/accounts/**
+          filters:
+            - StripPrefix=1
     kubernetes:
       discovery:
         enabled: false  # 로컬 개발 환경에서는 비활성화
@@ -200,6 +208,12 @@ spring:
           uri: lb://pay-service
           predicates:
             - Path=/api/pay/**
+          filters:
+            - StripPrefix=1
+        - id: accounts-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/accounts/**
           filters:
             - StripPrefix=1
     kubernetes:
