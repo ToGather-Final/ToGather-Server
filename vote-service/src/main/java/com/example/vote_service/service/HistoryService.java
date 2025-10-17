@@ -95,7 +95,7 @@ public class HistoryService {
     @Transactional
     public void createVoteApprovedHistory(UUID groupId, UUID proposalId, String scheduledAt, 
                                         String side, String stockName, Integer shares, 
-                                        Integer unitPrice, String currency) {
+                                        Integer unitPrice, String currency, UUID stockId) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("proposalId", proposalId.toString());
@@ -116,6 +116,9 @@ public class HistoryService {
                 title,
                 payloadJson
             );
+            
+            // 주식 ID 설정 (DB의 stock_id 컬럼에 저장)
+            history.setStockId(stockId);
             
             historyRepository.save(history);
             
