@@ -29,6 +29,11 @@ spring:
   main:
     allow-bean-definition-overriding: true
     web-application-type: reactive
+  webflux:
+    base-path: /
+  mvc:
+    servlet:
+      context-path: /
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
@@ -59,6 +64,30 @@ logging:
     org.springframework.web.reactive: INFO
     reactor.netty: INFO
     com.example.api_gateway: INFO
+
+# Swagger UI 설정 (WebFlux)
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+    filter: true
+    displayRequestDuration: true
+    displayOperationId: false
+    defaultModelsExpandDepth: 1
+    defaultModelExpandDepth: 1
+    docExpansion: none
+    deepLinking: true
+    showExtensions: true
+    showCommonExtensions: true
+    groupsOrder: asc
+  packages-to-scan: com.example.api_gateway.controller
+  paths-to-match: /api/**
 
 ---
 # ===============================================
