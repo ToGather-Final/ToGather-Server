@@ -155,8 +155,8 @@ public class TradingController {
     }
 
     // 주식 기본 정보 조회 (현재가, 변동률, 거래량 등)
-    @GetMapping("/stocks/{stockCode}")
-    public ResponseEntity<ApiResponse<StockInfoResponse>> getStockByCode(@PathVariable String stockCode) {
+    @GetMapping("/stocks/{stockCode}/info")
+    public ResponseEntity<ApiResponse<StockInfoResponse>> getStockInfoByCode(@PathVariable String stockCode) {
         StockInfoResponse info = tradingService.getStockInfoByCode(stockCode);
         return ResponseEntity.ok(ApiResponse.success(info));
     }

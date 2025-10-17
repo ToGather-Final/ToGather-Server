@@ -1,16 +1,13 @@
 package com.example.trading_service.dto;
 
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
-import java.io.Serializable;
 import java.util.List;
 
 @Getter
-@NoArgsConstructor
 @AllArgsConstructor
-public class OrderBookResponse implements Serializable {
+public class OrderBookResponse {
     private String stockCode;
     private String stockName;
     private Float currentPrice; // 현재가

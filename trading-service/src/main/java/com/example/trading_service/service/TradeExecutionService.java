@@ -1,11 +1,9 @@
 package com.example.trading_service.service;
 
 import com.example.trading_service.domain.*;
-import com.example.trading_service.dto.OrderBookResponse;
 import com.example.trading_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,59 +22,12 @@ public class TradeExecutionService {
     private final HoldingCacheRepository holdingCacheRepository;
     private final InvestmentAccountRepository investmentAccountRepository;
     private final StockRepository stockRepository;
-    @Lazy
-    private final OrderBookService orderBookService;
 
     // 시장가 주문 처리
     public void processMarketOrder(Order order) {
         // 실제 거래소에서는 실시간 가격을 가져와야 하지만, 
         // 여기서는 주문 가격으로 즉시 체결 처리
         executeTrade(order, order.getPrice());
-    }
-
-    // 지정가 주문 체결 확인 (WebSocket 호가 데이터와 비교)
-    public void checkLimitOrderExecution(Order order) {
-        try {
-            // WebSocket 호가 데이터 조회
-            OrderBookResponse orderBook = orderBookService.getOrderBook(order.getStock().getStockCode());
-            
-            if (orderBook == null || orderBook.getAskPrices().isEmpty() || orderBook.getBidPrices().isEmpty()) {
-                log.debug("호가 데이터가 없어 지정가 주문 체결 확인 건너뜀 - 주문ID: {}", order.getOrderId());
-                return;
-            }
-
-            boolean canExecute = false;
-            float executionPrice = 0f;
-
-            if (order.getOrderType() == Order.OrderType.BUY) {
-                // 매수 주문: 지정가 >= 최저 매도가
-                float lowestAskPrice = orderBook.getAskPrices().get(0).getPrice();
-                if (order.getPrice() >= lowestAskPrice) {
-                    canExecute = true;
-                    executionPrice = lowestAskPrice; // 매도가로 체결
-                }
-            } else {
-                // 매도 주문: 지정가 <= 최고 매수가
-                float highestBidPrice = orderBook.getBidPrices().get(0).getPrice();
-                if (order.getPrice() <= highestBidPrice) {
-                    canExecute = true;
-                    executionPrice = highestBidPrice; // 매수가로 체결
-                }
-            }
-
-            if (canExecute) {
-                log.info("지정가 주문 체결 조건 만족 - 주문ID: {}, 지정가: {}, 체결가: {}", 
-                        order.getOrderId(), order.getPrice(), executionPrice);
-                executeTrade(order, executionPrice);
-            } else {
-                log.debug("지정가 주문 체결 조건 미만족 - 주문ID: {}, 지정가: {}", 
-                        order.getOrderId(), order.getPrice());
-            }
-
-        } catch (Exception e) {
-            log.error("지정가 주문 체결 확인 중 오류 발생 - 주문ID: {} - {}", 
-                    order.getOrderId(), e.getMessage());
-        }
     }
 
     // 체결 처리
