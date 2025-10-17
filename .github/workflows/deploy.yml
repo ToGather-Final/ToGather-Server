@@ -216,7 +216,7 @@ jobs:
         # API Gateway 배포 확인
         echo ""
         echo "🚀 API Gateway 배포 상태 확인 중..."
-        if kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=120s; then
+        if kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=240s; then
           echo "✅ API Gateway 배포 성공"
           SUCCESS_SERVICES="$SUCCESS_SERVICES api-gateway"
         else
