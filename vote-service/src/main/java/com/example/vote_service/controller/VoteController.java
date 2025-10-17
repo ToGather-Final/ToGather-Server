@@ -4,6 +4,11 @@ import com.example.vote_service.dto.*;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.service.ProposalService;
 import com.example.vote_service.service.VoteService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,6 +27,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/vote")
 @RequiredArgsConstructor
+@Tag(name = "투표 관리", description = "투표 제안, 참여, 집계 관련 API")
 public class VoteController {
 
     private final ProposalService proposalService;
@@ -32,9 +38,14 @@ public class VoteController {
      * - 사용자의 그룹을 자동으로 조회하여 해당 그룹의 투표 목록 반환
      * - view 파라미터로 필터링 (view=TRADE, view=PAY 등)
      */
+    @Operation(summary = "투표 목록 조회", description = "사용자 그룹의 투표 목록을 조회합니다. view 파라미터로 카테고리별 필터링이 가능합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "투표 목록 조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping
     public ResponseEntity<List<ProposalResponse>> getProposals(
-            @RequestParam(required = false) String view,
+            @Parameter(description = "카테고리 필터 (TRADE, PAY 등)") @RequestParam(required = false) String view,
             Authentication authentication) {
         
         UUID userId = (UUID) authentication.getPrincipal();
@@ -96,9 +107,15 @@ public class VoteController {
      * POST /vote - 투표 제안
      * (예수, 마도, 예수금 총칭, 페이 머니 설정)
      */
+    @Operation(summary = "투표 제안 생성", description = "새로운 투표 제안을 생성합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "투표 제안 생성 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @PostMapping
     public ResponseEntity<UUID> createProposal(
-            @Valid @RequestBody ProposalCreateRequest request,
+            @Parameter(description = "투표 제안 생성 요청 데이터", required = true) @Valid @RequestBody ProposalCreateRequest request,
             Authentication authentication) {
         
         UUID userId = (UUID) authentication.getPrincipal();
@@ -110,10 +127,17 @@ public class VoteController {
     /**
      * POST /vote/{proposalId} - 각각의 개인이 투표 (찬성/반대)
      */
+    @Operation(summary = "투표 참여", description = "특정 제안에 대해 찬성/반대 투표를 합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "투표 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 이미 투표함"),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "제안을 찾을 수 없음")
+    })
     @PostMapping("/{proposalId}")
     public ResponseEntity<Void> vote(
-            @PathVariable UUID proposalId,
-            @Valid @RequestBody VoteRequest request,
+            @Parameter(description = "제안 ID", required = true) @PathVariable UUID proposalId,
+            @Parameter(description = "투표 요청 데이터", required = true) @Valid @RequestBody VoteRequest request,
             Authentication authentication) {
         
         UUID userId = (UUID) authentication.getPrincipal();

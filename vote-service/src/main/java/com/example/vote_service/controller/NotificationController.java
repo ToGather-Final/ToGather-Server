@@ -1,6 +1,11 @@
 package com.example.vote_service.controller;
 
 import com.example.vote_service.service.NotificationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -19,6 +24,7 @@ import java.util.UUID;
 @RequestMapping("/notification")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "알림 관리", description = "실시간 알림, SSE 연결, 알림 전송 관련 API")
 public class NotificationController {
     
     private final NotificationService notificationService;
@@ -27,8 +33,14 @@ public class NotificationController {
      * SSE 스트림 연결
      * GET /notification/stream
      */
+    @Operation(summary = "실시간 알림 스트림 연결", description = "SSE를 통해 실시간 알림을 받을 수 있는 스트림에 연결합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "알림 스트림 연결 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 사용자 ID")
+    })
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamNotifications(@RequestHeader("X-User-Id") String userIdHeader) {
+    public SseEmitter streamNotifications(
+            @Parameter(description = "사용자 ID", required = true) @RequestHeader("X-User-Id") String userIdHeader) {
         UUID userId = UUID.fromString(userIdHeader);
         
         // SSE Emitter 생성 (30분 타임아웃)
@@ -45,9 +57,14 @@ public class NotificationController {
      * 다른 서비스에서 호출하는 알림 API
      * POST /notification/history
      */
+    @Operation(summary = "히스토리 알림 전송", description = "다른 서비스에서 호출하는 히스토리 관련 알림을 전송합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "히스토리 알림 전송 성공"),
+        @ApiResponse(responseCode = "500", description = "알림 전송 실패")
+    })
     @PostMapping("/history")
     public ResponseEntity<Map<String, Object>> sendHistoryNotification(
-            @RequestBody HistoryNotificationRequest request) {
+            @Parameter(description = "히스토리 알림 요청 데이터", required = true) @RequestBody HistoryNotificationRequest request) {
         
         try {
             notificationService.sendHistoryNotification(
@@ -81,9 +98,14 @@ public class NotificationController {
      * 개별 사용자 알림 전송
      * POST /notification/user
      */
+    @Operation(summary = "개별 사용자 알림 전송", description = "특정 사용자에게 개별 알림을 전송합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "개별 사용자 알림 전송 성공"),
+        @ApiResponse(responseCode = "500", description = "알림 전송 실패")
+    })
     @PostMapping("/user")
     public ResponseEntity<Map<String, Object>> sendUserNotification(
-            @RequestBody UserNotificationRequest request) {
+            @Parameter(description = "개별 사용자 알림 요청 데이터", required = true) @RequestBody UserNotificationRequest request) {
         
         try {
             notificationService.sendNotificationToUser(
@@ -117,6 +139,11 @@ public class NotificationController {
      * 알림 상태 조회
      * GET /notification/status
      */
+    @Operation(summary = "알림 상태 조회", description = "현재 연결된 사용자 수와 알림 시스템 상태를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "알림 상태 조회 성공"),
+        @ApiResponse(responseCode = "500", description = "알림 상태 조회 실패")
+    })
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getNotificationStatus() {
         try {

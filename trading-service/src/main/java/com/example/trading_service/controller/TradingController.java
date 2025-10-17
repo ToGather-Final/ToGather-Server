@@ -4,6 +4,11 @@ import com.example.trading_service.service.*;
 import com.example.trading_service.dto.*;
 import com.example.trading_service.exception.BusinessException;
 import com.example.trading_service.util.AccountNumberGenerator;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/trading")
 @RequiredArgsConstructor
+@Tag(name = "투자 거래", description = "주식 매매, 포트폴리오 관리, 계좌 관리 관련 API")
 public class TradingController {
 
     private final TradingService tradingService;
@@ -25,7 +31,11 @@ public class TradingController {
     private final OrderBookService orderBookService;
     private final ChartService chartService;
 
-    // 투자 계좌 개설
+    @Operation(summary = "투자 계좌 개설", description = "사용자의 투자 계좌를 새로 개설합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "투자 계좌 개설 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @PostMapping("/account/invest")
     public ResponseEntity<ApiResponse<UUID>> createInvestmentAccount(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -34,19 +44,31 @@ public class TradingController {
                 .body(ApiResponse.success("투자 계좌가 성공적으로 개설되었습니다", accountId));
     }
 
-    // 주식 매수
+    @Operation(summary = "주식 매수", description = "지정된 종목을 매수 주문합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "매수 주문 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 잔고 부족"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @PutMapping("/trade/buy")
-    public ResponseEntity<ApiResponse<String>> buyStock(@Valid @RequestBody BuyRequest request, 
-                                                       Authentication authentication) {
+    public ResponseEntity<ApiResponse<String>> buyStock(
+            @Parameter(description = "매수 요청 데이터", required = true) @Valid @RequestBody BuyRequest request, 
+            Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
         orderService.buyStock(userId, request);
         return ResponseEntity.ok(ApiResponse.success("매수 주문이 완료되었습니다"));
     }
 
-    // 주식 매도
+    @Operation(summary = "주식 매도", description = "보유한 주식을 매도 주문합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "매도 주문 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 보유 수량 부족"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @PutMapping("/trade/sell")
-    public ResponseEntity<ApiResponse<String>> sellStock(@Valid @RequestBody SellRequest request, 
-                                                        Authentication authentication) {
+    public ResponseEntity<ApiResponse<String>> sellStock(
+            @Parameter(description = "매도 요청 데이터", required = true) @Valid @RequestBody SellRequest request, 
+            Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
         orderService.sellStock(userId, request);
         return ResponseEntity.ok(ApiResponse.success("매도 주문이 완료되었습니다"));
@@ -61,7 +83,11 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success("예수금 충전이 완료되었습니다"));
     }
 
-    // 보유 종목 조회 (실시간 가격 정보 포함)
+    @Operation(summary = "보유 종목 조회", description = "사용자가 보유한 모든 종목의 실시간 가격 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "보유 종목 조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/portfolio/holdings")
     public ResponseEntity<ApiResponse<List<HoldingResponse>>> getHoldings(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -118,9 +144,13 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(history));
     }
 
-    // 주식 조회
+    @Operation(summary = "주식 목록 조회", description = "전체 주식 목록을 조회합니다. 검색어가 있으면 해당 종목을 필터링합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "주식 목록 조회 성공")
+    })
     @GetMapping("/stocks")
-    public ResponseEntity<ApiResponse<List<StockResponse>>> getStocks(@RequestParam(required = false) String search) {
+    public ResponseEntity<ApiResponse<List<StockResponse>>> getStocks(
+            @Parameter(description = "검색어 (종목명 또는 종목코드)") @RequestParam(required = false) String search) {
         List<StockResponse> stocks = tradingService.getStocks(search);
         return ResponseEntity.ok(ApiResponse.success(stocks));
     }

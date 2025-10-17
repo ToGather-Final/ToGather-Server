@@ -2,6 +2,7 @@ package com.example.vote_service.service;
 
 import com.example.module_common.dto.vote.TradingAction;
 import com.example.module_common.dto.vote.VoteTradingRequest;
+import com.example.module_common.dto.vote.VoteTradingResponse;
 import com.example.vote_service.client.TradingServiceClient;
 import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.ProposalCreateRequest;
