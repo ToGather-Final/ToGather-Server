@@ -7,6 +7,11 @@ import com.example.user_service.dto.RegisterRequest;
 import com.example.user_service.security.JwtUtil;
 import com.example.user_service.service.AuthService;
 import com.example.user_service.service.RefreshTokenService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequestMapping("/auth")
+@Tag(name = "인증 관리", description = "회원가입, 로그인, 토큰 갱신, 로그아웃 관련 API")
 public class AuthController {
 
     private final AuthService authService;
@@ -34,9 +40,16 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
+    @Operation(summary = "회원가입", description = "새로운 사용자 계정을 생성하고 액세스 토큰과 리프레시 토큰을 발급합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "회원가입 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 중복된 사용자명"),
+        @ApiResponse(responseCode = "401", description = "디바이스 ID 누락")
+    })
     @PostMapping("/signup")
-    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request,
-                                         @RequestHeader("X-Device-Id") String deviceId) {
+    public ResponseEntity<LoginResponse> register(
+            @Parameter(description = "회원가입 요청 데이터", required = true) @Valid @RequestBody RegisterRequest request,
+            @Parameter(description = "디바이스 ID", required = true) @RequestHeader("X-Device-Id") String deviceId) {
         try {
             log.info("=== 회원가입 요청 시작 ===");
             log.info("요청 사용자명: {}", request.username());
@@ -64,9 +77,16 @@ public class AuthController {
         }
     }
 
+    @Operation(summary = "로그인", description = "사용자 인증 후 액세스 토큰과 리프레시 토큰을 발급합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "로그인 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "401", description = "인증 실패 또는 디바이스 ID 누락")
+    })
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request,
-                               @RequestHeader("X-Device-Id") String deviceId) {
+    public LoginResponse login(
+            @Parameter(description = "로그인 요청 데이터", required = true) @Valid @RequestBody LoginRequest request,
+            @Parameter(description = "디바이스 ID", required = true) @RequestHeader("X-Device-Id") String deviceId) {
         validateDeviceId(deviceId);
         UUID userId = authService.login(request);
         String accessToken = jwtUtil.issue(userId);
@@ -74,10 +94,15 @@ public class AuthController {
         return new LoginResponse(accessToken, refreshToken, userId);
     }
 
+    @Operation(summary = "토큰 갱신", description = "리프레시 토큰을 사용하여 새로운 액세스 토큰과 리프레시 토큰을 발급합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "토큰 갱신 성공"),
+        @ApiResponse(responseCode = "401", description = "유효하지 않은 리프레시 토큰 또는 디바이스 ID 누락")
+    })
     @PostMapping("/refresh")
     public LoginResponse refresh(
-            @RequestHeader("X-Refresh-Token") String refreshToken,
-            @RequestHeader("X-Device-Id") String deviceId) {
+            @Parameter(description = "리프레시 토큰", required = true) @RequestHeader("X-Refresh-Token") String refreshToken,
+            @Parameter(description = "디바이스 ID", required = true) @RequestHeader("X-Device-Id") String deviceId) {
         validateDeviceId(deviceId);
         validateRefreshToken(refreshToken);
 
@@ -89,9 +114,15 @@ public class AuthController {
         return new LoginResponse(newAccessToken, newRefreshToken, userId);
     }
 
+    @Operation(summary = "로그아웃", description = "사용자의 리프레시 토큰을 무효화하여 로그아웃을 처리합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패 또는 디바이스 ID 누락")
+    })
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader("X-Device-Id") String deviceId,
-                                       Authentication authentication) {
+    public ResponseEntity<Void> logout(
+            @Parameter(description = "디바이스 ID", required = true) @RequestHeader("X-Device-Id") String deviceId,
+            Authentication authentication) {
         validateDeviceId(deviceId);
         UUID userId = (UUID) authentication.getPrincipal();
         refreshTokenService.revoke(userId, deviceId);

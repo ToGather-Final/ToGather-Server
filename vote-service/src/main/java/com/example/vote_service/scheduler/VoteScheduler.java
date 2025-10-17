@@ -2,8 +2,6 @@ package com.example.vote_service.scheduler;
 
 import com.example.vote_service.client.TradingServiceClient;
 import com.example.vote_service.client.UserServiceClient;
-import com.example.vote_service.dto.GroupMemberCountResponse;
-import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.ProposalStatus;
 import com.example.vote_service.repository.ProposalRepository;
@@ -50,23 +48,21 @@ public class VoteScheduler {
                     log.info("제안 집계 시작: proposalId={}, proposalName={}", 
                             proposal.getProposalId(), proposal.getProposalName());
 
-                    // user-service API 호출하여 GroupRule과 멤버 수 가져오기
+                    // user-service API 호출하여 투표 정족수 가져오기
                     try {
-                        GroupRuleResponse rule = userServiceClient.getGroupRule(proposal.getGroupId());
-                        GroupMemberCountResponse memberCount = userServiceClient.getGroupMemberCount(proposal.getGroupId());
+                        Integer voteQuorum = userServiceClient.getVoteQuorumInternal(proposal.getGroupId());
                         
-                        log.info("그룹 정보 조회 완료 - groupId: {}, 정족수: {}, 멤버 수: {}", 
-                                proposal.getGroupId(), rule.voteQuorum(), memberCount.count());
+                        log.info("그룹 투표 정족수 조회 완료 - groupId: {}, 정족수: {}", 
+                                proposal.getGroupId(), voteQuorum);
                         
-                        voteService.tallyVotes(proposal.getProposalId(), memberCount.count(), rule.voteQuorum());
+                        // 정족수만 사용하여 투표 집계 (멤버 수는 필요 없음)
+                        voteService.tallyVotes(proposal.getProposalId(), 0, voteQuorum);
                     } catch (Exception e) {
-                        log.error("user-service API 호출 실패, 기본값으로 집계 진행 - groupId: {}, error: {}", 
-                                proposal.getGroupId(), e.getMessage());
+                        log.error("❌ user-service API 호출 실패로 투표 집계 중단 - proposalId: {}, groupId: {}, error: {}", 
+                                proposal.getProposalId(), proposal.getGroupId(), e.getMessage(), e);
                         
-                        // API 호출 실패 시 기본값으로 집계
-                        int totalMembers = 10; // 기본값
-                        int voteQuorum = 2;    // 기본값
-                        voteService.tallyVotes(proposal.getProposalId(), totalMembers, voteQuorum);
+                        // API 호출 실패 시 투표 집계를 중단하고 다음 제안으로 넘어감
+                        continue;
                     }
 
                     Proposal updatedProposal = proposalRepository.findById(proposal.getProposalId()).orElse(null);

@@ -20,7 +20,7 @@ public record GroupPayAccountCreateRequest(
         @Pattern(regexp = "^[a-zA-Z]+$", message = "영문 이름은 알파벳만 포함해야 합니다")
         String englishFirstName,
 
-        @NotBlank(message = "개인정보 처리 동의가 필요합니다")
+        @NotNull(message = "개인정보 처리 동의가 필요합니다")
         Boolean agreeToTerms
 ) {
 }

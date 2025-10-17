@@ -9,10 +9,12 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GroupService {
@@ -208,10 +210,27 @@ public class GroupService {
 
     @Transactional(readOnly = true)
     public Integer getVoteQuorumInternal(UUID groupId) {
-        Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+        log.info("🔍 그룹 투표 정족수 조회 시작 - groupId: {}", groupId);
+        
+        try {
+            Group group = groupRepository.findById(groupId)
+                    .orElseThrow(() -> {
+                        log.error("❌ 그룹을 찾을 수 없습니다 - groupId: {}", groupId);
+                        return new NoSuchElementException("그룹을 찾을 수 없습니다.");
+                    });
 
-        return group.getVoteQuorum();
+            Integer voteQuorum = group.getVoteQuorum();
+            log.info("✅ 그룹 투표 정족수 조회 완료 - groupId: {}, voteQuorum: {}, groupName: {}", 
+                    groupId, voteQuorum, group.getGroupName());
+            
+            return voteQuorum;
+        } catch (NoSuchElementException e) {
+            log.error("❌ 그룹 조회 실패 - groupId: {}, error: {}", groupId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("❌ 예상치 못한 오류 발생 - groupId: {}, error: {}", groupId, e.getMessage(), e);
+            throw new RuntimeException("투표 정족수 조회 중 오류가 발생했습니다.", e);
+        }
     }
 
     private void assertMember(UUID groupId, UUID userId) {

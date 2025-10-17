@@ -1,13 +1,15 @@
 package com.example.vote_service.service;
 
+import com.example.module_common.dto.vote.TradingAction;
+import com.example.module_common.dto.vote.VoteTradingRequest;
+import com.example.module_common.dto.vote.VoteTradingResponse;
 import com.example.vote_service.client.TradingServiceClient;
 import com.example.vote_service.client.UserServiceClient;
-import com.example.vote_service.dto.GroupMemberCountResponse;
-import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.dto.ProposalCreateRequest;
 import com.example.vote_service.dto.UserMeResponse;
-import com.example.vote_service.dto.VoteTradingRequest;
-import com.example.vote_service.dto.VoteTradingResponse;
+
+import com.example.vote_service.dto.payload.PayPayload;
+import com.example.vote_service.dto.payload.TradePayload;
 import com.example.vote_service.event.VoteExpirationEvent;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.ProposalCategory;
@@ -23,9 +25,11 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -97,14 +101,7 @@ public class ProposalService {
         Proposal saved = proposalRepository.save(proposal);
         
         // 5. 히스토리 생성 (VOTE_CREATED)
-        historyService.createVoteCreatedHistory(
-            userId,
-            saved.getProposalId(),
-            request.proposalName(),
-            proposerName,
-            request.price(),
-            request.quantity()
-        );
+        createVoteCreatedHistory(saved, request, proposerName);
         
         // 6. 투표 마감 시간에 정확히 실행되는 작업 스케줄
         scheduleVoteExpiration(saved.getProposalId(), closeAt, groupId);
@@ -201,18 +198,33 @@ public class ProposalService {
 
         if (proposal.getStatus() == ProposalStatus.APPROVED && proposal.getCategory() == ProposalCategory.TRADE) {
             try {
-                VoteTradingRequest request = new VoteTradingRequest(
-                        proposalId,
-                        proposal.getGroupId(),
-                        proposal.getAction().name(),
-                        proposal.getPayload()
-                );
+                VoteTradingRequest request = parsePayloadToVoteTradingRequest(proposal);
 
                 VoteTradingResponse response = tradingServiceClient.executeVoteBasedTrading(request);
                 log.info("투표 기반 거래 실행 완료: {}", response);
             } catch (Exception e) {
                 log.error("투표 기반 거래 실행 실패: {}", e.getMessage());
             }
+        }
+    }
+
+    private VoteTradingRequest parsePayloadToVoteTradingRequest(Proposal proposal) {
+        try{
+            Map<String, Object> payloadMap = objectMapper.readValue(proposal.getPayload(), Map.class);
+
+            return new VoteTradingRequest(
+                    proposal.getProposalId(),
+                    proposal.getGroupId(),
+                    UUID.fromString((String) payloadMap.get("stockId")),
+                    TradingAction.valueOf(proposal.getAction().name()),
+                    (Integer) payloadMap.get("quantity"),
+                    new BigDecimal(payloadMap.get("price").toString()),
+                    proposal.getPayload(),
+                    null, null, null, null, null, null, null
+            );
+        } catch (Exception e) {
+            log.error("payload 파싱 실패: {}", e.getMessage());
+            throw new IllegalArgumentException("거래 정보를 파싱할 수 없습니다.");
         }
     }
 
@@ -331,6 +343,47 @@ public class ProposalService {
             log.error("payload JSON 변환 실패: {}", payload, e);
             // 변환 실패 시 빈 JSON 객체 반환
             return "{}";
+        }
+    }
+
+    private void createVoteCreatedHistory(Proposal proposal, ProposalCreateRequest request, String proposerName) {
+        try {
+            if (request.isTradeCategory()) {
+                // TRADE 카테고리: TradePayload에서 정보 추출
+                TradePayload tradePayload = objectMapper.convertValue(request.payload(), TradePayload.class);
+                historyService.createVoteCreatedHistory(
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        tradePayload.price(),
+                        tradePayload.quantity()
+                );
+            } else if (request.isPayCategory()) {
+                // PAY 카테고리: PayPayload에서 정보 추출
+                PayPayload payPayload = objectMapper.convertValue(request.payload(), PayPayload.class);
+                historyService.createVoteCreatedHistory(
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        payPayload.amountPerPerson(), // price: 인당 충전 금액
+                        1  // quantity: 기본값 1 (인당)
+                );
+            } else {
+                // 기타 카테고리: 기본값 사용
+                historyService.createVoteCreatedHistory(
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        0, // price 기본값
+                        0  // quantity 기본값
+                );
+            }
+        } catch (Exception e) {
+            log.error("투표 생성 히스토리 생성 실패 - proposalId: {}, error: {}",
+                    proposal.getProposalId(), e.getMessage(), e);
         }
     }
 }
