@@ -1,7 +1,8 @@
 package com.example.trading_service.controller;
 
+import com.example.module_common.dto.vote.VoteTradingRequest;
+import com.example.module_common.dto.vote.VoteTradingResponse;
 import com.example.trading_service.dto.ApiResponse;
-import com.example.trading_service.dto.VoteTradingRequest;
 import com.example.trading_service.service.VoteTradingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,24 +23,25 @@ public class VoteTradingController {
      * Vote-Service에서 호출하는 API
      */
     @PostMapping("/execute")
-    public ResponseEntity<ApiResponse<Integer>> executeVoteBasedTrading(
+    public ResponseEntity<VoteTradingResponse> executeVoteBasedTrading(
             @Valid @RequestBody VoteTradingRequest request) {
         
         log.info("투표 기반 거래 실행 요청 - 투표ID: {}, 그룹ID: {}, 액션: {}", 
-                request.getVoteId(), request.getGroupId(), request.getTradingAction());
+                request.proposalId(), request.groupId(), request.tradingAction());
 
         try {
             // 투표 결과 검증
             if (!voteTradingService.validateVoteResult(request)) {
                 return ResponseEntity.badRequest().body(
-                        ApiResponse.error("투표 결과가 유효하지 않습니다.", "INVALID_VOTE_RESULT")
+                        new VoteTradingResponse(false, "투표 결과가 유효하지 않습니다.", 0)
                 );
             }
 
             // 투표 기반 거래 실행
             int processedCount = voteTradingService.executeVoteBasedTrading(request);
 
-            return ResponseEntity.ok(ApiResponse.success(
+            return ResponseEntity.ok(new VoteTradingResponse(
+                    true,
                     String.format("투표 기반 거래가 완료되었습니다. 처리된 거래 수: %d", processedCount),
                     processedCount
             ));
@@ -47,7 +49,7 @@ public class VoteTradingController {
         } catch (Exception e) {
             log.error("투표 기반 거래 실행 실패: {}", e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(e.getMessage(), "VOTE_TRADING_EXECUTION_FAILED")
+                    new VoteTradingResponse(false, e.getMessage(), 0)
             );
         }
     }

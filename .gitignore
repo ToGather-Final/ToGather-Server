@@ -62,7 +62,7 @@ Thumbs.db
 
 # Spring boot
 application-*.yml
-!application.yml
+!application-dev.yml
 !application-test.yml
 
 # 민감한 정보가 포함된 파일들

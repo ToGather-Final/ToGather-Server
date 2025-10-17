@@ -1,16 +1,23 @@
 package com.example.vote_service.service;
 
+import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.VoteRequest;
+import com.example.vote_service.dto.payload.TradePayload;
+import com.example.vote_service.event.VoteExpirationEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.Vote;
 import com.example.vote_service.model.VoteChoice;
 import com.example.vote_service.repository.VoteRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +25,7 @@ import java.util.UUID;
  * Vote 서비스
  * - 투표 생성, 조회, 집계 등의 비즈니스 로직 처리
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VoteService {
@@ -26,6 +34,8 @@ public class VoteService {
     private final ProposalService proposalService;
     private final GroupMembersRepository groupMembersRepository;
     private final HistoryService historyService;
+    private final UserServiceClient userServiceClient;
+    private final ObjectMapper objectMapper;
 
     /**
      * 투표하기
@@ -50,17 +60,23 @@ public class VoteService {
         // 이미 투표했는지 확인
         Optional<Vote> existingVote = voteRepository.findByProposalIdAndUserId(proposalId, userId);
         
+        Vote savedVote;
         if (existingVote.isPresent()) {
             // 투표 변경
             Vote vote = existingVote.get();
             vote.changeChoice(request.choice());
-            return vote.getVoteId();
+            savedVote = vote;
         } else {
             // 새 투표 생성
             Vote vote = Vote.create(proposalId, userId, request.choice());
-            Vote saved = voteRepository.save(vote);
-            return saved.getVoteId();
+            savedVote = voteRepository.save(vote);
         }
+
+        // 투표 완료
+        // 마감 시간(closeAt)에 스케줄러가 자동으로 가결/부결 판단
+        log.info("투표 완료 - proposalId: {}, userId: {}", proposalId, userId);
+        
+        return savedVote.getVoteId();
     }
 
     /**
@@ -114,7 +130,7 @@ public class VoteService {
 
     /**
      * 투표 결과 집계 및 제안 상태 업데이트
-     * - 투표 마감 시간에 호출됨 (스케줄러 또는 수동)
+     * - 투표 마감 시간에 호출됨 (closeAt 기준)
      * - GroupRule의 voteQuorum(정족수)을 사용하여 가결/부결 결정
      * 
      * @param proposalId 제안 ID
@@ -140,25 +156,22 @@ public class VoteService {
         long rejectCount = countRejectVotes(proposalId);
         long totalVotes = approveCount + rejectCount;
 
+        // 투표 결과 로깅
+        log.info("투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}", 
+                proposalId, approveCount, rejectCount, voteQuorum);
+
         // 가결 조건:
-        // 1. 찬성 투표 수가 정족수 이상
-        // 2. 찬성이 반대보다 많음
+        // 1. 찬성 투표 수가 정족수(voteQuorum) 이상
+        // 2. 찬성이 반대보다 많음 (동점이면 부결)
         boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+        
+        log.info("가결 여부: {} (찬성 >= 정족수: {}, 찬성 > 반대: {})", 
+                isApproved, (approveCount >= voteQuorum), (approveCount > rejectCount));
 
         if (isApproved) {
             proposalService.approveProposal(proposalId);
-            // 히스토리 생성 (VOTE_APPROVED)
-            // TODO: 실제 매매 정보를 payload에 포함해야 함
-            historyService.createVoteApprovedHistory(
-                proposal.getGroupId(),
-                proposalId,
-                "2024-01-01 15:00:00", // scheduledAt - TODO: 실제 실행 예정 시간
-                "BUY", // side - TODO: 실제 매매 방향
-                "삼성전자", // stockName - TODO: 실제 주식명
-                100, // shares - TODO: 실제 주식 수량
-                70000, // unitPrice - TODO: 실제 주가
-                "KRW" // currency - TODO: 실제 통화
-            );
+            // 히스토리 생성 (VOTE_APPROVED) - 실제 payload에서 정보 읽어오기
+            createVoteApprovedHistoryFromProposal(proposal);
         } else {
             proposalService.rejectProposal(proposalId);
             // 히스토리 생성 (VOTE_REJECTED)
@@ -169,6 +182,7 @@ public class VoteService {
             );
         }
     }
+
 
     /**
      * 투표 결과 집계 (간단 버전 - 정족수 정보 없이)
@@ -199,6 +213,38 @@ public class VoteService {
     }
 
     /**
+     * 투표 마감 이벤트 리스너
+     * - ProposalService에서 발행하는 VoteExpirationEvent를 처리
+     * - 순환 참조 없이 투표 마감 시 집계 수행
+     */
+    @EventListener
+    @Transactional
+    public void handleVoteExpiration(VoteExpirationEvent event) {
+        UUID proposalId = event.proposalId();
+        UUID groupId = event.groupId();
+        
+        log.info("투표 마감 이벤트 수신 - proposalId: {}, groupId: {}", proposalId, groupId);
+        
+        try {
+            // user-service에서 정족수 정보 가져오기 (시스템용 API 사용)
+            Integer voteQuorum = userServiceClient.getVoteQuorumInternal(groupId);
+            
+            log.info("그룹 정족수 조회 완료 - groupId: {}, 정족수: {}", 
+                    groupId, voteQuorum);
+
+            tallyVotes(proposalId, 0, voteQuorum); // totalMembers는 사용하지 않으므로 0으로 설정
+            
+            log.info("투표 마감 집계 완료 - proposalId: {}", proposalId);
+        } catch (Exception e) {
+            log.error("❌ user-service API 호출 실패로 투표 마감 집계 실패 - proposalId: {}, groupId: {}, error: {}", 
+                    proposalId, groupId, e.getMessage(), e);
+            
+            // API 호출 실패 시 투표 집계를 중단 (기본값 사용하지 않음)
+            throw new RuntimeException("투표 정족수 조회 실패로 인한 집계 중단", e);
+        }
+    }
+
+    /**
      * 그룹 멤버십 검증
      * - 사용자가 특정 그룹의 멤버인지 확인
      * - Spring Data JPA가 자동으로 SQL 생성: SELECT COUNT(*) > 0 FROM group_members WHERE user_id = ? AND group_id = ?
@@ -210,6 +256,50 @@ public class VoteService {
     private void validateGroupMembership(UUID userId, UUID groupId) {
         if (!groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)) {
             throw new IllegalArgumentException("해당 그룹의 멤버가 아닙니다.");
+        }
+    }
+    
+    /**
+     * Proposal에서 실제 정보를 읽어와서 VOTE_APPROVED 히스토리 생성
+     */
+    private void createVoteApprovedHistoryFromProposal(Proposal proposal) {
+        try {
+            if (proposal.getCategory().name().equals("TRADE")) {
+                // TRADE 카테고리: payload에서 실제 매매 정보 읽어오기
+                TradePayload tradePayload = objectMapper.readValue(proposal.getPayload(), TradePayload.class);
+                
+                historyService.createVoteApprovedHistory(
+                    proposal.getGroupId(),
+                    proposal.getProposalId(),
+                    LocalDateTime.now().plusHours(1).toString(), // scheduledAt - 1시간 후 실행 예정
+                    proposal.getAction().name(), // side - BUY/SELL
+                    tradePayload.stockName(), // stockName
+                    tradePayload.quantity(), // shares
+                    tradePayload.price(), // unitPrice
+                    "KRW", // currency
+                    tradePayload.stockId() // stockId - DB의 stock_id 컬럼에 저장
+                );
+                
+                log.info("✅ 실제 매매 정보로 히스토리 생성 - stockName: {}, quantity: {}, price: {}", 
+                        tradePayload.stockName(), tradePayload.quantity(), tradePayload.price());
+            } else {
+                // 다른 카테고리: 기본값 사용
+                historyService.createVoteApprovedHistory(
+                    proposal.getGroupId(),
+                    proposal.getProposalId(),
+                    LocalDateTime.now().plusHours(1).toString(),
+                    proposal.getAction().name(),
+                    "기본주식",
+                    1,
+                    1000,
+                    "KRW",
+                    null // stockId - PAY 카테고리 등에서는 null
+                );
+            }
+        } catch (Exception e) {
+            log.error("❌ VOTE_APPROVED 히스토리 생성 실패 - proposalId: {}, error: {}", 
+                    proposal.getProposalId(), e.getMessage(), e);
+            // 실패 시 히스토리 생성하지 않음 (에러 로그만 남김)
         }
     }
 }

@@ -1,10 +1,15 @@
 package com.example.trading_service.service;
 
+import com.example.module_common.dto.pay.PayRechargeRequest;
+import com.example.module_common.dto.pay.PayRechargeResponse;
+import com.example.trading_service.client.PayServiceClient;
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.*;
 import com.example.trading_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +21,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +39,7 @@ public class TradingService {
     private final ChartService chartService;
     private final OrderService orderService;
     private final PortfolioCalculationService portfolioCalculationService;
+    private final PayServiceClient payServiceClient;
 
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
@@ -211,6 +218,24 @@ public class TradingService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다: " + stockCode));
         
         return convertToStockDetailResponse(stock, days);
+    }
+
+    public void rechargeGroupPayAccount(UUID groupId, Long amount) {
+        PayRechargeRequest request = new PayRechargeRequest(amount, UUID.randomUUID().toString());
+        PayRechargeResponse response = payServiceClient.rechargePayMoney(
+                request,
+                getCurrentUserId(),
+                groupId
+        );
+        log.info("그룹 페이 계좌 충전 완료: {}", response);
+    }
+
+    private UUID getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof UUID) {
+            return (UUID) authentication.getPrincipal();
+        }
+        return null;
     }
 
     // 시장가 주문 처리

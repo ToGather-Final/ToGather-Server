@@ -12,32 +12,28 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "accounts",
+@Table(name = "pay_accounts",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_group_group_pay_one",
-                        columnNames = {"group_id", "type"})
+                @UniqueConstraint(name = "uk_group_pay_account_one",
+                        columnNames = {"group_id"})
         },
         indexes = {
-                @Index(name = "idx_accounts_owner", columnList = "owner_user_id"),
-                @Index(name = "idx_accounts_type", columnList = "type")
-
+                @Index(name = "idx_pay_accounts_owner", columnList = "owner_user_id")
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Account {
+public class PayAccount {
     @Id
-    @Column(name = "id", columnDefinition = "BINARY(16)")
     private UUID id;
 
     @Column(name = "owner_user_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID ownerUserId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
-    private AccountType type;
-
     @Column(nullable = false)
     private long balance;
+
+    @Version
+    private long version;
 
     @Column(length = 64)
     private String nickname;
@@ -45,11 +41,8 @@ public class Account {
     @Column(nullable = false)
     private Boolean isActive = true;
 
-    @Column(name = "group_id", columnDefinition = "BINARY(16)")
+    @Column(name = "group_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID groupId;
-
-    @Version
-    private long version;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -60,14 +53,14 @@ public class Account {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Account(UUID id, UUID ownerUserId, AccountType type, long balance, String nickname, Boolean isActive, UUID groupId) {
+    public PayAccount(UUID id, UUID ownerUserId, long balance, String nickname, Boolean isActive, UUID groupId, long version) {
         this.id = id != null ? id : UUID.randomUUID();
         this.ownerUserId = ownerUserId;
-        this.type = type;
         this.balance = balance;
         this.nickname = nickname;
         this.isActive = isActive;
         this.groupId = groupId;
+        this.version = version;
     }
 
     public boolean hasSufficientBalance(long amount) {
@@ -88,18 +81,4 @@ public class Account {
     public boolean isOwnedBy(UUID userId) {
         return this.ownerUserId != null && this.ownerUserId.equals(userId);
     }
-
-    public boolean isGroupPayAccount() {
-        return this.type == AccountType.GROUP_PAY;
-    }
-
-    public boolean isCmaAccount() {
-        return this.type == AccountType.CMA;
-    }
-
-    public boolean isMerchantAccount() {
-        return this.type == AccountType.MERCHANT;
-    }
-
-
 }

@@ -99,9 +99,17 @@ spring:
 
         # 투표 서비스
         - id: vote-service
-          uri: http://localhost:8080
+          uri: http://localhost:8084
           predicates:
-            - Path=/api/votes/**
+            - Path=/api/vote/**,/api/votes/**
+          filters:
+            - StripPrefix=1
+
+        # 히스토리 서비스 (vote-service에서 제공)
+        - id: history-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/history/**
           filters:
             - StripPrefix=1
 
@@ -133,6 +141,14 @@ spring:
           uri: http://localhost:8083
           predicates:
             - Path=/api/pay/**
+          filters:
+            - StripPrefix=1
+
+        # 계좌 서비스 (pay-service에서 제공)
+        - id: accounts-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/accounts/**
           filters:
             - StripPrefix=1
     kubernetes:
@@ -182,7 +198,19 @@ spring:
         - id: vote-service-route
           uri: lb://vote-service
           predicates:
-            - Path=/api/vote/**
+            - Path=/api/vote/**,/api/votes/**
+          filters:
+            - StripPrefix=1
+        - id: history-service-route
+          uri: lb://vote-service
+          predicates:
+            - Path=/api/history/**
+          filters:
+            - StripPrefix=1
+        - id: notification-service-route
+          uri: lb://vote-service
+          predicates:
+            - Path=/api/notification/**
           filters:
             - StripPrefix=1
         - id: websocket-service-route
@@ -205,6 +233,12 @@ spring:
           uri: lb://pay-service
           predicates:
             - Path=/api/pay/**
+          filters:
+            - StripPrefix=1
+        - id: accounts-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/accounts/**
           filters:
             - StripPrefix=1
     kubernetes:

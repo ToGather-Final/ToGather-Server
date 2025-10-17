@@ -1,8 +1,18 @@
 package com.example.vote_service.service;
 
+import com.example.module_common.dto.vote.TradingAction;
+import com.example.module_common.dto.vote.VoteTradingRequest;
+import com.example.module_common.dto.vote.VoteTradingResponse;
+import com.example.vote_service.client.TradingServiceClient;
 import com.example.vote_service.client.UserServiceClient;
 import com.example.vote_service.dto.ProposalCreateRequest;
+import com.example.vote_service.dto.UserMeResponse;
+
+import com.example.vote_service.dto.payload.PayPayload;
+import com.example.vote_service.dto.payload.TradePayload;
+import com.example.vote_service.event.VoteExpirationEvent;
 import com.example.vote_service.model.Proposal;
+import com.example.vote_service.model.ProposalCategory;
 import com.example.vote_service.model.ProposalStatus;
 import com.example.vote_service.repository.ProposalRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
@@ -10,11 +20,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,7 +46,10 @@ public class ProposalService {
     private final GroupMembersRepository groupMembersRepository;
     private final HistoryService historyService;
     private final UserServiceClient userServiceClient;
+    private final TradingServiceClient tradingServiceClient;
     private final ObjectMapper objectMapper;
+    private final TaskScheduler taskScheduler;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 제안 생성
@@ -46,16 +64,28 @@ public class ProposalService {
         UUID groupId = getUserGroupId(userId);
         log.info("사용자 그룹 조회 완료 - userId: {}, groupId: {}", userId, groupId);
         
-        // 2. 사용자 닉네임 조회
-        String proposerName = userServiceClient.getUserNickname(userId);
-        log.info("사용자 닉네임 조회 완료 - userId: {}, proposerName: {}", userId, proposerName);
+        // 2. 사용자 닉네임 조회 (/users/me API 호출)
+        String proposerName;
+        log.info("🔍 사용자 닉네임 조회 시작 - userId: {}", userId);
+        try {
+            log.info("📞 userServiceClient.getCurrentUser() 호출 시작");
+            UserMeResponse userMe = userServiceClient.getCurrentUser();
+            log.info("📞 userServiceClient.getCurrentUser() 응답 받음 - userMe: {}", userMe);
+            
+            proposerName = userMe.nickname();
+            log.info("✅ 사용자 닉네임 조회 성공 - userId: {}, proposerName: {}", userId, proposerName);
+        } catch (Exception e) {
+            log.error("❌ 사용자 닉네임 조회 실패 - userId: {}, error: {}", userId, e.getMessage());
+            log.error("❌ Exception 상세 정보:", e);
+            proposerName = "사용자"; // API 호출 실패 시 기본값
+            log.info("⚠️ 기본값 사용 - userId: {}, proposerName: {}", userId, proposerName);
+        }
         
         // 3. payload를 유효한 JSON으로 변환
         String validatedPayload = validateAndConvertPayload(request.payload());
         
-        // 4. 투표 생성
-        // 투표 종료 시간은 임시로 5분 후로 설정
-        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
+        // 4. 투표 기간 설정 (그룹 규칙에서 가져오기)
+        LocalDateTime closeAt = calculateVoteCloseTime(groupId);
         
         Proposal proposal = Proposal.create(
                 groupId,
@@ -71,12 +101,13 @@ public class ProposalService {
         Proposal saved = proposalRepository.save(proposal);
         
         // 5. 히스토리 생성 (VOTE_CREATED)
-        historyService.createVoteCreatedHistory(
-            userId,
-            saved.getProposalId(),
-            request.proposalName(),
-            proposerName
-        );
+        createVoteCreatedHistory(saved, request, proposerName);
+        
+        // 6. 투표 마감 시간에 정확히 실행되는 작업 스케줄
+        scheduleVoteExpiration(saved.getProposalId(), closeAt, groupId);
+        
+        log.info("투표 생성 완료 - proposalId: {}, closeAt: {}", 
+                saved.getProposalId(), closeAt);
         
         return saved.getProposalId();
     }
@@ -162,6 +193,41 @@ public class ProposalService {
         return groupId;
     }
 
+    public void executeVoteBasedTrading(UUID proposalId) {
+        Proposal proposal = getProposal(proposalId);
+
+        if (proposal.getStatus() == ProposalStatus.APPROVED && proposal.getCategory() == ProposalCategory.TRADE) {
+            try {
+                VoteTradingRequest request = parsePayloadToVoteTradingRequest(proposal);
+
+                VoteTradingResponse response = tradingServiceClient.executeVoteBasedTrading(request);
+                log.info("투표 기반 거래 실행 완료: {}", response);
+            } catch (Exception e) {
+                log.error("투표 기반 거래 실행 실패: {}", e.getMessage());
+            }
+        }
+    }
+
+    private VoteTradingRequest parsePayloadToVoteTradingRequest(Proposal proposal) {
+        try{
+            Map<String, Object> payloadMap = objectMapper.readValue(proposal.getPayload(), Map.class);
+
+            return new VoteTradingRequest(
+                    proposal.getProposalId(),
+                    proposal.getGroupId(),
+                    UUID.fromString((String) payloadMap.get("stockId")),
+                    TradingAction.valueOf(proposal.getAction().name()),
+                    (Integer) payloadMap.get("quantity"),
+                    new BigDecimal(payloadMap.get("price").toString()),
+                    proposal.getPayload(),
+                    null, null, null, null, null, null, null
+            );
+        } catch (Exception e) {
+            log.error("payload 파싱 실패: {}", e.getMessage());
+            throw new IllegalArgumentException("거래 정보를 파싱할 수 없습니다.");
+        }
+    }
+
     /**
      * 그룹 멤버십 검증
      * - 사용자가 특정 그룹의 멤버인지 확인
@@ -174,6 +240,62 @@ public class ProposalService {
     private void validateGroupMembership(UUID userId, UUID groupId) {
         if (!groupMembersRepository.existsByUserIdAndGroupId(userId, groupId)) {
             throw new IllegalArgumentException("해당 그룹의 멤버가 아닙니다.");
+        }
+    }
+
+    /**
+     * 투표 마감 시간 계산
+     * - 현재는 기본값 5분 사용 (user-service에 voteDurationHours 필드가 없음)
+     * - 추후 user-service에서 투표 기간 설정 기능이 추가되면 API 호출로 변경 예정
+     * 
+     * @param groupId 그룹 ID
+     * @return 투표 마감 시간
+     */
+    private LocalDateTime calculateVoteCloseTime(UUID groupId) {
+        // TODO: user-service에서 voteDurationHours 필드가 추가되면 API 호출로 변경
+        // 현재는 기본값 5분 사용
+        // LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
+        // log.info("투표 마감 시간 설정 (기본값 5분) - groupId: {}, closeAt: {}", groupId, closeAt);
+        
+        // 디버깅용: 1분으로 설정
+        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(1);
+        log.info("투표 마감 시간 설정 (디버깅용 1분) - groupId: {}, closeAt: {}", groupId, closeAt);
+        
+        return closeAt;
+    }
+
+    /**
+     * 투표 마감 시간에 정확히 실행되는 작업 스케줄
+     * - closeAt 시간에 딱 한 번만 실행되어 가결/부결 판단
+     * 
+     * @param proposalId 제안 ID
+     * @param closeAt 마감 시간
+     * @param groupId 그룹 ID
+     */
+    private void scheduleVoteExpiration(UUID proposalId, LocalDateTime closeAt, UUID groupId) {
+        try {
+            // closeAt 시간을 Instant로 변환
+            var instant = closeAt.atZone(ZoneId.systemDefault()).toInstant();
+            
+            log.info("투표 마감 스케줄 등록 - proposalId: {}, closeAt: {}", proposalId, closeAt);
+            
+            // closeAt 시간에 딱 한 번 실행되는 작업 스케줄
+            taskScheduler.schedule(() -> {
+                try {
+                    log.info("투표 마감 시간 도달, 이벤트 발행 - proposalId: {}, scheduledTime: {}", 
+                            proposalId, LocalDateTime.now());
+                    
+                    // 순환 참조 없이 이벤트로 투표 마감 알림
+                    eventPublisher.publishEvent(new VoteExpirationEvent(proposalId, groupId));
+                    
+                } catch (Exception e) {
+                    log.error("투표 마감 이벤트 발행 실패 - proposalId: {}, error: {}", proposalId, e.getMessage(), e);
+                }
+            }, instant);
+            
+        } catch (Exception e) {
+            log.error("투표 마감 스케줄 등록 실패 - proposalId: {}, closeAt: {}, error: {}", 
+                    proposalId, closeAt, e.getMessage(), e);
         }
     }
 
@@ -221,6 +343,47 @@ public class ProposalService {
             log.error("payload JSON 변환 실패: {}", payload, e);
             // 변환 실패 시 빈 JSON 객체 반환
             return "{}";
+        }
+    }
+
+    private void createVoteCreatedHistory(Proposal proposal, ProposalCreateRequest request, String proposerName) {
+        try {
+            if (request.isTradeCategory()) {
+                // TRADE 카테고리: TradePayload에서 정보 추출
+                TradePayload tradePayload = objectMapper.convertValue(request.payload(), TradePayload.class);
+                historyService.createVoteCreatedHistory(
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        tradePayload.price(),
+                        tradePayload.quantity()
+                );
+            } else if (request.isPayCategory()) {
+                // PAY 카테고리: PayPayload에서 정보 추출
+                PayPayload payPayload = objectMapper.convertValue(request.payload(), PayPayload.class);
+                historyService.createVoteCreatedHistory(
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        payPayload.amountPerPerson(), // price: 인당 충전 금액
+                        1  // quantity: 기본값 1 (인당)
+                );
+            } else {
+                // 기타 카테고리: 기본값 사용
+                historyService.createVoteCreatedHistory(
+                        proposal.getUserId(),
+                        proposal.getProposalId(),
+                        request.proposalName(),
+                        proposerName,
+                        0, // price 기본값
+                        0  // quantity 기본값
+                );
+            }
+        } catch (Exception e) {
+            log.error("투표 생성 히스토리 생성 실패 - proposalId: {}, error: {}",
+                    proposal.getProposalId(), e.getMessage(), e);
         }
     }
 }
