@@ -339,7 +339,7 @@ jobs:
       if: github.ref == 'refs/heads/main'
       run: |
         echo "🔥 Next.js 클라이언트 Prewarming 시작..."
-        SITE_URL="https://투게더.store"
+        SITE_URL="https://xn--o79aq2k062a.store"
         
         # 배포 완료 대기 (최대 2분)
         echo "⏳ Next.js 클라이언트 준비 대기 중..."

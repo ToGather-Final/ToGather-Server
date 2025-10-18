@@ -17,10 +17,10 @@ metadata:
     # ✅ SSL/TLS 설정
 #    alb.ingress.kubernetes.io/ssl-redirect: '443'
 #    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-#    alb.ingress.kubernetes.io/certificate-arn: ${CERTIFICATE_ARN}
+#    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:340623336075:certificate/66b08f32-5582-4357-b5b7-c2a796b4d49d
 
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/certificate-arn: ${CERTIFICATE_ARN}
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:340623336075:certificate/66b08f32-5582-4357-b5b7-c2a796b4d49d
 
     # ✅ HTTP → HTTPS 리다이렉션 액션 정의
     alb.ingress.kubernetes.io/actions.ssl-redirect: >
@@ -39,16 +39,20 @@ metadata:
       routing.http.drop_invalid_header_fields.enabled=true,
       routing.http2.enabled=true
 
-    # 🚀 타임아웃 설정 (느린 네트워크 대응)
+    # 🚀 타임아웃 설정 (SSR 렌더링 대응)
     alb.ingress.kubernetes.io/backend-protocol: HTTP
     alb.ingress.kubernetes.io/target-group-attributes: >
       deregistration_delay.timeout_seconds=30,
       stickiness.enabled=true,
       stickiness.lb_cookie.duration_seconds=86400,
-      load_balancing.cross_zone.enabled=true
+      load_balancing.cross_zone.enabled=true,
+      health_check.timeout_seconds=10,
+      health_check.interval_seconds=15,
+      health_check.healthy_threshold_count=2,
+      health_check.unhealthy_threshold_count=3
     
-    # 🚀 연결 최적화 (초기 연결 지연 해결)
-    alb.ingress.kubernetes.io/connection-idle-timeout: "120"
+    # 🚀 연결 최적화 (SSR 렌더링 대응)
+    alb.ingress.kubernetes.io/connection-idle-timeout: "60"
     alb.ingress.kubernetes.io/success-codes: "200,301,302"
 
 spec:
@@ -97,26 +101,6 @@ spec:
                   number: 3000
 
     # ===============================================
-    # 🔒 HTTP 요청 → HTTPS로 리다이렉션
+    # 🔒 HTTP 요청 → HTTPS로 리다이렉션 (제거)
     # ===============================================
-    - host: xn--o79aq2k062a.store
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: ssl-redirect
-                port:
-                  name: use-annotation
-
-    - host: www.xn--o79aq2k062a.store
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: ssl-redirect
-                port:
-                  name: use-annotation
+    # HTTP 리다이렉션은 ALB annotation으로 처리됨
