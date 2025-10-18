@@ -40,7 +40,7 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
-    @Operation(summary = "회원가입", description = "새로운 사용자 계정을 생성하고 액세스 토큰과 리프레시 토큰을 발급합니다.")
+    @Operation(summary = "회원가입", description = "새로운 사용자 계정을 생성하고 액세스 토큰과 리프레시 토큰을 발급합니다.", security = {})
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "회원가입 성공"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 또는 중복된 사용자명"),
@@ -77,7 +77,7 @@ public class AuthController {
         }
     }
 
-    @Operation(summary = "로그인", description = "사용자 인증 후 액세스 토큰과 리프레시 토큰을 발급합니다.")
+    @Operation(summary = "로그인", description = "사용자 인증 후 액세스 토큰과 리프레시 토큰을 발급합니다.", security = {})
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "로그인 성공"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
@@ -94,7 +94,7 @@ public class AuthController {
         return new LoginResponse(accessToken, refreshToken, userId);
     }
 
-    @Operation(summary = "토큰 갱신", description = "리프레시 토큰을 사용하여 새로운 액세스 토큰과 리프레시 토큰을 발급합니다.")
+    @Operation(summary = "토큰 갱신", description = "리프레시 토큰을 사용하여 새로운 액세스 토큰과 리프레시 토큰을 발급합니다.", security = {})
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "토큰 갱신 성공"),
         @ApiResponse(responseCode = "401", description = "유효하지 않은 리프레시 토큰 또는 디바이스 ID 누락")
