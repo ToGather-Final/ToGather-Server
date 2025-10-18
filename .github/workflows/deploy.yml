@@ -42,6 +42,21 @@ jobs:
         token: ${{ secrets.GH_PAT }}
         path: togather-client
 
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: latest
+
+    - name: Cache pnpm dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.pnpm-store
+          togather-client/node_modules
+        key: ${{ runner.os }}-pnpm-${{ hashFiles('togather-client/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
@@ -69,12 +84,21 @@ jobs:
 #        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
 #        docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
 #        docker push $ECR_REGISTRY/togather/client:latest
-    - name: Build and push Next.js Client image
+    - name: Build Next.js Client and upload static assets
       run: |
+        # Next.js 빌드
+        cd togather-client
+        pnpm install --frozen-lockfile
+        pnpm run build
+        
+        # 정적 자산을 S3에 업로드
+        pnpm run upload-assets
+        
+        # Docker 이미지 빌드
         docker build \
           --build-arg NEXT_PUBLIC_API_BASE_URL=${{ secrets.PROD_API_BASE_URL }} \
           -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
-          -f ./togather-client/Dockerfile ./togather-client
+          -f ./Dockerfile .
 
         docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
         docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
