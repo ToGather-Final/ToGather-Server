@@ -174,13 +174,12 @@ jobs:
         envsubst < k8s/nextjs-client.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/ingress.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         
-        # 나머지 리소스들 (ConfigMap, Service, Ingress 등) 배포
+        # 나머지 리소스들 (ConfigMap, Service, HPA 등) 배포
         kubectl apply -f k8s/configmap.yaml -n ${{ env.EKS_NAMESPACE }}
         kubectl apply -f k8s/configmap-env.yaml -n ${{ env.EKS_NAMESPACE }}
         kubectl apply -f k8s/redis.yaml -n ${{ env.EKS_NAMESPACE }}
         kubectl apply -f k8s/rabbitmq.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/ingress.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/nextjs-client.yaml -n ${{ env.EKS_NAMESPACE }}
+        # ingress.yaml과 nextjs-client.yaml은 위에서 envsubst로 이미 배포됨
         kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}    
 
         # 5. 각 디플로이먼트에 커밋 SHA 이미지 설정 (롤아웃 트리거)
