@@ -109,7 +109,7 @@ public class GroupService {
     }
 
     @Transactional
-    public void acceptInvite(String code, UUID userId) {
+    public InviteAcceptResponse acceptInvite(String code, UUID userId) {
         InvitationCode invitationCode = invitationCodeRepository.findByCode(code)
                 .orElseThrow(() -> new NoSuchElementException("초대 코드를 찾을 수 없습니다."));
 
@@ -123,6 +123,11 @@ public class GroupService {
 
         invitationCode.expire();
         invitationCodeRepository.save(invitationCode);
+
+        Group group = groupRepository.findById(invitationCode.getGroupId())
+                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        return new InviteAcceptResponse(group.getGroupId(), group.getGroupName());
     }
 
     @Transactional(readOnly = true)
@@ -231,6 +236,14 @@ public class GroupService {
             log.error("❌ 예상치 못한 오류 발생 - groupId: {}, error: {}", groupId, e.getMessage(), e);
             throw new RuntimeException("투표 정족수 조회 중 오류가 발생했습니다.", e);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public String getCurrentInvitationCode(UUID groupId, UUID userId) {
+        assertMember(groupId, userId);
+        return invitationCodeRepository.findByGroupIdAndIsExpiredFalse(groupId)
+                .map(InvitationCode::getCode)
+                .orElse(null);
     }
 
     private void assertMember(UUID groupId, UUID userId) {

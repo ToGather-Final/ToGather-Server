@@ -54,13 +54,16 @@ public class GroupController {
         List<GroupMember> members = groupService.members(groupId, userId);
         int currentMembers = members.size();
 
+        String invitationCode = groupService.getCurrentInvitationCode(groupId, userId);
+
         GroupSummaryResponse body = new GroupSummaryResponse(
                 group.getGroupId(),
                 group.getGroupName(),
                 group.getMaxMembers(),
                 currentMembers,
                 group.getGoalAmount(),
-                group.getInitialAmount()
+                group.getInitialAmount(),
+                invitationCode
         );
 
         return ResponseEntity.ok(body);
@@ -195,12 +198,12 @@ public class GroupController {
         @ApiResponse(responseCode = "404", description = "초대 코드를 찾을 수 없음")
     })
     @PostMapping("/invites/{code}/accept")
-    public ResponseEntity<Void> acceptInvite(
+    public ResponseEntity<InviteAcceptResponse> acceptInvite(
             @Parameter(description = "초대 코드", required = true) @PathVariable String code,
             Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
-        groupService.acceptInvite(code, userId);
-        return ResponseEntity.noContent().build();
+        InviteAcceptResponse response = groupService.acceptInvite(code, userId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "그룹 상태 확인", description = "그룹의 현재 상태(대기중/활성화), 현재 멤버 수, 최대 멤버 수를 확인합니다. 클라이언트에서 대기중 화면 표시 여부를 결정할 때 사용합니다.")

@@ -8,5 +8,6 @@ public record GroupSummaryResponse(
         Integer maxMembers,
         Integer currentMembers,
         Integer goalAmount,
-        Integer initialAmount) {
+        Integer initialAmount,
+        String invitationCode) {
 }
