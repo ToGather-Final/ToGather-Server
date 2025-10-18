@@ -4,13 +4,21 @@ metadata:
   name: togather-ingress
   namespace: togather
   annotations:
+    # 🔒 보안 그룹 설정 (CloudFront → ALB)
+    # ⚠️ inbound-cidrs 제거: ALB가 자동 생성한 보안 그룹을 AWS Console에서 수동 관리
+    # CloudFront Managed Prefix List (com.amazonaws.global.cloudfront.origin-facing)를
+    # 보안 그룹 인바운드 규칙에 추가하여 HTTP(80), HTTPS(443) 포트 허용
+    
     # ✅ ALB 기본 설정
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/load-balancer-name: togather-alb
 
     # ✅ SSL/TLS 설정
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
+#    alb.ingress.kubernetes.io/ssl-redirect: '443'
+#    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+#    alb.ingress.kubernetes.io/certificate-arn: ${CERTIFICATE_ARN}
+
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/certificate-arn: ${CERTIFICATE_ARN}
 
