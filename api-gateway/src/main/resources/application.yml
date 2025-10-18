@@ -141,6 +141,14 @@ spring:
           predicates:
             - Path=/ws/**
 
+        # 알림 서비스 (vote-service에서 제공)
+        - id: notification-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/notification/**
+          filters:
+            - StripPrefix=1
+            
         # 결제 서비스
         - id: pay-service
           uri: http://localhost:8083
