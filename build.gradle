@@ -96,8 +96,6 @@ project(":api-gateway") {
 		runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
 		runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 
-		// SpringDoc OpenAPI (WebFlux)
-		implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.0.2'
 
 		// Lombok
 		compileOnly 'org.projectlombok:lombok'
