@@ -113,19 +113,22 @@ public class GroupService {
         InvitationCode invitationCode = invitationCodeRepository.findByCode(code)
                 .orElseThrow(() -> new NoSuchElementException("초대 코드를 찾을 수 없습니다."));
 
-        validateInvitationAcceptable(invitationCode);
+        Group group = groupRepository.findById(invitationCode.getGroupId())
+                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
 
         GroupMemberId groupMemberId = new GroupMemberId(userId, invitationCode.getGroupId());
         boolean isAlreadyMember = groupMemberRepository.existsById(groupMemberId);
         if (!isAlreadyMember) {
             groupMemberRepository.save(GroupMember.join(invitationCode.getGroupId(), userId));
+
+            group.addMember();
+            groupRepository.save(group);
         }
 
-        invitationCode.expire();
-        invitationCodeRepository.save(invitationCode);
-
-        Group group = groupRepository.findById(invitationCode.getGroupId())
-                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+        if (group.isFull()) {
+            invitationCode.expire();
+            invitationCodeRepository.save(invitationCode);
+        }
 
         return new InviteAcceptResponse(group.getGroupId(), group.getGroupName());
     }
@@ -161,8 +164,8 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
 
-        if (group.getStatus() == GroupStatus.ACTIVE) {
-            throw new IllegalArgumentException("그룹이 이미 활성화되어 더 이상 멤버를 추가할 수 없습니다.");
+        if (group.getStatus() != GroupStatus.WAITING) {
+            throw new IllegalArgumentException("그룹이 이미 활성화되어 더 이상 참여할 수 없습니다.");
         }
 
         GroupMember member = GroupMember.join(groupId, request.userId());
@@ -178,11 +181,14 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
 
+        // 실제 GroupMember 테이블에서 멤버 수 계산
+        long actualMemberCount = groupMemberRepository.countByIdGroupId(groupId);
+
         return new GroupStatusResponse(
                 group.getStatus(),
-                group.getCurrentMembers(),
+                (int) actualMemberCount,  // 실제 멤버 수 사용
                 group.getMaxMembers(),
-                group.isFull()
+                actualMemberCount >= group.getMaxMembers()  // 실제 멤버 수로 계산
         );
     }
 
@@ -190,12 +196,16 @@ public class GroupService {
     public List<GroupStatusResponse> getMyGroupsStatus(UUID userId) {
         List<Group> groups = groupRepository.findAllByMember(userId);
         return groups.stream()
-                .map(g -> new GroupStatusResponse(
-                        g.getStatus(),
-                        g.getCurrentMembers(),
-                        g.getMaxMembers(),
-                        g.isFull()
-                ))
+                .map(g -> {
+                    // 실제 GroupMember 테이블에서 멤버 수 계산
+                    long actualMemberCount = groupMemberRepository.countByIdGroupId(g.getGroupId());
+                    return new GroupStatusResponse(
+                            g.getStatus(),
+                            (int) actualMemberCount,  // 실제 멤버 수 사용
+                            g.getMaxMembers(),
+                            actualMemberCount >= g.getMaxMembers()  // 실제 멤버 수로 계산
+                    );
+                })
                 .toList();
     }
 
