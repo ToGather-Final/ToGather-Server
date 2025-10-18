@@ -36,7 +36,12 @@ metadata:
     alb.ingress.kubernetes.io/target-group-attributes: >
       deregistration_delay.timeout_seconds=30,
       stickiness.enabled=true,
-      stickiness.lb_cookie.duration_seconds=86400
+      stickiness.lb_cookie.duration_seconds=86400,
+      load_balancing.cross_zone.enabled=true
+    
+    # 🚀 연결 최적화 (초기 연결 지연 해결)
+    alb.ingress.kubernetes.io/connection-idle-timeout: "120"
+    alb.ingress.kubernetes.io/success-codes: "200,301,302"
 
 spec:
   ingressClassName: alb
