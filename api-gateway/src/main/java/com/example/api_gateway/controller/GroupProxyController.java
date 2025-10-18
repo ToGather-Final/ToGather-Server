@@ -240,7 +240,7 @@ public class GroupProxyController {
 
     @Operation(summary = "초대 수락", description = "초대 코드를 사용하여 그룹에 참여합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "204", description = "초대 수락 성공"),
+        @ApiResponse(responseCode = "200", description = "초대 수락 성공"),
         @ApiResponse(responseCode = "400", description = "잘못된 초대 코드 또는 이미 만료됨"),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
         @ApiResponse(responseCode = "404", description = "초대 코드를 찾을 수 없음")
