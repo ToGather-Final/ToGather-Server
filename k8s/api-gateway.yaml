@@ -79,24 +79,24 @@ spec:
                 name: togather-secrets
           resources:
             requests:
-              memory: "384Mi"
-              cpu: "150m"
+              memory: "256Mi"
+              cpu: "100m"
             limits:
-              memory: "768Mi"
-              cpu: "600m"
+              memory: "512Mi"
+              cpu: "300m"
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8000
-            initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8000
-            initialDelaySeconds: 50
+            initialDelaySeconds: 90
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
