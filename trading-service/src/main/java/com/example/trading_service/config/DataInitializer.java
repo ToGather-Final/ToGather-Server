@@ -22,13 +22,9 @@ public class DataInitializer implements CommandLineRunner {
     private static final Map<String, String> ETF_CODES = Map.ofEntries(
         // SOL ETF
         Map.entry("446720", "SOL 미국배당다우존스"),
-        Map.entry("295040", "SOL 200TR"),
         Map.entry("466920", "SOL 조선TOP3플러스"),
         Map.entry("0105E0", "SOL 코리아고배당"),
         Map.entry("497880", "SOL CD금리&머니마켓액티브"),
-        Map.entry("433330", "SOL 미국S&P500"),
-        Map.entry("481190", "SOL 미국테크TOP10"),
-        Map.entry("481180", "SOL 미국AI소프트웨어"),
         // KODEX ETF
         Map.entry("069500", "KODEX 200"),
         Map.entry("379800", "KODEX 미국S&P500TR"),
@@ -92,12 +88,47 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createAllStocks() {
-        // 국내 주식 15개 생성
+        // 국내 주식 10개 생성
         createStocks();
         
-        // ETF 15개 생성
+        // ETF 6개 생성
         ETF_CODES.forEach((code, name) -> 
             createStock(code, name, Stock.Country.KR, Stock.Market.KOSPI, "500"));
+    }
+
+    private void createMissingStocks() {
+        // 국내 주식 10개 확인 및 생성
+        createMissingStocksFromMap(getStockMap());
+        
+        // ETF 6개 확인 및 생성
+        createMissingStocksFromMap(ETF_CODES);
+    }
+
+    private Map<String, String> getStockMap() {
+        return Map.ofEntries(
+                Map.entry("005930", "삼성전자"),
+                Map.entry("000660", "SK하이닉스"),
+                Map.entry("373220", "LG에너지솔루션"),
+                Map.entry("000150", "두산에너빌리티"),
+                Map.entry("005380", "현대차"),
+                Map.entry("012450", "한화에어로스페이스"),
+                Map.entry("329180", "HD현대중공업"),
+                Map.entry("000270", "기아"),
+                Map.entry("105560", "KB금융"),
+                Map.entry("068270", "셀트리온")
+        );
+    }
+
+    private void createMissingStocksFromMap(Map<String, String> stockMap) {
+        stockMap.forEach((code, name) -> {
+            // 이미 존재하는지 확인
+            if (!stockRepository.existsByStockCode(code)) {
+                String prdtTypeCd = stockMap == ETF_CODES ? "500" : "300";
+                createStock(code, name, Stock.Country.KR, Stock.Market.KOSPI, prdtTypeCd);
+            } else {
+                log.debug("주식 코드 {}는 이미 존재합니다.", code);
+            }
+        });
     }
 
     private void createStock(String stockCode, String stockName, Stock.Country country, Stock.Market market, String prdtTypeCd) {
@@ -118,22 +149,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createStocks() {
-        Map<String, String> stocks = Map.ofEntries(
-                Map.entry("005930", "삼성전자"),
-                Map.entry("000660", "SK하이닉스"),
-                Map.entry("373220", "LG에너지솔루션"),
-                Map.entry("000150", "두산에너빌리티"),
-                Map.entry("005380", "현대차"),
-                Map.entry("012450", "한화에어로스페이스"),
-                Map.entry("329180", "HD현대중공업"),
-                Map.entry("000270", "기아"),
-                Map.entry("105560", "KB금융"),
-                Map.entry("068270", "셀트리온"),
-                Map.entry("035420", "NAVER"),
-                Map.entry("055550", "신한지주")
-        );
-
-        stocks.forEach((code, name) ->
+        getStockMap().forEach((code, name) ->
                 createStock(code, name, Stock.Country.KR, Stock.Market.KOSPI, "300"));
     }
 
