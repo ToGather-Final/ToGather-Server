@@ -32,7 +32,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // WebSocket 연결 엔드포인트
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*") // 개발 환경에서는 모든 origin 허용
                 .withSockJS(); // SockJS 지원 추가
     }
 
