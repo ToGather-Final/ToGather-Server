@@ -2,6 +2,7 @@ package com.example.trading_service.service;
 
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.BuyRequest;
+import com.example.trading_service.dto.GroupHoldingResponse;
 import com.example.trading_service.dto.OrderBookResponse;
 import com.example.trading_service.dto.SellRequest;
 import com.example.trading_service.exception.BusinessException;
@@ -336,5 +337,81 @@ public class GroupTradingService {
             
             historyRepository.save(history);
         }
+    }
+
+    /**
+     * 그룹 보유종목 조회
+     * @param groupId 그룹 ID
+     * @return 그룹 보유종목 목록
+     */
+    @Transactional(readOnly = true)
+    public List<GroupHoldingResponse> getGroupHoldings(UUID groupId) {
+        log.info("그룹 보유종목 조회 - 그룹ID: {}", groupId);
+        
+        // 그룹의 보유 수량이 0보다 큰 종목들만 조회
+        List<GroupHoldingCache> groupHoldings = groupHoldingCacheRepository
+                .findByGroupIdAndTotalQuantityGreaterThan(groupId, 0);
+        
+        List<GroupHoldingResponse> responses = new ArrayList<>();
+        
+        for (GroupHoldingCache holding : groupHoldings) {
+            Stock stock = holding.getStock();
+            
+            // 현재가 조회 (OrderBookService 사용)
+            OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
+            BigDecimal currentPrice = orderBook.getCurrentPrice();
+            
+            // 평가금액 계산
+            float evaluatedPrice = currentPrice.floatValue() * holding.getTotalQuantity();
+            
+            // 평가손익 계산
+            float totalCost = holding.getAvgCost() * holding.getTotalQuantity();
+            float profit = evaluatedPrice - totalCost;
+            
+            // 수익률 계산
+            float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+            
+            // 전일 대비 변동률 (OrderBook에서 가져옴)
+            float changeRate = orderBook.getChangeRate() != null ? orderBook.getChangeRate() : 0;
+            float changeAmount = orderBook.getChangePrice() != null ? 
+                    orderBook.getChangePrice().floatValue() * holding.getTotalQuantity() : 0;
+            
+            // 변동 방향 결정
+            String changeDirection = "unchanged";
+            if (changeRate > 0) {
+                changeDirection = "up";
+            } else if (changeRate < 0) {
+                changeDirection = "down";
+            }
+            
+            // 멤버당 평균 보유 수량 계산
+            float avgQuantityPerMember = holding.getMemberCount() > 0 ? 
+                    (float) holding.getTotalQuantity() / holding.getMemberCount() : 0;
+            
+            GroupHoldingResponse response = new GroupHoldingResponse(
+                    holding.getGroupHoldingId(),
+                    holding.getGroupId(),
+                    stock.getId(),
+                    stock.getStockCode(),
+                    stock.getStockName(),
+                    stock.getStockImage(),
+                    holding.getTotalQuantity(),
+                    holding.getAvgCost(),
+                    currentPrice.floatValue(),
+                    changeAmount,
+                    changeRate,
+                    profit,
+                    evaluatedPrice,
+                    profitRate,
+                    changeDirection,
+                    holding.getMemberCount(),
+                    avgQuantityPerMember
+            );
+            
+            responses.add(response);
+        }
+        
+        log.info("그룹 보유종목 조회 완료 - 그룹ID: {}, 보유종목 수: {}", groupId, responses.size());
+        return responses;
     }
 }
