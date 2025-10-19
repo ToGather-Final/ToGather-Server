@@ -11,11 +11,10 @@ import com.example.vote_service.dto.UserMeResponse;
 import com.example.vote_service.dto.payload.PayPayload;
 import com.example.vote_service.dto.payload.TradePayload;
 import com.example.vote_service.event.VoteExpirationEvent;
-import com.example.vote_service.model.Proposal;
-import com.example.vote_service.model.ProposalCategory;
-import com.example.vote_service.model.ProposalStatus;
+import com.example.vote_service.model.*;
 import com.example.vote_service.repository.ProposalRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
+import com.example.vote_service.repository.VoteRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +49,7 @@ public class ProposalService {
     private final ObjectMapper objectMapper;
     private final TaskScheduler taskScheduler;
     private final ApplicationEventPublisher eventPublisher;
+    private final VoteRepository voteRepository;
 
     /**
      * 제안 생성
@@ -105,7 +105,12 @@ public class ProposalService {
         
         // 6. 투표 마감 시간에 정확히 실행되는 작업 스케줄
         scheduleVoteExpiration(saved.getProposalId(), closeAt, groupId);
-        
+
+        // 7. 제안자 자동 찬성 투표
+        Vote proposerVote = Vote.create(saved.getProposalId(), userId, VoteChoice.AGREE);
+        voteRepository.save(proposerVote);
+        log.info("제안자 자동 찬성 투표 생성 - proposalId: {}, userId: {}", saved.getProposalId(), userId);
+
         log.info("투표 생성 완료 - proposalId: {}, closeAt: {}", 
                 saved.getProposalId(), closeAt);
         
