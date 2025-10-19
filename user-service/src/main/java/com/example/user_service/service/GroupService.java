@@ -14,6 +14,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.example.user_service.domain.InvitationCode.generateCode;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -103,6 +105,20 @@ public class GroupService {
     @Transactional
     public String issueInvitation(UUID groupId, UUID operatorId) {
         assertOperatorIsOwner(groupId, operatorId);
+
+        String code;
+        int maxAttempts = 10;
+        int attempts = 0;
+
+        do {
+            code = generateCode();
+            attempts++;
+
+            if (attempts > maxAttempts) {
+                throw new RuntimeException("초대 코드 생성에 실패했습니다. 다시 시도해주세요.");
+            }
+        } while (invitationCodeRepository.existsByCode(code));
+
         InvitationCode invitation = InvitationCode.issue(groupId);
         InvitationCode saved = invitationCodeRepository.save(invitation);
         return saved.getCode();
@@ -113,8 +129,14 @@ public class GroupService {
         InvitationCode invitationCode = invitationCodeRepository.findByCode(code)
                 .orElseThrow(() -> new NoSuchElementException("초대 코드를 찾을 수 없습니다."));
 
+        validateInvitationAcceptable(invitationCode);
+
         Group group = groupRepository.findById(invitationCode.getGroupId())
                 .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        if (group.getStatus() != GroupStatus.WAITING) {
+            throw new IllegalArgumentException("참여할 수 없는 그룹입니다.");
+        }
 
         GroupMemberId groupMemberId = new GroupMemberId(userId, invitationCode.getGroupId());
         boolean isAlreadyMember = groupMemberRepository.existsById(groupMemberId);
@@ -204,6 +226,33 @@ public class GroupService {
                             (int) actualMemberCount,  // 실제 멤버 수 사용
                             g.getMaxMembers(),
                             actualMemberCount >= g.getMaxMembers()  // 실제 멤버 수로 계산
+                    );
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<LoginResponse.UserGroupInfo> getUserGroupsForLogin(UUID userId) {
+        List<Group> groups = groupRepository.findAllByMember(userId);
+        return groups.stream()
+                .map(g -> {
+                    long actualMemberCount = groupMemberRepository.countByIdGroupId(g.getGroupId());
+
+                    boolean isOwner = g.getOwnerId().equals(userId);
+
+                    String groupCode = invitationCodeRepository.findByGroupIdAndIsExpiredFalse(g.getGroupId())
+                            .map(InvitationCode::getCode)
+                            .orElse(null);
+
+                    return new LoginResponse.UserGroupInfo(
+                            g.getGroupId(),
+                            g.getGroupName(),
+                            groupCode,
+                            g.getStatus(),
+                            (int) actualMemberCount,
+                            g.getMaxMembers(),
+                            actualMemberCount >= g.getMaxMembers(),
+                            isOwner
                     );
                 })
                 .toList();

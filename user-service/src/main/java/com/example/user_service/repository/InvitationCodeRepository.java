@@ -9,4 +9,6 @@ public interface InvitationCodeRepository extends JpaRepository<InvitationCode, 
     Optional<InvitationCode> findByCode(String code);
 
     Optional<InvitationCode> findByGroupIdAndIsExpiredFalse(UUID groupId);
+
+    boolean existsByCode(String code);
 }
