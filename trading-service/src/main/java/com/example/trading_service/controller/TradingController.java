@@ -120,7 +120,7 @@ public class TradingController {
     }
 
     // 그룹 포트폴리오 요약 정보 조회
-    @GetMapping("/trading/portfolio/summary")
+    @GetMapping("/portfolio/summary")
     public ResponseEntity<ApiResponse<PortfolioSummaryResponse>> getGroupPortfolioSummary(
             @RequestParam UUID groupId) {
         PortfolioSummaryResponse summary = groupTradingService.calculateGroupPortfolioSummary(groupId);
