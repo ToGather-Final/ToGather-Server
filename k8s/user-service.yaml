@@ -6,7 +6,7 @@ metadata:
   labels:
     app: user-service
 spec:
-  replicas: 2  # 🚀 20명 기준: 2개로 시작 (고가용성)
+  replicas: 1  # 🚀 HPA minReplicas와 일치 (기본 서비스)
   strategy:
     type: RollingUpdate
     rollingUpdate:

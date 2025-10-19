@@ -6,7 +6,7 @@ metadata:
   labels:
     app: vote-service
 spec:
-  replicas: 1  # 🚀 3-Node 환경: 최소 1개, HPA로 스케일링
+  replicas: 1  # 🚀 HPA minReplicas와 일치 (기본 서비스)
   strategy:
     type: RollingUpdate
     rollingUpdate:
