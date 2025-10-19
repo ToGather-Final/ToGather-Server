@@ -41,7 +41,7 @@ public class OpenApiConfig {
                                 .url("https://opensource.org/licenses/MIT")))
                 .servers(List.of(
                         new Server()
-                                .url("http://localhost:" + serverPort)
+                                .url("http://localhost:8000/api")
                                 .description("개발 서버"),
                         new Server()
                                 .url("https://api.togather.com")
@@ -73,7 +73,7 @@ public class OpenApiConfig {
                                 .url("https://opensource.org/licenses/MIT")))
                 .servers(List.of(
                         new Server()
-                                .url("http://localhost:" + serverPort)
+                                .url("http://localhost:8000/api")
                                 .description("개발 서버"),
                         new Server()
                                 .url("https://api.togather.com")

@@ -37,7 +37,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/trading/stocks",  // 주식 조회는 인증 불필요
             "/api/websocket",       // WebSocket API는 인증 불필요
             "/ws",                  // WebSocket 연결 엔드포인트
-            "/actuator"             // Spring Actuator 엔드포인트
+            "/actuator",             // Spring Actuator 엔드포인트
+            "/v3/api-docs",
+            "/swagger-ui"
     );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil) {

@@ -164,6 +164,35 @@ spring:
             - Path=/api/accounts/**
           filters:
             - StripPrefix=1
+
+        # Swagger API Docs
+        - id: user-service-api-docs
+          uri: http://localhost:8082
+          predicates:
+            - Path=/v3/api-docs/user-service
+          filters:
+            - RewritePath=/v3/api-docs/user-service, /v3/api-docs
+
+        - id: trading-service-api-docs
+          uri: http://localhost:8081
+          predicates:
+            - Path=/v3/api-docs/trading-service
+          filters:
+            - RewritePath=/v3/api-docs/trading-service, /v3/api-docs
+
+        - id: vote-service-api-docs
+          uri: http://localhost:8084
+          predicates:
+            - Path=/v3/api-docs/vote-service
+          filters:
+            - RewritePath=/v3/api-docs/vote-service, /v3/api-docs
+
+        - id: pay-service-api-docs
+          uri: http://localhost:8083
+          predicates:
+            - Path=/v3/api-docs/pay-service
+          filters:
+            - RewritePath=/v3/api-docs/pay-service, /v3/api-docs
     kubernetes:
       discovery:
         enabled: false  # 로컬 개발 환경에서는 비활성화
@@ -184,6 +213,23 @@ spring:
       - org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    urls:
+      - name: user-service
+        url: /v3/api-docs/user-service
+      - name: trading-service
+        url: /v3/api-docs/trading-service
+      - name: vote-service
+        url: /v3/api-docs/vote-service
+      - name: pay-service
+        url: /v3/api-docs/pay-service
+    groups-order: DESC
 
 ---
 # ===============================================
