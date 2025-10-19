@@ -119,7 +119,7 @@ public class GroupService {
             }
         } while (invitationCodeRepository.existsByCode(code));
 
-        InvitationCode invitation = InvitationCode.issue(groupId);
+        InvitationCode invitation = InvitationCode.issue(groupId, code);
         InvitationCode saved = invitationCodeRepository.save(invitation);
         return saved.getCode();
     }
@@ -141,10 +141,10 @@ public class GroupService {
         GroupMemberId groupMemberId = new GroupMemberId(userId, invitationCode.getGroupId());
         boolean isAlreadyMember = groupMemberRepository.existsById(groupMemberId);
         if (!isAlreadyMember) {
-            groupMemberRepository.save(GroupMember.join(invitationCode.getGroupId(), userId));
-
             group.addMember();
             groupRepository.save(group);
+
+            groupMemberRepository.save(GroupMember.join(invitationCode.getGroupId(), userId));
         }
 
         if (group.isFull()) {
