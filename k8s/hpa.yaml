@@ -1,83 +1,233 @@
-# HPA 임시 비활성화 (롤링 업데이트 충돌 방지)
-# apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
-# metadata:
-#   name: api-gateway-hpa
-#   namespace: togather
-# spec:
-#   scaleTargetRef:
-#     apiVersion: apps/v1
-#     kind: Deployment
-#     name: api-gateway
-#   minReplicas: 2
-#   maxReplicas: 5
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: togather
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 2  # 🚀 고가용성: 최소 2개 유지
+  maxReplicas: 5  # 🚀 확장성: 최대 5개까지 확장 가능
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120  # 🚀 안정화 시간 증가
+      policies:
+        - type: Percent
+          value: 50  # 🚀 50%씩 점진적 확장
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600  # 🚀 축소 안정화 시간 증가
+      policies:
+        - type: Percent
+          value: 25  # 🚀 25%씩 점진적 축소
+          periodSeconds: 180
 ---
-# HPA 임시 비활성화 (롤링 업데이트 충돌 방지)
-# apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
-# metadata:
-#   name: user-service-hpa
-#   namespace: togather
-# spec:
-#   scaleTargetRef:
-#     apiVersion: apps/v1
-#     kind: Deployment
-#     name: user-service
-#   minReplicas: 1
-#   maxReplicas: 3
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-service-hpa
+  namespace: togather
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-service
+  minReplicas: 1  # 🚀 기본 서비스: 최소 1개 유지
+  maxReplicas: 3  # 🚀 확장성: 최대 3개까지 확장 가능
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 180
 ---
-# HPA 임시 비활성화 (롤링 업데이트 충돌 방지)
-# apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
-# metadata:
-#   name: trading-service-hpa
-#   namespace: togather
-# spec:
-#   scaleTargetRef:
-#     apiVersion: apps/v1
-#     kind: Deployment
-#     name: trading-service
-#   minReplicas: 2
-#   maxReplicas: 5
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: trading-service-hpa
+  namespace: togather
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: trading-service
+  minReplicas: 2  # 🚀 고가용성: 최소 2개 유지
+  maxReplicas: 5  # 🚀 확장성: 최대 5개까지 확장 가능
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 180
 ---
-# HPA 임시 비활성화 (롤링 업데이트 충돌 방지)
-# apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
-# metadata:
-#   name: pay-service-hpa
-#   namespace: togather
-# spec:
-#   scaleTargetRef:
-#     apiVersion: apps/v1
-#     kind: Deployment
-#     name: pay-service
-#   minReplicas: 1
-#   maxReplicas: 3
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pay-service-hpa
+  namespace: togather
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pay-service
+  minReplicas: 1  # 🚀 기본 서비스: 최소 1개 유지
+  maxReplicas: 3  # 🚀 확장성: 최대 3개까지 확장 가능
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 180
 ---
-# HPA 임시 비활성화 (롤링 업데이트 충돌 방지)
-# apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
-# metadata:
-#   name: vote-service-hpa
-#   namespace: togather
-# spec:
-#   scaleTargetRef:
-#     apiVersion: apps/v1
-#     kind: Deployment
-#     name: vote-service
-#   minReplicas: 1
-#   maxReplicas: 3
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vote-service-hpa
+  namespace: togather
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vote-service
+  minReplicas: 1  # 🚀 기본 서비스: 최소 1개 유지
+  maxReplicas: 3  # 🚀 확장성: 최대 3개까지 확장 가능
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 180
 ---
-# HPA 임시 비활성화 (롤링 업데이트 충돌 방지)
-# apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
-# metadata:
-#   name: nextjs-client-hpa
-#   namespace: togather
-# spec:
-#   scaleTargetRef:
-#     apiVersion: apps/v1
-#     kind: Deployment
-#     name: nextjs-client
-#   minReplicas: 2
-#   maxReplicas: 5
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nextjs-client-hpa
+  namespace: togather
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nextjs-client
+  minReplicas: 2  # 🚀 고가용성: 최소 2개 유지
+  maxReplicas: 5  # 🚀 확장성: 최대 5개까지 확장 가능
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 180

@@ -78,12 +78,12 @@ spec:
             - secretRef:
                 name: togather-secrets
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "150m"  # 🚀 CPU 제한 감소
+              requests:
+                memory: "512Mi"  # 🚀 메모리 요청 대폭 증가
+                cpu: "200m"      # 🚀 CPU 요청 증가
+              limits:
+                memory: "1Gi"    # 🚀 메모리 제한 1GB (넉넉하게)
+                cpu: "500m"      # 🚀 CPU 제한 증가
           livenessProbe:
             httpGet:
               path: /api/health

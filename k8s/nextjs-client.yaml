@@ -37,11 +37,13 @@ spec:
           ports:
             - containerPort: 3000
           resources:
-              # 🚀 리소스 제한 없음 (HPA 비활성화로 인한 수동 관리)
+              # 🚀 HPA 호환을 위한 리소스 설정 (넉넉하게)
               requests:
-                memory: "256Mi"    # 최소 메모리만 요청
-                cpu: "100m"        # 최소 CPU만 요청
-              # limits 제거: 무제한 사용 가능
+                memory: "512Mi"    # 메모리 요청 증가
+                cpu: "200m"        # CPU 요청 증가
+              limits:
+                memory: "2Gi"      # 메모리 제한 2GB (넉넉하게)
+                cpu: "1000m"       # CPU 제한 1 vCPU
           env:
             - name: NODE_ENV
               value: "production"

@@ -54,11 +54,11 @@ spec:
               name: togather-secrets
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "100m"  # 🚀 CPU 요청 감소
+            memory: "512Mi"  # 🚀 메모리 요청 증가
+            cpu: "200m"      # 🚀 CPU 요청 증가
           limits:
-            memory: "512Mi"
-            cpu: "200m"  # 🚀 CPU 제한 감소
+            memory: "1Gi"    # 🚀 메모리 제한 1GB (넉넉하게)
+            cpu: "400m"      # 🚀 CPU 제한 증가
         livenessProbe:
           httpGet:
             path: /actuator/health

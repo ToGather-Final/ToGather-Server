@@ -213,7 +213,7 @@ jobs:
         kubectl apply -f k8s/redis.yaml -n ${{ env.EKS_NAMESPACE }}
         kubectl apply -f k8s/rabbitmq.yaml -n ${{ env.EKS_NAMESPACE }}
         # ingress.yaml과 nextjs-client.yaml은 위에서 envsubst로 이미 배포됨
-        kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}    
+        kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}  # 🚀 HPA 재활성화    
 
         # 5. 각 디플로이먼트에 커밋 SHA 이미지 설정 (롤아웃 트리거)
         kubectl set image deployment/api-gateway api-gateway=${{ env.ECR_REGISTRY }}/togather/api-gateway:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
