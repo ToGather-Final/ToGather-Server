@@ -1,8 +1,10 @@
 package com.example.user_service.controller;
 
+import com.example.user_service.domain.User;
 import com.example.user_service.dto.*;
 import com.example.user_service.domain.Group;
 import com.example.user_service.domain.GroupMember;
+import com.example.user_service.repository.UserRepository;
 import com.example.user_service.service.GroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,9 +34,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class GroupController {
 
     private final GroupService groupService;
+    private final UserRepository userRepository;
 
-    public GroupController(GroupService groupService) {
+    public GroupController(GroupService groupService, UserRepository userRepository) {
         this.groupService = groupService;
+        this.userRepository = userRepository;
     }
 
     @Operation(summary = "그룹 상세 정보 조회", description = "특정 그룹의 상세 정보를 조회합니다.")
@@ -97,8 +101,19 @@ public class GroupController {
         UUID userId = (UUID) authentication.getPrincipal();
         List<GroupMember> members = groupService.members(groupId, userId);
         UUID ownerId = groupService.getOwnerId(groupId);
+
         List<GroupMemberSimple> body = members.stream()
-                .map(m -> new GroupMemberSimple(m.getUserId(), resolveRole(m.getUserId(), ownerId))).toList();
+                .map(m -> {
+                    User user = userRepository.findById(m.getUserId())
+                            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+                    return new GroupMemberSimple(
+                            m.getUserId(),
+                            user.getNickname(),
+                            resolveRole(m.getUserId(), ownerId)
+                    );
+                })
+                .toList();
         return ResponseEntity.ok(body);
     }
 
