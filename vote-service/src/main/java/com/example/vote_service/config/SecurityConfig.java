@@ -43,7 +43,8 @@ public class SecurityConfig {
         });
         http.authorizeHttpRequests(reg -> {
             reg.requestMatchers("/actuator/**").permitAll();
-            reg.requestMatchers("/api/notification/stream/**").permitAll(); // SSE 알림 스트림 허용
+            reg.requestMatchers("/v3/api-docs/**").permitAll();
+            reg.requestMatchers("/swagger-ui/**").permitAll();
             reg.anyRequest().authenticated();
         });
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
