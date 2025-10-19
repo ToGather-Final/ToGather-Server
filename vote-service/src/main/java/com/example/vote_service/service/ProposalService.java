@@ -16,8 +16,10 @@ import com.example.vote_service.model.ProposalAction;
 import com.example.vote_service.model.ProposalCategory;
 import com.example.vote_service.model.ProposalStatus;
 import com.example.vote_service.model.HistoryType;
+import com.example.vote_service.model.*;
 import com.example.vote_service.repository.ProposalRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
+import com.example.vote_service.repository.VoteRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +54,7 @@ public class ProposalService {
     private final ObjectMapper objectMapper;
     private final TaskScheduler taskScheduler;
     private final ApplicationEventPublisher eventPublisher;
+    private final VoteRepository voteRepository;
 
     /**
      * 제안 생성
@@ -87,7 +90,7 @@ public class ProposalService {
         String validatedPayload = validateAndConvertPayload(request.payload());
         
         // 4. 투표 기간 설정 (그룹 규칙에서 가져오기)
-        LocalDateTime closeAt = calculateVoteCloseTime(groupId);
+        LocalDateTime closeAt = calculateVoteCloseTime(groupId, request);
         
         Proposal proposal = Proposal.create(
                 groupId,
@@ -107,7 +110,12 @@ public class ProposalService {
         
         // 6. 투표 마감 시간에 정확히 실행되는 작업 스케줄
         scheduleVoteExpiration(saved.getProposalId(), closeAt, groupId);
-        
+
+        // 7. 제안자 자동 찬성 투표
+        Vote proposerVote = Vote.create(saved.getProposalId(), userId, VoteChoice.AGREE);
+        voteRepository.save(proposerVote);
+        log.info("제안자 자동 찬성 투표 생성 - proposalId: {}, userId: {}", saved.getProposalId(), userId);
+
         log.info("투표 생성 완료 - proposalId: {}, closeAt: {}", 
                 saved.getProposalId(), closeAt);
         
@@ -253,15 +261,25 @@ public class ProposalService {
      * @param groupId 그룹 ID
      * @return 투표 마감 시간
      */
-    private LocalDateTime calculateVoteCloseTime(UUID groupId) {
+    private LocalDateTime calculateVoteCloseTime(UUID groupId, ProposalCreateRequest request) {
         // TODO: user-service에서 voteDurationHours 필드가 추가되면 API 호출로 변경
         // 현재는 기본값 5분 사용
         // LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
         // log.info("투표 마감 시간 설정 (기본값 5분) - groupId: {}, closeAt: {}", groupId, closeAt);
         
         // 디버깅용: 1분으로 설정
-        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(1);
-        log.info("투표 마감 시간 설정 (디버깅용 1분) - groupId: {}, closeAt: {}", groupId, closeAt);
+        int durationMinutes;
+
+        if (request.hasDuration()) {
+            durationMinutes = request.durationMinutes();
+            log.info("사용자 설정 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
+        } else {
+            durationMinutes = 10;
+            log.info("기본 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
+        }
+
+        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(durationMinutes);
+        log.info("투표 마감 시간 설정 - groupId: {}, durationMinutes: {}, closeAt: {}", groupId, durationMinutes, closeAt);
         
         return closeAt;
     }
