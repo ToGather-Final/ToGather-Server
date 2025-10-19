@@ -28,6 +28,8 @@ public class UserIdAuthFilter extends OncePerRequestFilter {
         return path.startsWith("/ws") ||              // WebSocket 연결 (최우선)
                path.startsWith("/trading/stocks") ||  // 주식 조회
                path.startsWith("/api/trading/stocks") || // API 주식 조회
+               path.startsWith("/trading/internal") || // Internal API (서비스 간 통신)
+               path.startsWith("/api/trading/internal") || // Internal API
                path.startsWith("/api/websocket") ||   // WebSocket API
                path.equals("/status") ||              // RewritePath로 변환된 경로
                path.equals("/reconnect") ||

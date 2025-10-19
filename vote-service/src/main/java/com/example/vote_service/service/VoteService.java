@@ -1,8 +1,11 @@
 package com.example.vote_service.service;
 
 import com.example.vote_service.client.UserServiceClient;
+import com.example.vote_service.client.TradingServiceClient;
 import com.example.vote_service.dto.VoteRequest;
+import com.example.vote_service.dto.InternalDepositRequest;
 import com.example.vote_service.dto.payload.TradePayload;
+import com.example.vote_service.dto.payload.PayPayload;
 import com.example.vote_service.event.VoteExpirationEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.vote_service.model.Proposal;
@@ -20,6 +23,7 @@ import java.util.List;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 /**
  * Vote 서비스
@@ -35,6 +39,7 @@ public class VoteService {
     private final GroupMembersRepository groupMembersRepository;
     private final HistoryService historyService;
     private final UserServiceClient userServiceClient;
+    private final TradingServiceClient tradingServiceClient;
     private final ObjectMapper objectMapper;
 
     /**
@@ -170,6 +175,12 @@ public class VoteService {
 
         if (isApproved) {
             proposalService.approveProposal(proposalId);
+            
+            // PAY 카테고리 투표 가결 시 자동 예수금 충전
+            if (proposal.getCategory().name().equals("PAY")) {
+                processPayVoteApproval(proposal);
+            }
+            
             // 히스토리 생성 (VOTE_APPROVED) - 실제 payload에서 정보 읽어오기
             createVoteApprovedHistoryFromProposal(proposal);
         } else {
@@ -183,6 +194,60 @@ public class VoteService {
         }
     }
 
+    /**
+     * PAY 투표 가결 시 자동 예수금 충전 처리
+     * - 그룹의 모든 멤버들에게 인당 충전 금액을 투자계좌에 자동 충전
+     */
+    private void processPayVoteApproval(Proposal proposal) {
+        try {
+            // PayPayload에서 충전 금액 정보 추출
+            PayPayload payPayload = objectMapper.readValue(proposal.getPayload(), PayPayload.class);
+            BigDecimal amountPerPerson = BigDecimal.valueOf(payPayload.amountPerPerson());
+            
+            // 그룹의 모든 멤버 조회
+            List<UUID> memberIds = groupMembersRepository.findUserIdsByGroupId(proposal.getGroupId());
+            
+            log.info("PAY 투표 가결 - 그룹: {}, 인당 충전 금액: {}, 멤버 수: {}", 
+                    proposal.getGroupId(), amountPerPerson, memberIds.size());
+            
+            // 각 멤버에게 예수금 충전
+            for (UUID memberId : memberIds) {
+                try {
+                    InternalDepositRequest depositRequest = new InternalDepositRequest(
+                            memberId,
+                            amountPerPerson,
+                            proposal.getGroupId(),
+                            "투표 가결에 따른 예수금 충전 - " + proposal.getProposalName()
+                    );
+                    
+                    tradingServiceClient.internalDepositFunds(depositRequest);
+                    
+                    log.info("예수금 충전 완료 - 사용자: {}, 금액: {}", memberId, amountPerPerson);
+                    
+                } catch (Exception e) {
+                    log.error("예수금 충전 실패 - 사용자: {}, 금액: {}, 오류: {}", 
+                            memberId, amountPerPerson, e.getMessage(), e);
+                    // 개별 사용자 충전 실패는 전체 프로세스를 중단하지 않음
+                }
+            }
+            
+            // 예수금 충전 완료 히스토리 생성 (그룹 단위로 하나만)
+            historyService.createCashDepositCompletedHistory(
+                    proposal.getGroupId(),
+                    proposal.getProposalName(),
+                    amountPerPerson.intValue(),
+                    memberIds.size(),
+                    memberIds
+            );
+            
+            log.info("PAY 투표 가결 처리 완료 - 그룹: {}, 총 처리 멤버: {}", 
+                    proposal.getGroupId(), memberIds.size());
+                    
+        } catch (Exception e) {
+            log.error("PAY 투표 가결 처리 중 오류 발생 - proposalId: {}, 오류: {}", 
+                    proposal.getProposalId(), e.getMessage(), e);
+        }
+    }
 
     /**
      * 투표 결과 집계 (간단 버전 - 정족수 정보 없이)

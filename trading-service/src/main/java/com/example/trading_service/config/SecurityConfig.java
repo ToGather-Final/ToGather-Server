@@ -37,6 +37,9 @@ public class SecurityConfig {
                 // 주식 조회는 인증 불필요
                 .requestMatchers("/api/trading/stocks", "/api/trading/stocks/**").permitAll()
                 .requestMatchers("/trading/stocks", "/trading/stocks/**").permitAll()
+                // Internal API는 서비스 간 통신용으로 허용
+                .requestMatchers("/trading/internal/**").permitAll()
+                .requestMatchers("/api/trading/internal/**").permitAll()
                 // WebSocket API는 인증 불필요
                 .requestMatchers("/api/websocket/**").permitAll()
                 // RewritePath로 변환된 경로들도 허용

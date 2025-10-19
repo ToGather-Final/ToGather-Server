@@ -274,7 +274,7 @@ public class ProposalService {
             durationMinutes = request.durationMinutes();
             log.info("사용자 설정 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
         } else {
-            durationMinutes = 10;
+            durationMinutes = 1;
             log.info("기본 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
         }
 
