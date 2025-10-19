@@ -33,10 +33,10 @@ public class PortfolioService {
     // 보유 종목 조회 (실시간 가격 정보 포함)
     public List<HoldingResponse> getUserHoldings(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
+
         List<HoldingCache> holdings = holdingCacheRepository
                 .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
-        
+
         return holdings.stream()
                 .map(this::convertToHoldingResponse)
                 .collect(Collectors.toList());
@@ -45,38 +45,39 @@ public class PortfolioService {
     // 포트폴리오 요약 정보 조회
     public PortfolioSummaryResponse getPortfolioSummary(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
+
         List<HoldingCache> holdings = holdingCacheRepository
                 .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
-        
+
         float totalInvested = 0;
         float totalValue = 0;
-        
+
         for (HoldingCache holding : holdings) {
             totalInvested += holding.getAvgCost() * holding.getQuantity();
             totalValue += holding.getEvaluatedPrice() != null ? holding.getEvaluatedPrice() : 0;
         }
-        
+
         float totalProfit = totalValue - totalInvested;
         float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-        
+
         // 상위 5개 보유 종목
         List<HoldingResponse> topHoldings = holdings.stream()
                 .sorted((h1, h2) -> Float.compare(
-                    (h2.getEvaluatedPrice() != null ? h2.getEvaluatedPrice() : 0),
-                    (h1.getEvaluatedPrice() != null ? h1.getEvaluatedPrice() : 0)
+                        (h2.getEvaluatedPrice() != null ? h2.getEvaluatedPrice() : 0),
+                        (h1.getEvaluatedPrice() != null ? h1.getEvaluatedPrice() : 0)
                 ))
                 .limit(5)
                 .map(this::convertToHoldingResponse)
                 .collect(Collectors.toList());
-        
+
         return new PortfolioSummaryResponse(
                 totalInvested,
                 totalValue,
                 totalProfit,
                 totalProfitRate,
                 holdings.size(),
-                topHoldings
+                topHoldings,
+                0.0f // totalCashBalance - 개인 포트폴리오에서는 0으로 설정
         );
     }
 
@@ -84,7 +85,7 @@ public class PortfolioService {
     @Transactional
     public void createSampleHoldings(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
-        
+
         // 기존 보유 종목이 있으면 생성하지 않음
         List<HoldingCache> existingHoldings = holdingCacheRepository
                 .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
@@ -92,7 +93,7 @@ public class PortfolioService {
             log.info("이미 보유 종목이 존재합니다. 사용자: {}", userId);
             return;
         }
-        
+
         // 이미지에 나온 주식들의 샘플 보유 종목 생성
         createSampleHolding(account.getInvestmentAccountId(), "035420", 2.5f, 485500f); // NAVER
         createSampleHolding(account.getInvestmentAccountId(), "035720", 8.333f, 416650f); // 카카오
@@ -100,7 +101,7 @@ public class PortfolioService {
         createSampleHolding(account.getInvestmentAccountId(), "005380", 3.75f, 712500f); // 현대차
         createSampleHolding(account.getInvestmentAccountId(), "000660", 0.875f, 1125000f); // SK하이닉스
         createSampleHolding(account.getInvestmentAccountId(), "005930", 2.0f, 72500f); // 삼성전자
-        
+
         log.info("샘플 보유 종목이 생성되었습니다. 사용자: {}", userId);
     }
 
@@ -108,19 +109,19 @@ public class PortfolioService {
     private HoldingResponse convertToHoldingResponse(HoldingCache holding) {
         // 주식 정보 조회
         Stock stock = holding.getStock();
-        
+
         // WebSocket 우선으로 실시간 주식 가격 및 변동률 조회
         StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
         float currentPrice = priceInfo.getCurrentPrice().floatValue();
         float changeAmount = priceInfo.getChangePrice().floatValue();
         float changeRate = priceInfo.getChangeRate();
-        
+
         // 평가금액 및 수익률 계산
         float evaluatedPrice = currentPrice * holding.getQuantity();
         float totalCost = holding.getAvgCost() * holding.getQuantity();
         float profit = evaluatedPrice - totalCost;
         float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
-        
+
         // 변동 방향 결정
         String changeDirection = "unchanged";
         if (changeAmount > 0) {
@@ -151,7 +152,7 @@ public class PortfolioService {
     private float getCurrentStockPrice(String stockCode) {
         try {
             Map<String, Object> priceData = stockPriceService.getCurrentPrice(stockCode);
-            
+
             // 한투 API 응답에서 현재가 추출
             if (priceData != null && priceData.containsKey("output")) {
                 Map<String, Object> output = (Map<String, Object>) priceData.get("output");
@@ -160,7 +161,7 @@ public class PortfolioService {
                     return Float.parseFloat(priceStr.replace(",", ""));
                 }
             }
-            
+
             log.warn("주식 가격 정보를 가져올 수 없습니다. 종목코드: {}", stockCode);
             return 0.0f;
         } catch (Exception e) {
@@ -173,38 +174,38 @@ public class PortfolioService {
     private Map<String, Float> getStockChangeInfo(String stockCode) {
         try {
             Map<String, Object> priceData = stockPriceService.getCurrentPrice(stockCode);
-            
+
             if (priceData != null && priceData.containsKey("output")) {
                 Map<String, Object> output = (Map<String, Object>) priceData.get("output");
                 if (output != null) {
                     float changeAmount = 0.0f;
                     float changeRate = 0.0f;
-                    
+
                     if (output.containsKey("prdy_vrss")) {
                         String changeAmountStr = (String) output.get("prdy_vrss");
                         changeAmount = Float.parseFloat(changeAmountStr.replace(",", ""));
                     }
-                    
+
                     if (output.containsKey("prdy_vrss_sign")) {
                         String sign = (String) output.get("prdy_vrss_sign");
                         if ("2".equals(sign)) { // 하락
                             changeAmount = -Math.abs(changeAmount);
                         }
                     }
-                    
+
                     if (output.containsKey("prdy_ctrt")) {
                         String changeRateStr = (String) output.get("prdy_ctrt");
                         changeRate = Float.parseFloat(changeRateStr.replace(",", ""));
-                        
+
                         if (changeAmount < 0) {
                             changeRate = -Math.abs(changeRate);
                         }
                     }
-                    
+
                     return Map.of("changeAmount", changeAmount, "changeRate", changeRate);
                 }
             }
-            
+
             log.warn("주식 변동률 정보를 가져올 수 없습니다. 종목코드: {}", stockCode);
             return Map.of("changeAmount", 0.0f, "changeRate", 0.0f);
         } catch (Exception e) {
@@ -216,17 +217,17 @@ public class PortfolioService {
     private void createSampleHolding(UUID accountId, String stockCode, float quantity, float avgCost) {
         Stock stock = stockRepository.findByStockCode(stockCode)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주식입니다: " + stockCode));
-        
+
         HoldingCache holding = new HoldingCache();
         InvestmentAccount account = investmentAccountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("투자 계좌를 찾을 수 없습니다"));
-        
+
         holding.setInvestmentAccount(account);
         holding.setStock(stock);
         holding.setQuantity((int) quantity);
         holding.setAvgCost(avgCost);
         holding.setEvaluatedPrice(avgCost * quantity); // 초기값은 평균 매입가로 설정
-        
+
         holdingCacheRepository.save(holding);
     }
 
