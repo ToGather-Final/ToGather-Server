@@ -20,6 +20,9 @@ app:
     issuer: ${JWT_ISSUER:togather}
     access-exp-seconds: ${JWT_ACCESS_EXP:1800}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
+  services:
+    user-service:
+      url: ${USER_SERVICE_URL:http://localhost:8082}
 
 spring:
   config:
