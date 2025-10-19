@@ -124,6 +124,9 @@ project(":user-service") {
 		runtimeOnly 'com.mysql:mysql-connector-j'
 		implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
+		// Spring Security OAuth2 JWT
+		implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
 		testImplementation 'org.testcontainers:testcontainers'
 		testImplementation 'org.testcontainers:mysql'
 		testImplementation 'org.testcontainers:junit-jupiter'
