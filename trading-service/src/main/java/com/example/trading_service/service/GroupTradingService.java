@@ -371,14 +371,20 @@ public class GroupTradingService {
             // 수익률 계산
             float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
             
-            // 전일 대비 변동 정보 (OrderBook에서 가져옴)
-            float changeRate = orderBook.getChangeRate() != null ? orderBook.getChangeRate() : 0;
-            float changeAmount = orderBook.getChangeAmount() != null ? 
-                    orderBook.getChangeAmount() * holding.getTotalQuantity() : 0;
+            // 처음 구매한 가격 대비 변동 정보 (평균 매입가 기준)
+            float changeAmount = (currentPrice - holding.getAvgCost()) * holding.getTotalQuantity();
+            float changeRate = holding.getAvgCost() > 0 ? 
+                    ((currentPrice - holding.getAvgCost()) / holding.getAvgCost()) * 100 : 0;
             
-            // 변동 방향 (OrderBook에서 가져옴)
-            String changeDirection = orderBook.getChangeDirection() != null ? 
-                    orderBook.getChangeDirection() : "unchanged";
+            // 변동 방향 (평균 매입가 대비)
+            String changeDirection;
+            if (changeAmount > 0) {
+                changeDirection = "up";
+            } else if (changeAmount < 0) {
+                changeDirection = "down";
+            } else {
+                changeDirection = "unchanged";
+            }
             
             // 멤버당 평균 보유 수량 계산
             float avgQuantityPerMember = holding.getMemberCount() > 0 ? 

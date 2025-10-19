@@ -17,8 +17,8 @@ public class GroupHoldingResponse {
     private Integer totalQuantity; // 그룹 전체 보유 수량
     private Float avgCost; // 평균 매입 단가
     private Float currentPrice; // 현재가
-    private Float changeAmount; // 전일 대비 변동금액
-    private Float changeRate; // 전일 대비 변동률
+    private Float changeAmount; // 평균 매입가 대비 변동금액
+    private Float changeRate; // 평균 매입가 대비 변동률
     private Float profit; // 평가손익
     private Float evaluatedPrice; // 평가금액
     private Float profitRate; // 수익률
