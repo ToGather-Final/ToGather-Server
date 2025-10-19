@@ -60,8 +60,12 @@ public class HistoryEventListener {
         HistoryType type = history.getHistoryType();
         
         switch (type) {
-            case VOTE_CREATED:
-                return "🗳️ 새로운 투표가 생성되었습니다.";
+            case VOTE_CREATED_BUY:
+                return "🗳️ 매수 제안 투표가 생성되었습니다.";
+            case VOTE_CREATED_SELL:
+                return "🗳️ 매도 제안 투표가 생성되었습니다.";
+            case VOTE_CREATED_PAY:
+                return "🗳️ 예수금 충전 제안 투표가 생성되었습니다.";
             case VOTE_APPROVED:
                 return "✅ 투표가 가결되었습니다.";
             case VOTE_REJECTED:

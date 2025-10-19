@@ -45,7 +45,7 @@ public class HistoryService {
      * 투표 생성 히스토리 생성 (사용자 ID 기반)
      */
     @Transactional
-    public void createVoteCreatedHistory(UUID userId, UUID proposalId, String proposalName, String proposerName, Integer price, Integer quantity) {
+    public void createVoteCreatedHistory(UUID userId, UUID proposalId, String proposalName, String proposerName, Integer price, Integer quantity, HistoryType historyType) {
         try {
             // 사용자가 속한 그룹 ID 조회 (단일 그룹)
             Optional<UUID> groupIdOpt = groupMembersRepository.findFirstGroupIdByUserId(userId);
@@ -72,7 +72,7 @@ public class HistoryService {
             History history = History.create(
                 groupId,
                 HistoryCategory.VOTE,
-                HistoryType.VOTE_CREATED,
+                historyType,
                 title,
                 payloadJson,
                 price,
@@ -278,7 +278,9 @@ public class HistoryService {
             Map<String, Object> payloadMap = objectMapper.readValue(payloadJson, new TypeReference<Map<String, Object>>() {});
             
             switch (historyType) {
-                case VOTE_CREATED:
+                case VOTE_CREATED_BUY:
+                case VOTE_CREATED_SELL:
+                case VOTE_CREATED_PAY:
                     return new VoteCreatedPayloadDTO(
                             UUID.fromString((String) payloadMap.get("proposalId")),
                             (String) payloadMap.get("proposalName"),
