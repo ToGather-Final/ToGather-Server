@@ -345,21 +345,32 @@ public class VoteService {
                     tradePayload.stockId() // stockId - DB의 stock_id 컬럼에 저장
                 );
                 
-                log.info("✅ 실제 매매 정보로 히스토리 생성 - stockName: {}, quantity: {}, price: {}", 
+                log.info("✅ TRADE 투표 가결 히스토리 생성 - stockName: {}, quantity: {}, price: {}", 
                         tradePayload.stockName(), tradePayload.quantity(), tradePayload.price());
-            } else {
-                // 다른 카테고리: 기본값 사용
+                        
+            } else if (proposal.getCategory().name().equals("PAY")) {
+                // PAY 카테고리: 예수금 충전 안내 메시지
+                PayPayload payPayload = objectMapper.readValue(proposal.getPayload(), PayPayload.class);
+                
                 historyService.createVoteApprovedHistory(
                     proposal.getGroupId(),
                     proposal.getProposalId(),
-                    LocalDateTime.now().plusHours(1).toString(),
-                    proposal.getAction().name(),
-                    "기본주식",
-                    1,
-                    1000,
-                    "KRW",
-                    null // stockId - PAY 카테고리 등에서는 null
+                    LocalDateTime.now().plusMinutes(5).toString(), // scheduledAt - 5분 후 실행 예정
+                    "PAY", // side - PAY로 고정
+                    "예수금 충전이 자동으로 진행됩니다.", // stockName 대신 안내 메시지
+                    payPayload.amountPerPerson(), // shares 대신 1인당 금액
+                    1, // unitPrice - 1로 고정
+                    "KRW", // currency
+                    null // stockId - PAY에서는 null
                 );
+                
+                log.info("✅ PAY 투표 가결 히스토리 생성 - amountPerPerson: {}, message: 예수금 충전이 자동으로 진행됩니다.", 
+                        payPayload.amountPerPerson());
+                        
+            } else {
+                // 다른 카테고리: 히스토리 생성하지 않음
+                log.info("기타 카테고리 투표 가결 - 히스토리 생성 생략: proposalId: {}, category: {}", 
+                        proposal.getProposalId(), proposal.getCategory());
             }
         } catch (Exception e) {
             log.error("❌ VOTE_APPROVED 히스토리 생성 실패 - proposalId: {}, error: {}", 
