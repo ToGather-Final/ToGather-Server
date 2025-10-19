@@ -37,21 +37,19 @@ spec:
           ports:
             - containerPort: 3000
           resources:
-            # 🚀 504 에러 해결을 위한 리소스 증가
-            requests:
-              memory: "512Mi"    # 🚀 메모리 요청 2배 증가
-              cpu: "200m"        # 🚀 CPU 요청 2배 증가
-            limits:
-              memory: "1Gi"      # 🚀 메모리 제한 2배 증가
-              cpu: "500m"        # 🚀 CPU 제한 2.5배 증가
+              # 🚀 리소스 제한 없음 (HPA 비활성화로 인한 수동 관리)
+              requests:
+                memory: "256Mi"    # 최소 메모리만 요청
+                cpu: "100m"        # 최소 CPU만 요청
+              # limits 제거: 무제한 사용 가능
           env:
             - name: NODE_ENV
               value: "production"
             - name: NEXT_TELEMETRY_DISABLED
               value: "1"
-            # 🚀 Node.js 성능 최적화 (limit 768Mi에 맞춤)
+            # 🚀 Node.js 성능 최적화 (무제한 메모리 사용)
             - name: NODE_OPTIONS
-              value: "--max-old-space-size=640 --max-semi-space-size=128"
+              value: "--max-old-space-size=2048 --max-semi-space-size=256"
             # Next.js 성능 최적화
             - name: NEXT_PUBLIC_ANALYTICS_ID
               value: ""
