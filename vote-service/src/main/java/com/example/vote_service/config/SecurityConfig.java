@@ -43,6 +43,7 @@ public class SecurityConfig {
         });
         http.authorizeHttpRequests(reg -> {
             reg.requestMatchers("/actuator/**").permitAll();
+            reg.requestMatchers("/api/notification/stream/**").permitAll(); // SSE 알림 스트림 허용
             reg.anyRequest().authenticated();
         });
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

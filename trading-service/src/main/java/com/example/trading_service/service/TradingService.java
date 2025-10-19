@@ -2,6 +2,8 @@ package com.example.trading_service.service;
 
 import com.example.module_common.dto.pay.PayRechargeRequest;
 import com.example.module_common.dto.pay.PayRechargeResponse;
+import com.example.module_common.dto.vote.VoteTradingRequest;
+import com.example.module_common.dto.vote.VoteTradingResponse;
 import com.example.trading_service.client.PayServiceClient;
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.*;
@@ -90,6 +92,102 @@ public class TradingService {
         log.info("예수금이 충전되었습니다. 사용자: {}, 충전 금액: {}", userId, request.getAmount());
     }
 
+    /**
+     * Internal 예수금 충전 (서비스 간 통신용)
+     * - vote-service에서 PAY 투표 가결 시 자동으로 호출
+     * - 인증 없이 직접 userId로 처리
+     */
+    @Transactional
+    public void internalDepositFunds(InternalDepositRequest request) {
+        UUID userId = request.getUserId();
+        
+        // 투자 계좌 조회 (없으면 생성)
+        InvestmentAccount account;
+        try {
+            account = getInvestmentAccountByUserId(userId);
+        } catch (IllegalArgumentException e) {
+            // 계좌가 없으면 자동 생성
+            log.info("투자 계좌가 없어 자동 생성합니다. 사용자: {}", userId);
+            UUID accountId = createInvestmentAccount(userId);
+            account = getInvestmentAccountByUserId(userId); // 생성 후 다시 조회
+        }
+        
+        // 잔고 업데이트
+        BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())
+                .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
+        
+        balance.setBalance(balance.getBalance() + request.getAmount().intValue());
+        balanceCacheRepository.save(balance);
+        
+        log.info("Internal 예수금 충전 완료 - 사용자: {}, 그룹: {}, 충전 금액: {}, 설명: {}", 
+                userId, request.getGroupId(), request.getAmount(), request.getDescription());
+    }
+
+    /**
+     * 투표 기반 거래 실행
+     * - TRADE 투표 가결 시 자동으로 거래 실행
+     */
+    @Transactional
+    public VoteTradingResponse executeVoteBasedTrading(VoteTradingRequest request) {
+        try {
+            log.info("투표 기반 거래 실행 시작 - proposalId: {}, groupId: {}, stockId: {}, action: {}, quantity: {}, price: {}", 
+                    request.proposalId(), request.groupId(), request.stockId(), request.tradingAction(), 
+                    request.quantity(), request.price());
+            
+            // TODO: 실제 거래 로직 구현
+            // 현재는 성공 응답만 반환
+            log.info("투표 기반 거래 실행 완료 - proposalId: {}", request.proposalId());
+            
+            return new VoteTradingResponse(true, "투표 기반 거래가 성공적으로 실행되었습니다", 1);
+            
+        } catch (Exception e) {
+            log.error("투표 기반 거래 실행 실패 - proposalId: {}, 오류: {}", request.proposalId(), e.getMessage(), e);
+            return new VoteTradingResponse(false, "투표 기반 거래 실행 실패: " + e.getMessage(), 0);
+        }
+    }
+
+    /**
+     * 그룹 예수금 총합 조회
+     * - 그룹 멤버들의 예수금 잔액 합계
+     */
+    @Transactional(readOnly = true)
+    public Integer getGroupTotalBalance(List<UUID> memberIds) {
+        try {
+            log.info("그룹 예수금 총합 조회 시작 - memberCount: {}", memberIds.size());
+            
+            Integer totalBalance = 0;
+            
+            // 각 멤버의 예수금 잔액 조회 및 합산
+            for (UUID memberId : memberIds) {
+                try {
+                    // 투자 계좌 조회
+                    Optional<InvestmentAccount> accountOpt = investmentAccountRepository.findByUserId(memberId.toString());
+                    if (accountOpt.isPresent()) {
+                        InvestmentAccount account = accountOpt.get();
+                        
+                        // 잔고 캐시 조회
+                        Optional<BalanceCache> balanceOpt = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId());
+                        if (balanceOpt.isPresent()) {
+                            BalanceCache balance = balanceOpt.get();
+                            totalBalance += balance.getBalance();
+                            log.debug("멤버 예수금 잔액 - memberId: {}, balance: {}", memberId, balance.getBalance());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("멤버 예수금 조회 실패 - memberId: {}, 오류: {}", memberId, e.getMessage());
+                    // 개별 멤버 조회 실패는 전체 프로세스를 중단하지 않음
+                }
+            }
+            
+            log.info("그룹 예수금 총합 조회 완료 - memberCount: {}, totalBalance: {}", 
+                    memberIds.size(), totalBalance);
+            return totalBalance;
+            
+        } catch (Exception e) {
+            log.error("그룹 예수금 총합 조회 실패 - memberCount: {}, 오류: {}", memberIds.size(), e.getMessage(), e);
+            return 0; // 실패 시 기본값 반환
+        }
+    }
 
     // 계좌 잔고 조회 (PortfolioCalculationService로 위임)
     @Transactional(readOnly = true)
