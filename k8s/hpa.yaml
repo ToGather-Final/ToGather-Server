@@ -47,7 +47,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: user-service
-  minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지
+  minReplicas: 1  # 🚀 2-Node 환경: 최소 2개 유지
   maxReplicas: 2
   metrics:
     - type: Resource
