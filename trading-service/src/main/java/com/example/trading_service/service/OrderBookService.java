@@ -45,25 +45,33 @@ public class OrderBookService {
         
         log.warn("⚠️ WebSocket 캐시에 데이터 없음 - REST API 폴백: {}", stockCode);
 
-        // 2. WebSocket 캐시에 없으면 REST API 호출 (폴백)
+        // 2. 장외 시간 체크
+        if (isMarketClosed()) {
+            log.info("🕐 장외 시간 감지 - 호가 기본값 제공: {}", stockCode);
+            return createFallbackOrderBook(stock);
+        }
+
+        // 3. WebSocket 캐시에 없으면 REST API 호출 (폴백)
         log.info("📡 WebSocket 캐시에 데이터 없음, REST API 호출: {}", stockCode);
         try {
             // 호가 데이터 조회
-            Map<String, Object> orderBookData = stockPriceService.getOrderBook(stockCode);
+            Map<String, Object> orderBookData = stockPriceService.getOrderBook(stockCode, stock.getPrdtTypeCd());
             log.info("한투 API 호가 응답: {}", orderBookData);
             
-            Map<String, Object> output = (Map<String, Object>) orderBookData.get("output");
+            // ETF는 output1에 호가 데이터, output2에 현재가 데이터가 있음
+            Map<String, Object> output1 = (Map<String, Object>) orderBookData.get("output1");
+            Map<String, Object> output2 = (Map<String, Object>) orderBookData.get("output2");
             
-            if (output == null) {
+            if (output1 == null || output2 == null) {
                 log.warn("호가 데이터를 가져올 수 없습니다. 종목코드: {}, 전체 응답: {}", stockCode, orderBookData);
                 // 장외 시간에는 현재가 조회 API로 전일 종가 정보라도 가져오기
                 return getFallbackOrderBookData(stock);
             }
 
-            // 기본 정보 추출
-            float currentPrice = parseFloat(output.get("stck_prpr"));
-            float changeAmount = parseFloat(output.get("prdy_vrss"));
-            float changeRate = parseFloat(output.get("prdy_ctrt"));
+            // 기본 정보 추출 (output2에서 현재가 정보)
+            float currentPrice = parseFloat(output2.get("stck_prpr"));
+            float changeAmount = parseFloat(output2.get("antc_cntg_vrss"));
+            float changeRate = parseFloat(output2.get("antc_cntg_prdy_ctrt"));
             
             // 변동 방향 결정
             String changeDirection = "unchanged";
@@ -73,15 +81,15 @@ public class OrderBookService {
                 changeDirection = "down";
             }
 
-            // 매도 호가 (Ask Prices) - 빨간색 (10개)
+            // 매도 호가 (Ask Prices) - 빨간색 (10개) - output1에서 가져오기
             List<OrderBookItem> askPrices = new ArrayList<>();
             for (int i = 1; i <= 10; i++) {
                 String askPriceKey = "askp" + i;        // 매도 호가
                 String askQuantityKey = "askp_rsqn" + i; // 매도 잔량
                 
-                if (output.containsKey(askPriceKey)) {
-                    float price = parseFloat(output.get(askPriceKey));
-                    long quantity = parseLong(output.get(askQuantityKey));
+                if (output1.containsKey(askPriceKey)) {
+                    float price = parseFloat(output1.get(askPriceKey));
+                    long quantity = parseLong(output1.get(askQuantityKey));
                     
                     if (price > 0) {
                         askPrices.add(new OrderBookItem(price, quantity, "ask"));
@@ -89,15 +97,15 @@ public class OrderBookService {
                 }
             }
 
-            // 매수 호가 (Bid Prices) - 파란색 (10개)
+            // 매수 호가 (Bid Prices) - 파란색 (10개) - output1에서 가져오기
             List<OrderBookItem> bidPrices = new ArrayList<>();
             for (int i = 1; i <= 10; i++) {
                 String bidPriceKey = "bidp" + i;        // 매수 호가
                 String bidQuantityKey = "bidp_rsqn" + i; // 매수 잔량
                 
-                if (output.containsKey(bidPriceKey)) {
-                    float price = parseFloat(output.get(bidPriceKey));
-                    long quantity = parseLong(output.get(bidQuantityKey));
+                if (output1.containsKey(bidPriceKey)) {
+                    float price = parseFloat(output1.get(bidPriceKey));
+                    long quantity = parseLong(output1.get(bidQuantityKey));
                     
                     if (price > 0) {
                         bidPrices.add(new OrderBookItem(price, quantity, "bid"));
@@ -126,7 +134,7 @@ public class OrderBookService {
     private OrderBookResponse getFallbackOrderBookData(Stock stock) {
         try {
             log.info("📡 폴백: 현재가 API로 전일 종가 정보 조회: {}", stock.getStockCode());
-            Map<String, Object> priceData = stockPriceService.getCurrentPrice(stock.getStockCode());
+            Map<String, Object> priceData = stockPriceService.getCurrentPrice(stock.getStockCode(), stock.getPrdtTypeCd());
             
             if (priceData != null && priceData.containsKey("output")) {
                 Map<String, Object> output = (Map<String, Object>) priceData.get("output");
@@ -240,5 +248,48 @@ public class OrderBookService {
         } catch (Exception e) {
             return 0L;
         }
+    }
+    
+    /**
+     * 장외 시간인지 확인 (주말, 공휴일, 장외 시간)
+     */
+    private boolean isMarketClosed() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.DayOfWeek dayOfWeek = now.getDayOfWeek();
+        
+        // 주말 체크 (토요일, 일요일)
+        if (dayOfWeek == java.time.DayOfWeek.SATURDAY || dayOfWeek == java.time.DayOfWeek.SUNDAY) {
+            return true;
+        }
+        
+        // 장외 시간 체크 (09:00 ~ 15:30 외)
+        int hour = now.getHour();
+        int minute = now.getMinute();
+        int currentTime = hour * 100 + minute;
+        
+        // 09:00 ~ 15:30 외의 시간
+        if (currentTime < 900 || currentTime > 1530) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 장외 시간용 기본 호가 데이터 생성
+     */
+    private OrderBookResponse createFallbackOrderBook(Stock stock) {
+        log.info("🔄 장외 시간 기본 호가 데이터 생성: {}", stock.getStockCode());
+        
+        return new OrderBookResponse(
+            stock.getStockCode(),
+            stock.getStockName(),
+            0.0f,  // currentPrice
+            0.0f,  // changeAmount
+            0.0f,  // changeRate
+            "unchanged",  // changeDirection
+            new java.util.ArrayList<>(),  // askPrices (빈 리스트)
+            new java.util.ArrayList<>()   // bidPrices (빈 리스트)
+        );
     }
 }

@@ -26,12 +26,12 @@ public class RedisCacheService {
     private static final String KIS_TOKEN_KEY = "kis:token";
     private static final String WEBSOCKET_ORDERBOOK_KEY = "websocket:orderbook:";
     
-    // 캐시 TTL (Time To Live)
-    private static final Duration STOCK_PRICE_TTL = Duration.ofMinutes(1); // 1분
+    // 캐시 TTL (Time To Live) - 최적화된 값
+    private static final Duration STOCK_PRICE_TTL = Duration.ofMinutes(5); // 5분 (웹소켓 연결 안정화)
     private static final Duration USER_BALANCE_TTL = Duration.ofMinutes(5); // 5분
     private static final Duration USER_HOLDINGS_TTL = Duration.ofMinutes(10); // 10분
     private static final Duration KIS_TOKEN_TTL = Duration.ofHours(23); // 23시간
-    private static final Duration WEBSOCKET_ORDERBOOK_TTL = Duration.ofSeconds(30); // 30초 (실시간 데이터)
+    private static final Duration WEBSOCKET_ORDERBOOK_TTL = Duration.ofMinutes(2); // 2분 (웹소켓 연결 안정화)
 
     /**
      * 주식 가격 캐싱
@@ -41,6 +41,19 @@ public class RedisCacheService {
         try {
             redisTemplate.opsForValue().set(key, priceResponse, STOCK_PRICE_TTL);
             log.debug("주식 가격 캐싱 완료 - 주식ID: {}, 가격: {}", stockId, priceResponse.getCurrentPrice());
+        } catch (Exception e) {
+            log.error("주식 가격 캐싱 실패 - 주식ID: {}", stockId, e);
+        }
+    }
+
+    /**
+     * 주식 가격 캐싱 (커스텀 TTL)
+     */
+    public void cacheStockPriceWithTTL(UUID stockId, StockPriceResponse priceResponse, Duration customTTL) {
+        String key = STOCK_PRICE_KEY + stockId;
+        try {
+            redisTemplate.opsForValue().set(key, priceResponse, customTTL);
+            log.debug("주식 가격 캐싱 완료 (커스텀 TTL: {}) - 주식ID: {}, 가격: {}", customTTL, stockId, priceResponse.getCurrentPrice());
         } catch (Exception e) {
             log.error("주식 가격 캐싱 실패 - 주식ID: {}", stockId, e);
         }
