@@ -8,21 +8,21 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: api-gateway
-  minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지
-  maxReplicas: 3  # 🚀 최대 4개까지 확장 가능
+  minReplicas: 3  # 🚀 3-Node 환경: 최소 1개 유지
+  maxReplicas: 4  # 🚀 최대 4개까지 확장 가능
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 70  # 🚀 70%로 낮춰서 빠른 스케일링
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 60
@@ -47,21 +47,21 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: user-service
-  minReplicas: 1  # 🚀 2-Node 환경: 최소 2개 유지
-  maxReplicas: 2
+  minReplicas: 1  # 🚀 3-Node 환경: 최소 1개 유지
+  maxReplicas: 3  # 🚀 최대 3개까지 확장 가능
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 70  # 🚀 70%로 낮춰서 빠른 스케일링
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 60
@@ -86,21 +86,21 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: trading-service
-  minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지
-  maxReplicas: 3  # 🚀 최대 4개까지 확장 가능
+  minReplicas: 1  # 🚀 3-Node 환경: 최소 1개 유지
+  maxReplicas: 4  # 🚀 최대 4개까지 확장 가능
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 70  # 🚀 70%로 낮춰서 빠른 스케일링
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 60
@@ -203,21 +203,21 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: nextjs-client
-  minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지 (Always-On)
-  maxReplicas: 3  # 🚀 최대 4개까지 확장 가능
+  minReplicas: 1  # 🚀 3-Node 환경: 최소 1개 유지
+  maxReplicas: 4  # 🚀 최대 4개까지 확장 가능
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 70  # 🚀 70%로 낮춰서 빠른 스케일링
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 60

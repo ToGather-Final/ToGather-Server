@@ -6,7 +6,12 @@ metadata:
   labels:
     app: vote-service
 spec:
-  replicas: 1
+  replicas: 1  # 🚀 3-Node 환경: 최소 1개, HPA로 스케일링
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1         # 일시적으로 +1개 허용 (총 2개)
+      maxUnavailable: 0   # 최소 1개 유지 (가용성 보장)
   selector:
     matchLabels:
       app: vote-service
@@ -45,11 +50,11 @@ spec:
               name: togather-secrets
         resources:
           requests:
-            memory: "256Mi"
+            memory: "128Mi"  # 🚀 메모리 요청 감소 (경량 서비스)
             cpu: "100m"
           limits:
-            memory: "512Mi"
-            cpu: "300m"
+            memory: "256Mi"  # 🚀 메모리 제한 감소
+            cpu: "200m"      # 🚀 CPU 제한 감소
         livenessProbe:
           httpGet:
             path: /actuator/health

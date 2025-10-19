@@ -4,12 +4,12 @@ metadata:
   name: nextjs-client
   namespace: togather
 spec:
-  replicas: 2  # 🚀 2-Node 환경: 각 노드에 1개씩 배치
+  replicas: 1  # 🚀 3-Node 환경: 최소 1개, HPA로 스케일링
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1         # rolling update 시 일시적으로 +1개 허용 (총 3개)
-      maxUnavailable: 0   # rolling update 시 0개 다운되어도 됨(2개 유지) 항상 최소 2개 유지 (가용성 보장)
+      maxSurge: 2         # rolling update 시 일시적으로 +2개 허용 (총 5개)
+      maxUnavailable: 1   # 최소 1개 유지 (가용성 보장)
   selector:
     matchLabels:
       app: nextjs-client
@@ -37,13 +37,13 @@ spec:
           ports:
             - containerPort: 3000
           resources:
-            # 🚀 클러스터 균형 고려 (백엔드 표준: 150m/384Mi)
+            # 🚀 3-Node 환경 최적화 (t3.large 기준)
             requests:
-              memory: "256Mi"    # 백엔드의 67% (프론트엔드는 경량)
-              cpu: "100m"        # 백엔드의 67% (정적 컨텐츠 제공)
+              memory: "256Mi"    # 프론트엔드 최적화
+              cpu: "150m"        # CPU 요청 증가
             limits:
-              memory: "768Mi"    # 백엔드와 동일 (이미지 캐싱 대응)
-              cpu: "500m"        # 트래픽 급증 대응
+              memory: "512Mi"    # 메모리 제한 최적화
+              cpu: "400m"        # CPU 제한 최적화
           env:
             - name: NODE_ENV
               value: "production"
