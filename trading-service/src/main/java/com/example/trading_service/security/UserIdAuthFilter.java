@@ -25,9 +25,10 @@ public class UserIdAuthFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         // 인증이 필요 없는 경로는 필터를 건너뜁니다
-        return path.startsWith("/trading/stocks") ||  // 주식 조회
+        return path.startsWith("/ws") ||              // WebSocket 연결 (최우선)
+               path.startsWith("/trading/stocks") ||  // 주식 조회
+               path.startsWith("/api/trading/stocks") || // API 주식 조회
                path.startsWith("/api/websocket") ||   // WebSocket API
-               path.startsWith("/ws") ||              // WebSocket 연결
                path.equals("/status") ||              // RewritePath로 변환된 경로
                path.equals("/reconnect") ||
                path.equals("/test-approval-key") ||
