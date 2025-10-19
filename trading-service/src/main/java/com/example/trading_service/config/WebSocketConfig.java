@@ -11,6 +11,11 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+/**
+ * WebSocket 설정
+ * - SimpMessagingTemplate Bean 생성을 위해 필요
+ * - CORS는 API Gateway에서 처리하므로 제거
+ */
 @Configuration
 @EnableWebSocketMessageBroker
 @Slf4j
@@ -32,8 +37,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // WebSocket 연결 엔드포인트
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*") // 개발 환경에서는 모든 origin 허용
-                .withSockJS(); // SockJS 지원 추가
+                .setAllowedOrigins("*"); // 모든 Origin 허용
     }
 
     /**

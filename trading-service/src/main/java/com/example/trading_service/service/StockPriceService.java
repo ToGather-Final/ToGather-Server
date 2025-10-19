@@ -54,15 +54,27 @@ public class StockPriceService {
             return cachedPrice;
         }
 
-        // 2. 장외 시간 체크
+        // 2. 장외 시간 체크 - 장외 시간에도 전일 종가 정보 조회
         if (isMarketClosed()) {
-            log.info("🕐 장외 시간 감지 - 기본값 제공: {}", stockCode);
-            StockPriceResponse fallbackResponse = createFallbackStockPrice(stockCode);
+            log.info("🕐 장외 시간 감지 - 전일 종가 정보 조회: {}", stockCode);
             
-            // 장외 시간에는 긴 TTL로 캐시 (1시간)
-            redisCacheService.cacheStockPriceWithTTL(stockId, fallbackResponse, java.time.Duration.ofHours(1));
-            
-            return fallbackResponse;
+            try {
+                // 장외 시간에도 전일 종가 정보 조회
+                Map<String, Object> apiResponse = getCurrentPrice(stockCode, prdtTypeCd);
+                StockPriceResponse priceResponse = convertToStockPriceResponse(apiResponse, stockCode);
+                
+                // 장외 시간에는 긴 TTL로 캐시 (1시간)
+                redisCacheService.cacheStockPriceWithTTL(stockId, priceResponse, java.time.Duration.ofHours(1));
+                
+                return priceResponse;
+            } catch (Exception e) {
+                log.error("❌ 장외 시간 API 호출 실패, 기본값 제공: {} - {}", stockCode, e.getMessage());
+                
+                StockPriceResponse fallbackResponse = createFallbackStockPrice(stockCode);
+                redisCacheService.cacheStockPriceWithTTL(stockId, fallbackResponse, java.time.Duration.ofHours(1));
+                
+                return fallbackResponse;
+            }
         }
         
         // 3. 캐시에 없으면 API 호출

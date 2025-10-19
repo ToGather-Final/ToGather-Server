@@ -25,6 +25,9 @@ public interface StockRepository extends JpaRepository<Stock, UUID> {
     
     // 국가별 주식 조회
     List<Stock> findByCountryAndEnabledTrue(Stock.Country country);
+    
+    // 종목 코드 존재 여부 확인
+    boolean existsByStockCode(String stockCode);
 }
 
 

@@ -136,14 +136,19 @@ public class OrderBookService {
             log.info("📡 폴백: 현재가 API로 전일 종가 정보 조회: {}", stock.getStockCode());
             Map<String, Object> priceData = stockPriceService.getCurrentPrice(stock.getStockCode(), stock.getPrdtTypeCd());
             
+            log.info("📊 API 응답 데이터: {}", priceData);
+            
             if (priceData != null && priceData.containsKey("output")) {
                 Map<String, Object> output = (Map<String, Object>) priceData.get("output");
+                log.info("📊 API output 데이터: {}", output);
                 
                 if (output != null) {
                     // 전일 종가 정보 추출
                     float currentPrice = parseFloat(output.get("stck_prpr")); // 전일 종가
                     float changeAmount = parseFloat(output.get("prdy_vrss")); // 전일 대비 변동가
                     float changeRate = parseFloat(output.get("prdy_ctrt")); // 전일 대비 변동률
+                    
+                    log.info("📊 파싱된 데이터 - 현재가: {}, 변동가: {}, 변동률: {}", currentPrice, changeAmount, changeRate);
                     
                     // 변동 방향 결정
                     String changeDirection = "unchanged";
@@ -153,11 +158,55 @@ public class OrderBookService {
                         changeDirection = "down";
                     }
                     
-                    // 장외 시간에는 호가 정보가 없으므로 빈 리스트 반환
-                    List<OrderBookItem> emptyAskPrices = new ArrayList<>();
-                    List<OrderBookItem> emptyBidPrices = new ArrayList<>();
+                    // 호가 정보도 함께 조회
+                    List<OrderBookItem> askPrices = new ArrayList<>();
+                    List<OrderBookItem> bidPrices = new ArrayList<>();
                     
-                    log.info("✅ 폴백 성공: 전일 종가 정보 반환 - 현재가: {}, 변동가: {}", currentPrice, changeAmount);
+                    try {
+                        log.info("📡 호가 정보 조회: {}", stock.getStockCode());
+                        Map<String, Object> orderBookData = stockPriceService.getOrderBook(stock.getStockCode(), stock.getPrdtTypeCd());
+                        
+                        if (orderBookData != null && orderBookData.containsKey("output1")) {
+                            Map<String, Object> output1 = (Map<String, Object>) orderBookData.get("output1");
+                            
+                            // 매도 호가 (Ask Prices) - 빨간색 (10개)
+                            for (int i = 1; i <= 10; i++) {
+                                String askPriceKey = "askp" + i;
+                                String askVolumeKey = "askp_rsqn" + i;
+                                
+                                if (output1.containsKey(askPriceKey) && output1.containsKey(askVolumeKey)) {
+                                    float price = parseFloat(output1.get(askPriceKey));
+                                    long volume = parseLong(output1.get(askVolumeKey));
+                                    
+                                    if (price > 0 && volume > 0) {
+                                        askPrices.add(new OrderBookItem(price, volume, "ask"));
+                                    }
+                                }
+                            }
+                            
+                            // 매수 호가 (Bid Prices) - 파란색 (10개)
+                            for (int i = 1; i <= 10; i++) {
+                                String bidPriceKey = "bidp" + i;
+                                String bidVolumeKey = "bidp_rsqn" + i;
+                                
+                                if (output1.containsKey(bidPriceKey) && output1.containsKey(bidVolumeKey)) {
+                                    float price = parseFloat(output1.get(bidPriceKey));
+                                    long volume = parseLong(output1.get(bidVolumeKey));
+                                    
+                                    if (price > 0 && volume > 0) {
+                                        bidPrices.add(new OrderBookItem(price, volume, "bid"));
+                                    }
+                                }
+                            }
+                            
+                            log.info("✅ 호가 정보 조회 성공 - 매도: {}개, 매수: {}개", askPrices.size(), bidPrices.size());
+                        }
+                    } catch (Exception e) {
+                        log.warn("⚠️ 호가 정보 조회 실패: {}", e.getMessage());
+                    }
+                    
+                    log.info("✅ 폴백 성공: 전일 종가 정보 반환 - 현재가: {}, 변동가: {}, 호가: 매도{}개/매수{}개", 
+                            currentPrice, changeAmount, askPrices.size(), bidPrices.size());
                     
                     return new OrderBookResponse(
                             stock.getStockCode(),
@@ -166,8 +215,8 @@ public class OrderBookService {
                             changeAmount,
                             changeRate,
                             changeDirection,
-                            emptyAskPrices,
-                            emptyBidPrices
+                            askPrices,
+                            bidPrices
                     );
                 }
             }
@@ -176,7 +225,7 @@ public class OrderBookService {
             return createSampleOrderBookResponse(stock);
             
         } catch (Exception e) {
-            log.error("폴백 API 호출 실패: {}", e.getMessage());
+            log.error("폴백 API 호출 실패: {}", e.getMessage(), e);
             return createSampleOrderBookResponse(stock);
         }
     }
@@ -276,20 +325,12 @@ public class OrderBookService {
     }
     
     /**
-     * 장외 시간용 기본 호가 데이터 생성
+     * 장외 시간용 기본 호가 데이터 생성 (전일 종가 정보 포함)
      */
     private OrderBookResponse createFallbackOrderBook(Stock stock) {
         log.info("🔄 장외 시간 기본 호가 데이터 생성: {}", stock.getStockCode());
         
-        return new OrderBookResponse(
-            stock.getStockCode(),
-            stock.getStockName(),
-            0.0f,  // currentPrice
-            0.0f,  // changeAmount
-            0.0f,  // changeRate
-            "unchanged",  // changeDirection
-            new java.util.ArrayList<>(),  // askPrices (빈 리스트)
-            new java.util.ArrayList<>()   // bidPrices (빈 리스트)
-        );
+        // 전일 종가 정보를 가져오도록 getFallbackOrderBookData 호출
+        return getFallbackOrderBookData(stock);
     }
 }
