@@ -29,6 +29,7 @@ public class TradingController {
     private final PortfolioCalculationService portfolioCalculationService;
     private final OrderBookService orderBookService;
     private final ChartService chartService;
+    private final GroupTradingService groupTradingService;
 
     @Operation(summary = "투자 계좌 개설", description = "사용자의 투자 계좌를 새로 개설합니다.")
     @ApiResponses(value = {
@@ -118,13 +119,14 @@ public class TradingController {
         }
     }
 
-    // 포트폴리오 요약 정보 조회
-    @GetMapping("/portfolio/summary")
-    public ResponseEntity<ApiResponse<PortfolioSummaryResponse>> getPortfolioSummary(Authentication authentication) {
-        UUID userId = getUserIdFromAuthentication(authentication);
-        PortfolioSummaryResponse summary = portfolioCalculationService.calculatePortfolioSummary(userId);
+    // 그룹 포트폴리오 요약 정보 조회
+    @GetMapping("/trading/portfolio/summary")
+    public ResponseEntity<ApiResponse<PortfolioSummaryResponse>> getGroupPortfolioSummary(
+            @RequestParam UUID groupId) {
+        PortfolioSummaryResponse summary = groupTradingService.calculateGroupPortfolioSummary(groupId);
         return ResponseEntity.ok(ApiResponse.success(summary));
     }
+
 
 
     // 계좌 잔고 조회
