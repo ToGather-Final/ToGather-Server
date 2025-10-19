@@ -32,7 +32,7 @@ public class History {
     private HistoryCategory historyCategory;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "history_type", nullable = false, length = 30)
+    @Column(name = "history_type", nullable = false, length = 50)
     private HistoryType historyType;
 
     @Column(name = "title", nullable = false, length = 255)

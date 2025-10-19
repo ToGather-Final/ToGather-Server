@@ -12,8 +12,10 @@ import com.example.vote_service.dto.payload.PayPayload;
 import com.example.vote_service.dto.payload.TradePayload;
 import com.example.vote_service.event.VoteExpirationEvent;
 import com.example.vote_service.model.Proposal;
+import com.example.vote_service.model.ProposalAction;
 import com.example.vote_service.model.ProposalCategory;
 import com.example.vote_service.model.ProposalStatus;
+import com.example.vote_service.model.HistoryType;
 import com.example.vote_service.repository.ProposalRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -100,7 +102,7 @@ public class ProposalService {
         
         Proposal saved = proposalRepository.save(proposal);
         
-        // 5. 히스토리 생성 (VOTE_CREATED)
+        // 5. 히스토리 생성 (VOTE_CREATED_BUY/SELL/PAY)
         createVoteCreatedHistory(saved, request, proposerName);
         
         // 6. 투표 마감 시간에 정확히 실행되는 작업 스케줄
@@ -351,13 +353,15 @@ public class ProposalService {
             if (request.isTradeCategory()) {
                 // TRADE 카테고리: TradePayload에서 정보 추출
                 TradePayload tradePayload = objectMapper.convertValue(request.payload(), TradePayload.class);
+                HistoryType historyType = request.action() == ProposalAction.BUY ? HistoryType.VOTE_CREATED_BUY : HistoryType.VOTE_CREATED_SELL;
                 historyService.createVoteCreatedHistory(
                         proposal.getUserId(),
                         proposal.getProposalId(),
                         request.proposalName(),
                         proposerName,
                         tradePayload.price(),
-                        tradePayload.quantity()
+                        tradePayload.quantity(),
+                        historyType
                 );
             } else if (request.isPayCategory()) {
                 // PAY 카테고리: PayPayload에서 정보 추출
@@ -368,7 +372,8 @@ public class ProposalService {
                         request.proposalName(),
                         proposerName,
                         payPayload.amountPerPerson(), // price: 인당 충전 금액
-                        1  // quantity: 기본값 1 (인당)
+                        1,  // quantity: 기본값 1 (인당)
+                        HistoryType.VOTE_CREATED_PAY
                 );
             } else {
                 // 기타 카테고리: 기본값 사용
@@ -378,7 +383,8 @@ public class ProposalService {
                         request.proposalName(),
                         proposerName,
                         0, // price 기본값
-                        0  // quantity 기본값
+                        0,  // quantity 기본값
+                        HistoryType.VOTE_CREATED_PAY // 기본값으로 PAY 사용
                 );
             }
         } catch (Exception e) {

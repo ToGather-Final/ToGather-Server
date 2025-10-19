@@ -14,7 +14,7 @@ import java.util.UUID;
 public record HistoryDTO(
         UUID id,                    // historyId
         HistoryCategory category,   // VOTE, TRADE, CASH, PAY, GOAL
-        HistoryType type,           // VOTE_CREATED, VOTE_APPROVED, etc.
+        HistoryType type,           // VOTE_CREATED_BUY, VOTE_CREATED_SELL, VOTE_CREATED_PAY, VOTE_APPROVED, etc.
         String title,               // 카드 타이틀
         String date,                // 날짜 표기
         Object payload              // 타입별 페이로드
