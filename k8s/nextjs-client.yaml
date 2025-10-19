@@ -4,7 +4,7 @@ metadata:
   name: nextjs-client
   namespace: togather
 spec:
-  replicas: 2  # 🚀 20명 기준: 2개로 시작 (고가용성)
+  replicas: 2  # 🚀 20명 기준: pod 2개로 시작 (고가용성)
   strategy:
     type: RollingUpdate
     rollingUpdate:
