@@ -124,7 +124,7 @@ spring:
     activate:
       on-profile: "main"
   datasource:
-    # url, username, password는 k8s의 ConfigMap/Secret에서 환경 변수로 주입됨
+    # url, username, password는 k8s의 ConfigMap/Secret에서 환경 변수로 주입
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:

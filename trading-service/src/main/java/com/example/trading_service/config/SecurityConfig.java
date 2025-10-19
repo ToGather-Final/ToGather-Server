@@ -47,6 +47,8 @@ public class SecurityConfig {
                 .requestMatchers("/favicon.ico").permitAll()
                 // OPTIONS 요청 허용 (CORS preflight)
                 .requestMatchers("OPTIONS", "/**").permitAll()
+                // Actuator 엔드포인트는 인증 불필요 (Health Check용)
+                .requestMatchers("/actuator/**").permitAll()
                 // 나머지는 인증 필요
                 .anyRequest().authenticated()
             )
@@ -55,5 +57,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-
-

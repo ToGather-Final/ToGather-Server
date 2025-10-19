@@ -63,10 +63,20 @@ jobs:
         chmod +x gradlew
         ./gradlew build -x test
 
+#    - name: Build and push Next.js Client image
+#      run: |
+#        docker build -t $ECR_REGISTRY/togather/client:${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
+#        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
+#        docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
+#        docker push $ECR_REGISTRY/togather/client:latest
     - name: Build and push Next.js Client image
       run: |
-        docker build -t $ECR_REGISTRY/togather/client:${{ github.sha }} -f ./togather-client/Dockerfile ./togather-client
-        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
+        docker build \
+          --build-arg NEXT_PUBLIC_API_BASE_URL=${{ secrets.PROD_API_BASE_URL }} \
+          -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
+          -f ./togather-client/Dockerfile ./togather-client
+
+        docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
         docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
         docker push $ECR_REGISTRY/togather/client:latest
 
@@ -141,18 +151,28 @@ jobs:
           RABBITMQ_PASSWORD: "${{ secrets.RABBITMQ_PASSWORD }}"
           REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
           SPRING_DATA_REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
+          # KIS 증권 API 환경변수
+          KIS_BASE_URL: "${{ secrets.KIS_BASE_URL }}"
+          KIS_APPKEY: "${{ secrets.KIS_APPKEY }}"
+          KIS_APPSECRET: "${{ secrets.KIS_APPSECRET }}"
         EOF
 
         # 3. RBAC 먼저 적용 (ServiceAccount/Role/RoleBinding)
         kubectl apply -f k8s/api-gateway-rbac.yaml -n ${{ env.EKS_NAMESPACE }}
 
         # 4. 환경변수 치환 후 나머지 모든 리소스 배포
-        # ECR_REGISTRY 환경변수를 k8s 파일들에 치환
+        # ECR_REGISTRY와 CERTIFICATE_ARN 환경변수를 k8s 파일들에 치환
+        export ECR_REGISTRY=${{ env.ECR_REGISTRY }}
+        export CERTIFICATE_ARN=${{ secrets.CERTIFICATE_ARN }}
+        
+        # 환경변수 치환이 필요한 파일들 배포
         envsubst < k8s/api-gateway.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/user-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/trading-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/pay-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/vote-service.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/nextjs-client.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+        envsubst < k8s/ingress.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         
         # 나머지 리소스들 (ConfigMap, Service, Ingress 등) 배포
         kubectl apply -f k8s/configmap.yaml -n ${{ env.EKS_NAMESPACE }}
@@ -315,6 +335,37 @@ jobs:
         kubectl get pods -n ${{ env.EKS_NAMESPACE }}
         kubectl get services -n ${{ env.EKS_NAMESPACE }}
         kubectl get ingress -n ${{ env.EKS_NAMESPACE }}
+    
+    - name: Prewarm Next.js Client
+      if: github.ref == 'refs/heads/main'
+      run: |
+        echo "🔥 Next.js 클라이언트 Prewarming 시작..."
+        SITE_URL="https://투게더.store"
+        
+        # 배포 완료 대기 (최대 2분)
+        echo "⏳ Next.js 클라이언트 준비 대기 중..."
+        for i in {1..24}; do
+          if kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' | grep -q "True"; then
+            echo "✅ Next.js 클라이언트 준비 완료!"
+            break
+          fi
+          echo "대기 중... ($i/24)"
+          sleep 5
+        done
+        
+        # Prewarming 요청 (5회)
+        echo "🔥 워밍업 요청 전송 중..."
+        for i in {1..5}; do
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$SITE_URL" || echo "000")
+          if [ "$STATUS_CODE" = "200" ]; then
+            echo "✅ 워밍업 요청 $i/5 성공 (HTTP $STATUS_CODE)"
+          else
+            echo "⚠️ 워밍업 요청 $i/5 실패 (HTTP $STATUS_CODE)"
+          fi
+          sleep 1
+        done
+        
+        echo "🎉 Prewarming 완료! 사용자들이 빠른 응답을 경험할 수 있습니다."
 
     - name: Diagnostics on failure
       if: failure()

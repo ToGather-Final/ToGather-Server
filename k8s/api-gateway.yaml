@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 1
+  replicas: 2  # 🚀 2-Node 환경: 고가용성 보장
   selector:
     matchLabels:
       app: api-gateway
@@ -16,74 +16,85 @@ spec:
         app: api-gateway
     spec:
       serviceAccountName: api-gateway
+      # Pod Anti-Affinity: 각 노드에 고르게 분산
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - api-gateway
+                topologyKey: kubernetes.io/hostname
       containers:
-      - name: api-gateway
-        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/api-gateway:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8000
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "main"
-        - name: SPRING_DATASOURCE_URL
-          value: ""  # 데이터소스 URL 비활성화
-        - name: SPRING_DATASOURCE_USERNAME
-          value: ""  # 데이터소스 사용자명 비활성화
-        - name: SPRING_DATASOURCE_PASSWORD
-          value: ""  # 데이터소스 비밀번호 비활성화
-        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
-          value: "none"  # JPA DDL 비활성화
-        - name: SPRING_JPA_SHOW_SQL
-          value: "false"  # SQL 로그 비활성화
-        # 로깅 설정 (INFO 레벨로 변경)
-        - name: LOGGING_LEVEL_COM_EXAMPLE_API_GATEWAY
-          value: "DEBUG"
-        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY
-          value: "INFO"
-        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_REACTIVE
-          value: "INFO"
-        - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
-          value: "INFO"
-        - name: LOGGING_LEVEL_REACTOR_NETTY
-          value: "INFO"
-        # Redis 연결 설정
-        - name: SPRING_DATA_REDIS_HOST
-          value: "redis"
-        - name: SPRING_DATA_REDIS_PORT
-          value: "6379"
-        - name: SPRING_DATA_REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: togather-secrets
-              key: REDIS_PASSWORD
-        envFrom:
-          - configMapRef:
-              name: togather-config    # RabbitMQ 정보가 담긴 ConfigMap
-          - secretRef:
-              name: togather-secrets   # 비밀번호가 담긴 Secret
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "768Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /actuator/health/liveness
-            port: 8000
-          initialDelaySeconds: 90
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /actuator/health/readiness
-            port: 8000
-          initialDelaySeconds: 80
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
+        - name: api-gateway
+          image: ${ECR_REGISTRY}/togather/api-gateway:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "main"
+            - name: SPRING_DATASOURCE_URL
+              value: ""
+            - name: SPRING_DATASOURCE_USERNAME
+              value: ""
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: ""
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: "none"
+            - name: SPRING_JPA_SHOW_SQL
+              value: "false"
+            - name: LOGGING_LEVEL_COM_EXAMPLE_API_GATEWAY
+              value: "WARN"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY
+              value: "WARN"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_REACTIVE
+              value: "WARN"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY
+              value: "WARN"
+            - name: LOGGING_LEVEL_REACTOR_NETTY
+              value: "WARN"
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            - name: SPRING_DATA_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: togather-secrets
+                  key: REDIS_PASSWORD
+          envFrom:
+            - configMapRef:
+                name: togather-config
+            - secretRef:
+                name: togather-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "150m"
+            limits:
+              memory: "768Mi"
+              cpu: "600m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8000
+            initialDelaySeconds: 45
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
@@ -91,7 +102,7 @@ metadata:
   name: api-gateway
   namespace: togather
   annotations:
-    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
     alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
     alb.ingress.kubernetes.io/healthy-threshold-count: '2'
@@ -100,6 +111,6 @@ spec:
   selector:
     app: api-gateway
   ports:
-  - port: 8000
-    targetPort: 8000
+    - port: 8000
+      targetPort: 8000
   type: ClusterIP

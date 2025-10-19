@@ -29,6 +29,11 @@ spring:
   main:
     allow-bean-definition-overriding: true
     web-application-type: reactive
+  webflux:
+    base-path: /
+  mvc:
+    servlet:
+      context-path: /
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
@@ -59,6 +64,7 @@ logging:
     org.springframework.web.reactive: INFO
     reactor.netty: INFO
     com.example.api_gateway: INFO
+
 
 ---
 # ===============================================
@@ -121,7 +127,6 @@ spring:
           filters:
             - RewritePath=/api/websocket/(?<segment>.*), /${segment}
 
-            
         # 트레이딩 서비스
         - id: trading-service
           uri: http://localhost:8081
@@ -136,6 +141,14 @@ spring:
           predicates:
             - Path=/ws/**
 
+        # 알림 서비스 (vote-service에서 제공)
+        - id: notification-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/notification/**
+          filters:
+            - StripPrefix=1
+            
         # 결제 서비스
         - id: pay-service
           uri: http://localhost:8083
@@ -192,7 +205,13 @@ spring:
         - id: user-service-route
           uri: lb://user-service
           predicates:
-            - Path=/api/user/**
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
+        - id: group-service-route
+          uri: lb://user-service
+          predicates:
+            - Path=/api/groups/**
           filters:
             - StripPrefix=1
         - id: vote-service-route
@@ -229,16 +248,58 @@ spring:
           uri: lb://trading-service
           predicates:
             - Path=/ws/**
+        - id: vote-trading-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/vote-trading/**
+          filters:
+            - StripPrefix=1
+        - id: group-trading-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/group-trading/**
+          filters:
+            - StripPrefix=1
+        - id: batch-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/batch/**
+          filters:
+            - StripPrefix=1
+        - id: admin-kis-service-route
+          uri: lb://trading-service
+          predicates:
+            - Path=/api/admin/kis/**
+          filters:
+            - StripPrefix=1
         - id: pay-service-route
           uri: lb://pay-service
           predicates:
             - Path=/api/pay/**
           filters:
             - StripPrefix=1
+        - id: payments-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - StripPrefix=1
         - id: accounts-service-route
           uri: lb://pay-service
           predicates:
             - Path=/api/accounts/**
+          filters:
+            - StripPrefix=1
+        - id: qr-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/qr/**
+          filters:
+            - StripPrefix=1
+        - id: transfers-service-route
+          uri: lb://pay-service
+          predicates:
+            - Path=/api/transfers/**
           filters:
             - StripPrefix=1
     kubernetes:

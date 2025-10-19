@@ -67,7 +67,7 @@ public class HistoryService {
             }
             
             String payloadJson = objectMapper.writeValueAsString(payload);
-            String title = String.format("투표가 생성되었습니다: %s", proposalName);
+            String title = "투표가 생성되었습니다";
             
             History history = History.create(
                 groupId,
@@ -107,7 +107,7 @@ public class HistoryService {
             payload.put("currency", currency);
             
             String payloadJson = objectMapper.writeValueAsString(payload);
-            String title = String.format("투표가 가결되었습니다: %s %d주", stockName, shares);
+            String title = "투표가 가결되었습니다";
             
             History history = History.create(
                 groupId,
@@ -141,7 +141,7 @@ public class HistoryService {
             payload.put("proposalName", proposalName);
             
             String payloadJson = objectMapper.writeValueAsString(payload);
-            String title = String.format("투표가 부결되었습니다: %s", proposalName);
+            String title = "투표가 부결되었습니다";
             
             History history = History.create(
                 groupId,

@@ -14,6 +14,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.example.user_service.domain.InvitationCode.generateCode;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -103,26 +105,54 @@ public class GroupService {
     @Transactional
     public String issueInvitation(UUID groupId, UUID operatorId) {
         assertOperatorIsOwner(groupId, operatorId);
+
+        String code;
+        int maxAttempts = 10;
+        int attempts = 0;
+
+        do {
+            code = generateCode();
+            attempts++;
+
+            if (attempts > maxAttempts) {
+                throw new RuntimeException("초대 코드 생성에 실패했습니다. 다시 시도해주세요.");
+            }
+        } while (invitationCodeRepository.existsByCode(code));
+
         InvitationCode invitation = InvitationCode.issue(groupId);
         InvitationCode saved = invitationCodeRepository.save(invitation);
         return saved.getCode();
     }
 
     @Transactional
-    public void acceptInvite(String code, UUID userId) {
+    public InviteAcceptResponse acceptInvite(String code, UUID userId) {
         InvitationCode invitationCode = invitationCodeRepository.findByCode(code)
                 .orElseThrow(() -> new NoSuchElementException("초대 코드를 찾을 수 없습니다."));
 
         validateInvitationAcceptable(invitationCode);
 
+        Group group = groupRepository.findById(invitationCode.getGroupId())
+                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        if (group.getStatus() != GroupStatus.WAITING) {
+            throw new IllegalArgumentException("참여할 수 없는 그룹입니다.");
+        }
+
         GroupMemberId groupMemberId = new GroupMemberId(userId, invitationCode.getGroupId());
         boolean isAlreadyMember = groupMemberRepository.existsById(groupMemberId);
         if (!isAlreadyMember) {
             groupMemberRepository.save(GroupMember.join(invitationCode.getGroupId(), userId));
+
+            group.addMember();
+            groupRepository.save(group);
         }
 
-        invitationCode.expire();
-        invitationCodeRepository.save(invitationCode);
+        if (group.isFull()) {
+            invitationCode.expire();
+            invitationCodeRepository.save(invitationCode);
+        }
+
+        return new InviteAcceptResponse(group.getGroupId(), group.getGroupName());
     }
 
     @Transactional(readOnly = true)
@@ -156,8 +186,8 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
 
-        if (group.getStatus() == GroupStatus.ACTIVE) {
-            throw new IllegalArgumentException("그룹이 이미 활성화되어 더 이상 멤버를 추가할 수 없습니다.");
+        if (group.getStatus() != GroupStatus.WAITING) {
+            throw new IllegalArgumentException("그룹이 이미 활성화되어 더 이상 참여할 수 없습니다.");
         }
 
         GroupMember member = GroupMember.join(groupId, request.userId());
@@ -173,11 +203,14 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
 
+        // 실제 GroupMember 테이블에서 멤버 수 계산
+        long actualMemberCount = groupMemberRepository.countByIdGroupId(groupId);
+
         return new GroupStatusResponse(
                 group.getStatus(),
-                group.getCurrentMembers(),
+                (int) actualMemberCount,  // 실제 멤버 수 사용
                 group.getMaxMembers(),
-                group.isFull()
+                actualMemberCount >= group.getMaxMembers()  // 실제 멤버 수로 계산
         );
     }
 
@@ -185,12 +218,43 @@ public class GroupService {
     public List<GroupStatusResponse> getMyGroupsStatus(UUID userId) {
         List<Group> groups = groupRepository.findAllByMember(userId);
         return groups.stream()
-                .map(g -> new GroupStatusResponse(
-                        g.getStatus(),
-                        g.getCurrentMembers(),
-                        g.getMaxMembers(),
-                        g.isFull()
-                ))
+                .map(g -> {
+                    // 실제 GroupMember 테이블에서 멤버 수 계산
+                    long actualMemberCount = groupMemberRepository.countByIdGroupId(g.getGroupId());
+                    return new GroupStatusResponse(
+                            g.getStatus(),
+                            (int) actualMemberCount,  // 실제 멤버 수 사용
+                            g.getMaxMembers(),
+                            actualMemberCount >= g.getMaxMembers()  // 실제 멤버 수로 계산
+                    );
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<LoginResponse.UserGroupInfo> getUserGroupsForLogin(UUID userId) {
+        List<Group> groups = groupRepository.findAllByMember(userId);
+        return groups.stream()
+                .map(g -> {
+                    long actualMemberCount = groupMemberRepository.countByIdGroupId(g.getGroupId());
+
+                    boolean isOwner = g.getOwnerId().equals(userId);
+
+                    String groupCode = invitationCodeRepository.findByGroupIdAndIsExpiredFalse(g.getGroupId())
+                            .map(InvitationCode::getCode)
+                            .orElse(null);
+
+                    return new LoginResponse.UserGroupInfo(
+                            g.getGroupId(),
+                            g.getGroupName(),
+                            groupCode,
+                            g.getStatus(),
+                            (int) actualMemberCount,
+                            g.getMaxMembers(),
+                            actualMemberCount >= g.getMaxMembers(),
+                            isOwner
+                    );
+                })
                 .toList();
     }
 
@@ -231,6 +295,14 @@ public class GroupService {
             log.error("❌ 예상치 못한 오류 발생 - groupId: {}, error: {}", groupId, e.getMessage(), e);
             throw new RuntimeException("투표 정족수 조회 중 오류가 발생했습니다.", e);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public String getCurrentInvitationCode(UUID groupId, UUID userId) {
+        assertMember(groupId, userId);
+        return invitationCodeRepository.findByGroupIdAndIsExpiredFalse(groupId)
+                .map(InvitationCode::getCode)
+                .orElse(null);
     }
 
     private void assertMember(UUID groupId, UUID userId) {

@@ -55,7 +55,7 @@ public class InvitationCode {
         this.isExpired = true;
     }
 
-    private static String generateCode() {
+    public static String generateCode() {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         Random random = new Random();
         StringBuilder code = new StringBuilder();
