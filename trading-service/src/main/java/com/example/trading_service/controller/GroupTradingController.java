@@ -2,8 +2,13 @@ package com.example.trading_service.controller;
 
 import com.example.trading_service.dto.ApiResponse;
 import com.example.trading_service.dto.GroupBuyRequest;
+import com.example.trading_service.dto.GroupHoldingResponse;
 import com.example.trading_service.dto.GroupSellRequest;
 import com.example.trading_service.service.GroupTradingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,12 +16,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/group-trading")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "그룹 거래", description = "그룹 투자 거래 관련 API")
 public class GroupTradingController {
 
     private final GroupTradingService groupTradingService;
@@ -88,10 +95,25 @@ public class GroupTradingController {
     /**
      * 그룹 보유 현황 조회
      */
+    @Operation(summary = "그룹 보유 현황 조회", description = "특정 그룹의 보유 종목 현황을 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "그룹 보유 현황 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "그룹 보유 현황 조회 실패")
+    })
     @GetMapping("/holdings/{groupId}")
-    public ResponseEntity<ApiResponse<Object>> getGroupHoldings(@PathVariable UUID groupId) {
-        // TODO: 그룹 보유 현황 조회 로직 구현
-        return ResponseEntity.ok(ApiResponse.success("그룹 보유 현황 조회 기능은 추후 구현 예정입니다."));
+    public ResponseEntity<ApiResponse<List<GroupHoldingResponse>>> getGroupHoldings(
+            @Parameter(description = "그룹 ID", required = true) @PathVariable UUID groupId) {
+        log.info("그룹 보유 현황 조회 요청 - 그룹ID: {}", groupId);
+        
+        try {
+            List<GroupHoldingResponse> holdings = groupTradingService.getGroupHoldings(groupId);
+            return ResponseEntity.ok(ApiResponse.success(holdings));
+        } catch (Exception e) {
+            log.error("그룹 보유 현황 조회 실패: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error("그룹 보유 현황 조회 실패: " + e.getMessage(), "GROUP_HOLDINGS_ERROR")
+            );
+        }
     }
 }
 

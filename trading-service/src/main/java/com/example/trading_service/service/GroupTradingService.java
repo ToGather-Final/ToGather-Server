@@ -2,6 +2,8 @@ package com.example.trading_service.service;
 
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.BuyRequest;
+import com.example.trading_service.dto.GroupHoldingResponse;
+import com.example.trading_service.dto.PortfolioSummaryResponse;
 import com.example.trading_service.dto.OrderBookResponse;
 import com.example.trading_service.dto.SellRequest;
 import com.example.trading_service.exception.BusinessException;
@@ -34,6 +36,7 @@ public class GroupTradingService {
     private final StockRepository stockRepository;
     @Lazy
     private final OrderBookService orderBookService;
+    private final PortfolioCalculationService portfolioCalculationService;
 
     /**
      * 그룹 매수 주문 처리
@@ -318,23 +321,234 @@ public class GroupTradingService {
     }
 
     /**
-     * 그룹 거래 히스토리 저장
+     * 그룹 거래 히스토리 저장 (현재 사용되지 않음 - History 클래스 구조 변경으로 인해 주석 처리)
      */
+    /*
     private void saveGroupTradingHistory(UUID groupId, UUID stockId, int quantity, 
                                        BigDecimal price, String transactionType, 
                                        List<Order> executedOrders) {
         for (Order order : executedOrders) {
-            History history = new History();
-            history.setInvestmentAccount(order.getInvestmentAccount());
-            history.setStock(order.getStock());
-            history.setTransactionType(History.TransactionType.valueOf(transactionType));
-            history.setQuantity(quantity);
-            history.setPrice(price);
-            history.setTotalAmount(price.multiply(BigDecimal.valueOf(quantity)));
-            history.setOrderId(order.getOrderId());
-            history.setGroupId(groupId);
-            
-            historyRepository.save(history);
+            // History 클래스는 정적 팩토리 메서드를 사용해야 함
+            // TODO: History 클래스의 새로운 구조에 맞게 수정 필요
         }
+    }
+    */
+
+    /**
+     * 그룹 보유종목 조회
+     * @param groupId 그룹 ID
+     * @return 그룹 보유종목 목록
+     */
+    @Transactional(readOnly = true)
+    public List<GroupHoldingResponse> getGroupHoldings(UUID groupId) {
+        log.info("그룹 보유종목 조회 - 그룹ID: {}", groupId);
+        
+        // 그룹의 보유 수량이 0보다 큰 종목들만 조회
+        List<GroupHoldingCache> groupHoldings = groupHoldingCacheRepository
+                .findByGroupIdAndTotalQuantityGreaterThan(groupId, 0);
+        
+        List<GroupHoldingResponse> responses = new ArrayList<>();
+        
+        for (GroupHoldingCache holding : groupHoldings) {
+            Stock stock = holding.getStock();
+            
+            // 현재가 조회 (OrderBookService 사용)
+            OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
+            Float currentPrice = orderBook.getCurrentPrice();
+            
+            // 평가금액 계산
+            float evaluatedPrice = currentPrice * holding.getTotalQuantity();
+            
+            // 평가손익 계산
+            float totalCost = holding.getAvgCost() * holding.getTotalQuantity();
+            float profit = evaluatedPrice - totalCost;
+            
+            // 수익률 계산
+            float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+            
+            // 처음 구매한 가격 대비 변동 정보 (평균 매입가 기준)
+            float changeAmount = (currentPrice - holding.getAvgCost()) * holding.getTotalQuantity();
+            float changeRate = holding.getAvgCost() > 0 ? 
+                    ((currentPrice - holding.getAvgCost()) / holding.getAvgCost()) * 100 : 0;
+            
+            // 변동 방향 (평균 매입가 대비)
+            String changeDirection;
+            if (changeAmount > 0) {
+                changeDirection = "up";
+            } else if (changeAmount < 0) {
+                changeDirection = "down";
+            } else {
+                changeDirection = "unchanged";
+            }
+            
+            // 멤버당 평균 보유 수량 계산
+            float avgQuantityPerMember = holding.getMemberCount() > 0 ? 
+                    (float) holding.getTotalQuantity() / holding.getMemberCount() : 0;
+            
+            GroupHoldingResponse response = new GroupHoldingResponse(
+                    holding.getGroupHoldingId(),
+                    holding.getGroupId(),
+                    stock.getId(),
+                    stock.getStockCode(),
+                    stock.getStockName(),
+                    stock.getStockImage(),
+                    holding.getTotalQuantity(),
+                    holding.getAvgCost(),
+                    currentPrice,
+                    changeAmount,
+                    changeRate,
+                    profit,
+                    evaluatedPrice,
+                    profitRate,
+                    changeDirection,
+                    holding.getMemberCount(),
+                    avgQuantityPerMember
+            );
+            
+            responses.add(response);
+        }
+        
+        // 예수금은 summary에서 처리하므로 holdings에서는 제거
+        
+        log.info("그룹 보유종목 조회 완료 - 그룹ID: {}, 보유종목 수: {}", groupId, responses.size());
+        return responses;
+    }
+
+    /**
+     * 그룹 멤버들의 총 예수금 계산
+     * @param groupId 그룹 ID
+     * @return 그룹 전체 예수금
+     */
+    private Float calculateGroupTotalCash(UUID groupId) {
+        try {
+            List<InvestmentAccount> groupMembers = getGroupMembers(groupId);
+            float totalCash = 0.0f;
+            
+            for (InvestmentAccount member : groupMembers) {
+                try {
+                    // 각 멤버의 예수금 조회
+                    BigDecimal memberBalance = portfolioCalculationService.getUserBalanceWithCache(UUID.fromString(member.getUserId()));
+                    totalCash += memberBalance.floatValue();
+                } catch (Exception e) {
+                    log.warn("멤버 예수금 조회 실패 - 사용자ID: {} - {}", member.getUserId(), e.getMessage());
+                    // 개별 멤버 조회 실패해도 전체 계산은 계속 진행
+                }
+            }
+            
+            log.info("그룹 예수금 계산 완료 - 그룹ID: {}, 총 예수금: {}", groupId, totalCash);
+            return totalCash;
+            
+        } catch (Exception e) {
+            log.error("그룹 예수금 계산 실패 - 그룹ID: {} - {}", groupId, e.getMessage());
+            return 0.0f;
+        }
+    }
+
+    /**
+     * 그룹 포트폴리오 요약 정보 계산
+     * @param groupId 그룹 ID
+     * @return 그룹 포트폴리오 요약 정보
+     */
+    @Transactional(readOnly = true)
+    public PortfolioSummaryResponse calculateGroupPortfolioSummary(UUID groupId) {
+        log.info("그룹 포트폴리오 요약 계산 - 그룹ID: {}", groupId);
+        
+        // 그룹의 보유 수량이 0보다 큰 종목들만 조회
+        List<GroupHoldingCache> groupHoldings = groupHoldingCacheRepository
+                .findByGroupIdAndTotalQuantityGreaterThan(groupId, 0);
+        
+        float totalInvested = 0;
+        float totalValue = 0;
+        
+        for (GroupHoldingCache holding : groupHoldings) {
+            totalInvested += holding.getAvgCost() * holding.getTotalQuantity();
+            totalValue += holding.getEvaluatedPrice() != null ? holding.getEvaluatedPrice() : 0;
+        }
+        
+        float totalProfit = totalValue - totalInvested;
+        float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+        
+        // 상위 5개 보유 종목
+        List<GroupHoldingResponse> topHoldings = groupHoldings.stream()
+                .sorted((h1, h2) -> Float.compare(
+                    (h2.getEvaluatedPrice() != null ? h2.getEvaluatedPrice() : 0),
+                    (h1.getEvaluatedPrice() != null ? h1.getEvaluatedPrice() : 0)
+                ))
+                .limit(5)
+                .map(this::convertToGroupHoldingResponse)
+                .collect(Collectors.toList());
+        
+        // 그룹 멤버들의 총 예수금 계산
+        float totalCashBalance = calculateGroupTotalCash(groupId);
+        
+        return new PortfolioSummaryResponse(
+                totalInvested,
+                totalValue,
+                totalProfit,
+                totalProfitRate,
+                groupHoldings.size(),
+                topHoldings,
+                totalCashBalance
+        );
+    }
+
+    /**
+     * GroupHoldingCache를 GroupHoldingResponse로 변환
+     */
+    private GroupHoldingResponse convertToGroupHoldingResponse(GroupHoldingCache holding) {
+        Stock stock = holding.getStock();
+        
+        // 현재가 조회 (OrderBookService 사용)
+        OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
+        Float currentPrice = orderBook.getCurrentPrice();
+        
+        // 평가금액 계산
+        float evaluatedPrice = currentPrice * holding.getTotalQuantity();
+        
+        // 평가손익 계산
+        float totalCost = holding.getAvgCost() * holding.getTotalQuantity();
+        float profit = evaluatedPrice - totalCost;
+        
+        // 수익률 계산
+        float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+        
+        // 처음 구매한 가격 대비 변동 정보 (평균 매입가 기준)
+        float changeAmount = (currentPrice - holding.getAvgCost()) * holding.getTotalQuantity();
+        float changeRate = holding.getAvgCost() > 0 ? 
+                ((currentPrice - holding.getAvgCost()) / holding.getAvgCost()) * 100 : 0;
+        
+        // 변동 방향 (평균 매입가 대비)
+        String changeDirection;
+        if (changeAmount > 0) {
+            changeDirection = "up";
+        } else if (changeAmount < 0) {
+            changeDirection = "down";
+        } else {
+            changeDirection = "unchanged";
+        }
+        
+        // 멤버당 평균 보유 수량 계산
+        float avgQuantityPerMember = holding.getMemberCount() > 0 ? 
+                (float) holding.getTotalQuantity() / holding.getMemberCount() : 0;
+        
+        return new GroupHoldingResponse(
+                holding.getGroupHoldingId(),
+                holding.getGroupId(),
+                stock.getId(),
+                stock.getStockCode(),
+                stock.getStockName(),
+                stock.getStockImage(),
+                holding.getTotalQuantity(),
+                holding.getAvgCost(),
+                currentPrice,
+                changeAmount,
+                changeRate,
+                profit,
+                evaluatedPrice,
+                profitRate,
+                changeDirection,
+                holding.getMemberCount(),
+                avgQuantityPerMember
+        );
     }
 }
