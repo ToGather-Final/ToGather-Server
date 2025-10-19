@@ -85,7 +85,7 @@ public class ProposalService {
         String validatedPayload = validateAndConvertPayload(request.payload());
         
         // 4. 투표 기간 설정 (그룹 규칙에서 가져오기)
-        LocalDateTime closeAt = calculateVoteCloseTime(groupId);
+        LocalDateTime closeAt = calculateVoteCloseTime(groupId, request);
         
         Proposal proposal = Proposal.create(
                 groupId,
@@ -251,15 +251,25 @@ public class ProposalService {
      * @param groupId 그룹 ID
      * @return 투표 마감 시간
      */
-    private LocalDateTime calculateVoteCloseTime(UUID groupId) {
+    private LocalDateTime calculateVoteCloseTime(UUID groupId, ProposalCreateRequest request) {
         // TODO: user-service에서 voteDurationHours 필드가 추가되면 API 호출로 변경
         // 현재는 기본값 5분 사용
         // LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
         // log.info("투표 마감 시간 설정 (기본값 5분) - groupId: {}, closeAt: {}", groupId, closeAt);
         
         // 디버깅용: 1분으로 설정
-        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(1);
-        log.info("투표 마감 시간 설정 (디버깅용 1분) - groupId: {}, closeAt: {}", groupId, closeAt);
+        int durationMinutes;
+
+        if (request.hasDuration()) {
+            durationMinutes = request.durationMinutes();
+            log.info("사용자 설정 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
+        } else {
+            durationMinutes = 10;
+            log.info("기본 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
+        }
+
+        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(durationMinutes);
+        log.info("투표 마감 시간 설정 - groupId: {}, durationMinutes: {}, closeAt: {}", groupId, durationMinutes, closeAt);
         
         return closeAt;
     }
