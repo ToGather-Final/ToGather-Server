@@ -44,10 +44,10 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "150m"  # 🚀 CPU 요청 증가
+            cpu: "100m"  # 🚀 CPU 요청 감소
           limits:
             memory: "512Mi"
-            cpu: "400m"  # 🚀 CPU 제한 증가
+            cpu: "200m"  # 🚀 CPU 제한 감소
         livenessProbe:
           httpGet:
             path: /actuator/health

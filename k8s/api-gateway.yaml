@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 1  # 🚀 3-Node 환경: 최소 1개, HPA로 스케일링
+  replicas: 2  # 🚀 20명 기준: 2개로 시작 (고가용성)
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -83,7 +83,7 @@ spec:
               cpu: "100m"
             limits:
               memory: "256Mi"
-              cpu: "200m"
+              cpu: "150m"  # 🚀 CPU 제한 감소
           livenessProbe:
             httpGet:
               path: /api/health

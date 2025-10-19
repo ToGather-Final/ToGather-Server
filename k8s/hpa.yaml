@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: api-gateway
   minReplicas: 3  # 🚀 3-Node 환경: 최소 1개 유지
-  maxReplicas: 4  # 🚀 최대 4개까지 확장 가능
+  maxReplicas: 2  # 🚀 20명 기준: 최대 2개까지 확장 가능
   metrics:
     - type: Resource
       resource:
@@ -48,7 +48,7 @@ spec:
     kind: Deployment
     name: user-service
   minReplicas: 1  # 🚀 3-Node 환경: 최소 1개 유지
-  maxReplicas: 3  # 🚀 최대 3개까지 확장 가능
+  maxReplicas: 2  # 🚀 20명 기준: 최대 2개까지 확장 가능
   metrics:
     - type: Resource
       resource:
@@ -87,7 +87,7 @@ spec:
     kind: Deployment
     name: trading-service
   minReplicas: 1  # 🚀 3-Node 환경: 최소 1개 유지
-  maxReplicas: 4  # 🚀 최대 4개까지 확장 가능
+  maxReplicas: 2  # 🚀 20명 기준: 최대 2개까지 확장 가능
   metrics:
     - type: Resource
       resource:
@@ -204,7 +204,7 @@ spec:
     kind: Deployment
     name: nextjs-client
   minReplicas: 1  # 🚀 3-Node 환경: 최소 1개 유지
-  maxReplicas: 4  # 🚀 최대 4개까지 확장 가능
+  maxReplicas: 2  # 🚀 20명 기준: 최대 2개까지 확장 가능
   metrics:
     - type: Resource
       resource:

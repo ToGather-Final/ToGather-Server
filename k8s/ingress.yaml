@@ -45,10 +45,14 @@ metadata:
       deregistration_delay.timeout_seconds=30,
       stickiness.enabled=true,
       stickiness.lb_cookie.duration_seconds=86400,
-      load_balancing.cross_zone.enabled=true
+      load_balancing.cross_zone.enabled=true,
+      target_health_check.timeout_seconds=30,
+      target_health_check.interval_seconds=10,
+      target_health_check.healthy_threshold_count=2,
+      target_health_check.unhealthy_threshold_count=3
     
     # 🚀 연결 최적화 (SSR 렌더링 대응)
-    alb.ingress.kubernetes.io/connection-idle-timeout: "60"
+    alb.ingress.kubernetes.io/connection-idle-timeout: "120"  # 🚀 타임아웃 증가
     alb.ingress.kubernetes.io/success-codes: "200,301,302"
 
 spec:

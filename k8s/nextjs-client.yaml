@@ -4,7 +4,7 @@ metadata:
   name: nextjs-client
   namespace: togather
 spec:
-  replicas: 1  # 🚀 3-Node 환경: 최소 1개, HPA로 스케일링
+  replicas: 2  # 🚀 20명 기준: 2개로 시작 (고가용성)
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -37,13 +37,13 @@ spec:
           ports:
             - containerPort: 3000
           resources:
-            # 🚀 3-Node 환경 최적화 (t3.large 기준)
+            # 🚀 504 에러 해결을 위한 리소스 증가
             requests:
-              memory: "256Mi"    # 프론트엔드 최적화
-              cpu: "150m"        # CPU 요청 증가
+              memory: "512Mi"    # 🚀 메모리 요청 2배 증가
+              cpu: "200m"        # 🚀 CPU 요청 2배 증가
             limits:
-              memory: "512Mi"    # 메모리 제한 최적화
-              cpu: "400m"        # CPU 제한 최적화
+              memory: "1Gi"      # 🚀 메모리 제한 2배 증가
+              cpu: "500m"        # 🚀 CPU 제한 2.5배 증가
           env:
             - name: NODE_ENV
               value: "production"
@@ -64,26 +64,26 @@ spec:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 45
-            periodSeconds: 20
-            timeoutSeconds: 8
+            initialDelaySeconds: 30  # 🚀 초기 지연 감소
+            periodSeconds: 15        # 🚀 체크 주기 감소
+            timeoutSeconds: 5        # 🚀 타임아웃 감소
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 20
-            periodSeconds: 8
-            timeoutSeconds: 5
+            initialDelaySeconds: 10  # 🚀 초기 지연 감소
+            periodSeconds: 5         # 🚀 체크 주기 감소
+            timeoutSeconds: 3        # 🚀 타임아웃 감소
             failureThreshold: 2
           startupProbe:
             httpGet:
               path: /
               port: 3000
             initialDelaySeconds: 5
-            periodSeconds: 3
+            periodSeconds: 2         # 🚀 체크 주기 감소
             timeoutSeconds: 2
-            failureThreshold: 20
+            failureThreshold: 15     # 🚀 실패 임계값 감소
 ---
 apiVersion: v1
 kind: Service

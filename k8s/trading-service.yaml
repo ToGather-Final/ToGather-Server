@@ -6,7 +6,7 @@ metadata:
   labels:
     app: trading-service
 spec:
-  replicas: 1  # 🚀 3-Node 환경: 최소 1개, HPA로 스케일링
+  replicas: 2  # 🚀 20명 기준: 2개로 시작 (고가용성)
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -54,14 +54,14 @@ spec:
               name: togather-secrets
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "300m"
+            memory: "256Mi"  # 🚀 메모리 요청 감소
+            cpu: "200m"      # 🚀 CPU 요청 감소
           limits:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "512Mi"  # 🚀 메모리 제한 감소
+            cpu: "300m"      # 🚀 CPU 제한 감소
         livenessProbe:
           httpGet:
-            path: /api/health
+            path: /actuator/health
             port: 8080
           initialDelaySeconds: 240
           periodSeconds: 30
@@ -69,7 +69,7 @@ spec:
           failureThreshold: 5
         readinessProbe:
           httpGet:
-            path: /api/health
+            path: /actuator/health
             port: 8080
           initialDelaySeconds: 200
           periodSeconds: 15

@@ -6,7 +6,7 @@ metadata:
   labels:
     app: user-service
 spec:
-  replicas: 1  # 🚀 3-Node 환경: 최소 1개, HPA로 스케일링
+  replicas: 2  # 🚀 20명 기준: 2개로 시작 (고가용성)
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -55,10 +55,10 @@ spec:
         resources:
           requests:
             memory: "256Mi"
-            cpu: "150m"  # 🚀 CPU 요청 증가
+            cpu: "100m"  # 🚀 CPU 요청 감소
           limits:
             memory: "512Mi"
-            cpu: "400m"  # 🚀 CPU 제한 증가
+            cpu: "200m"  # 🚀 CPU 제한 감소
         livenessProbe:
           httpGet:
             path: /actuator/health
