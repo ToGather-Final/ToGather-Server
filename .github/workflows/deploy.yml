@@ -12,6 +12,10 @@ env:
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com
   EKS_CLUSTER_NAME: togather-cluster
   EKS_NAMESPACE: togather
+  # CDN 설정
+  CDN_URL: https://d36ue99r8i68ow.cloudfront.net
+  S3_BUCKET_NAME: togather-static-assets
+  CLOUDFRONT_DISTRIBUTION_ID: E15ZDIW40YBVEN
 
 jobs:
   build-and-deploy:
@@ -97,12 +101,17 @@ jobs:
         # Docker 이미지 빌드
         docker build \
           --build-arg NEXT_PUBLIC_API_BASE_URL=${{ secrets.PROD_API_BASE_URL }} \
+          --build-arg CDN_URL=${{ env.CDN_URL }} \
           -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
           -f ./Dockerfile .
 
         docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
         docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
         docker push $ECR_REGISTRY/togather/client:latest
+      env:
+        CDN_URL: ${{ env.CDN_URL }}
+        S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
+        CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
 
     - name: Build and push API Gateway image
       run: |
