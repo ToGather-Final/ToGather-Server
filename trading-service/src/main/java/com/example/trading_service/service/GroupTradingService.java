@@ -33,7 +33,7 @@ public class GroupTradingService {
     private final HoldingCacheRepository holdingCacheRepository;
     private final GroupHoldingCacheRepository groupHoldingCacheRepository;
     private final BalanceCacheRepository balanceCacheRepository;
-    private final HistoryRepository historyRepository;
+    // private final HistoryRepository historyRepository; // 히스토리 기능 주석
     private final InvestmentAccountRepository investmentAccountRepository;
     private final StockRepository stockRepository;
     @Lazy
@@ -109,7 +109,7 @@ public class GroupTradingService {
         // 3. 그룹 보유량 업데이트
         updateGroupHolding(groupId, stockId, totalQuantity, pricePerMember, memberCount);
 
-        // 4. 거래 히스토리 저장 (일단 주석 처리)
+        // 4. 거래 히스토리 저장 (주석)
         // saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "BUY", executedOrders);
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
@@ -187,7 +187,7 @@ public class GroupTradingService {
         // 4. 그룹 보유량 업데이트
         updateGroupHolding(groupId, stockId, -totalQuantity, pricePerMember, memberCount);
 
-        // 5. 거래 히스토리 저장 (일단 주석 처리)
+        // 5. 거래 히스토리 저장 (주석)
         // saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "SELL", executedOrders);
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
@@ -323,8 +323,9 @@ public class GroupTradingService {
     }
 
     /**
-     * 그룹 거래 히스토리 저장
+     * 그룹 거래 히스토리 저장 (주석)
      */
+    /*
     private void saveGroupTradingHistory(UUID groupId, UUID stockId, int quantity, 
                                        BigDecimal price, String transactionType, 
                                        List<Order> executedOrders) {
@@ -378,6 +379,7 @@ public class GroupTradingService {
             // 히스토리 저장 실패는 거래 자체를 중단시키지 않음
         }
     }
+    */
 
     /**
      * 그룹 보유종목 조회
