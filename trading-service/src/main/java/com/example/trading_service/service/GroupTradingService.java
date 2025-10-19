@@ -3,6 +3,7 @@ package com.example.trading_service.service;
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.BuyRequest;
 import com.example.trading_service.dto.GroupHoldingResponse;
+import com.example.trading_service.dto.HoldingResponse;
 import com.example.trading_service.dto.PortfolioSummaryResponse;
 import com.example.trading_service.dto.OrderBookResponse;
 import com.example.trading_service.dto.SellRequest;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -107,8 +109,8 @@ public class GroupTradingService {
         // 3. 그룹 보유량 업데이트
         updateGroupHolding(groupId, stockId, totalQuantity, pricePerMember, memberCount);
 
-        // 4. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "BUY", executedOrders);
+        // 4. 거래 히스토리 저장 (일단 주석 처리)
+        // saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "BUY", executedOrders);
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -185,8 +187,8 @@ public class GroupTradingService {
         // 4. 그룹 보유량 업데이트
         updateGroupHolding(groupId, stockId, -totalQuantity, pricePerMember, memberCount);
 
-        // 5. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "SELL", executedOrders);
+        // 5. 거래 히스토리 저장 (일단 주석 처리)
+        // saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "SELL", executedOrders);
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -321,18 +323,61 @@ public class GroupTradingService {
     }
 
     /**
-     * 그룹 거래 히스토리 저장 (현재 사용되지 않음 - History 클래스 구조 변경으로 인해 주석 처리)
+     * 그룹 거래 히스토리 저장
      */
-    /*
     private void saveGroupTradingHistory(UUID groupId, UUID stockId, int quantity, 
                                        BigDecimal price, String transactionType, 
                                        List<Order> executedOrders) {
-        for (Order order : executedOrders) {
-            // History 클래스는 정적 팩토리 메서드를 사용해야 함
-            // TODO: History 클래스의 새로운 구조에 맞게 수정 필요
+        try {
+            // 주식 정보 조회
+            Stock stock = stockRepository.findById(stockId)
+                    .orElseThrow(() -> new BusinessException("주식을 찾을 수 없습니다.", "STOCK_NOT_FOUND"));
+            
+            // 거래 타입에 따른 제목 생성
+            String action = "BUY".equals(transactionType) ? "매수" : "매도";
+            String title = String.format("%s %d주 %d원 %s 체결",
+                    stock.getStockName(),
+                    quantity,
+                    price.intValue(),
+                    action
+            );
+            
+            // 페이로드 생성
+            String payload = String.format(
+                "{\"side\":\"%s\",\"stockName\":\"%s\",\"shares\":%d,\"unitPrice\":%d,\"totalAmount\":%d}",
+                transactionType,
+                stock.getStockName(),
+                quantity,
+                price.intValue(),
+                price.intValue() * quantity
+            );
+            
+            // History 객체 생성 및 저장
+            History history = History.create(
+                    groupId,
+                    HistoryCategory.TRADE,
+                    HistoryType.TRADE_EXECUTED,
+                    title,
+                    payload,
+                    price.intValue(),
+                    quantity
+            );
+            
+            // 주식 ID 설정
+            history.setStockId(stockId);
+            
+            // 히스토리 저장
+            historyRepository.save(history);
+            
+            log.info("그룹 거래 히스토리 저장 완료 - 그룹ID: {}, 종목: {}, 수량: {}, 가격: {}", 
+                    groupId, stock.getStockName(), quantity, price);
+                    
+        } catch (Exception e) {
+            log.error("그룹 거래 히스토리 저장 실패 - 그룹ID: {}, 주식ID: {} - {}", 
+                    groupId, stockId, e.getMessage());
+            // 히스토리 저장 실패는 거래 자체를 중단시키지 않음
         }
     }
-    */
 
     /**
      * 그룹 보유종목 조회
@@ -469,13 +514,13 @@ public class GroupTradingService {
         float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
         
         // 상위 5개 보유 종목
-        List<GroupHoldingResponse> topHoldings = groupHoldings.stream()
+        List<HoldingResponse> topHoldings = groupHoldings.stream()
                 .sorted((h1, h2) -> Float.compare(
                     (h2.getEvaluatedPrice() != null ? h2.getEvaluatedPrice() : 0),
                     (h1.getEvaluatedPrice() != null ? h1.getEvaluatedPrice() : 0)
                 ))
                 .limit(5)
-                .map(this::convertToGroupHoldingResponse)
+                .map(holding -> convertToHoldingResponse(holding))
                 .collect(Collectors.toList());
         
         // 그룹 멤버들의 총 예수금 계산
@@ -489,6 +534,59 @@ public class GroupTradingService {
                 groupHoldings.size(),
                 topHoldings,
                 totalCashBalance
+        );
+    }
+
+    /**
+     * GroupHoldingCache를 HoldingResponse로 변환 (PortfolioSummaryResponse용)
+     */
+    private HoldingResponse convertToHoldingResponse(GroupHoldingCache holding) {
+        Stock stock = holding.getStock();
+        
+        // 현재가 조회 (OrderBookService 사용)
+        OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
+        Float currentPrice = orderBook.getCurrentPrice();
+        
+        // 평가금액 계산
+        float evaluatedPrice = currentPrice * holding.getTotalQuantity();
+        
+        // 평가손익 계산
+        float totalCost = holding.getAvgCost() * holding.getTotalQuantity();
+        float profit = evaluatedPrice - totalCost;
+        
+        // 수익률 계산
+        float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+        
+        // 처음 구매한 가격 대비 변동 정보 (평균 매입가 기준)
+        float changeAmount = (currentPrice - holding.getAvgCost()) * holding.getTotalQuantity();
+        float changeRate = holding.getAvgCost() > 0 ? 
+                ((currentPrice - holding.getAvgCost()) / holding.getAvgCost()) * 100 : 0;
+        
+        // 변동 방향 (평균 매입가 대비)
+        String changeDirection;
+        if (changeAmount > 0) {
+            changeDirection = "up";
+        } else if (changeAmount < 0) {
+            changeDirection = "down";
+        } else {
+            changeDirection = "unchanged";
+        }
+        
+        return new HoldingResponse(
+                holding.getGroupHoldingId(), // GroupHoldingCache의 ID를 holdingId로 사용
+                stock.getId(),
+                stock.getStockCode(),
+                stock.getStockName(),
+                stock.getStockImage(),
+                holding.getTotalQuantity(),
+                holding.getAvgCost(),
+                currentPrice,
+                changeAmount,
+                changeRate,
+                profit,
+                evaluatedPrice,
+                profitRate,
+                changeDirection
         );
     }
 
