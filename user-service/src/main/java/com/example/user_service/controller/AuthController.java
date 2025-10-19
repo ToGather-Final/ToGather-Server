@@ -1,11 +1,14 @@
 package com.example.user_service.controller;
 
+import com.example.user_service.domain.User;
 import com.example.user_service.dto.LoginRequest;
 import com.example.user_service.dto.LoginResponse;
 import com.example.user_service.dto.RefreshTokenRequest;
 import com.example.user_service.dto.RegisterRequest;
+import com.example.user_service.repository.UserRepository;
 import com.example.user_service.security.JwtUtil;
 import com.example.user_service.service.AuthService;
+import com.example.user_service.service.GroupService;
 import com.example.user_service.service.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,6 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+
+import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -33,11 +38,15 @@ public class AuthController {
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
+    private final GroupService groupService;
 
-    public AuthController(AuthService authService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil) {
+    public AuthController(AuthService authService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil, UserRepository userRepository, GroupService groupService) {
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
+        this.groupService = groupService;
     }
 
     @Operation(summary = "회원가입", description = "새로운 사용자 계정을 생성하고 액세스 토큰과 리프레시 토큰을 발급합니다.", security = {})
@@ -67,7 +76,13 @@ public class AuthController {
             String refreshToken = refreshTokenService.issue(userId, deviceId);
             
             log.info("JWT 토큰 생성 완료");
-            return ResponseEntity.status(HttpStatus.CREATED).body(new LoginResponse(accessToken, refreshToken, userId));
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+            List<LoginResponse.UserGroupInfo> groups = groupService.getUserGroupsForLogin(userId);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(new LoginResponse(accessToken, refreshToken, userId, user.getUsername(), user.getNickname(), groups));
         } catch (Exception e) {
             log.error("=== 회원가입 실패 ===");
             log.error("에러 타입: {}", e.getClass().getName());
@@ -91,7 +106,13 @@ public class AuthController {
         UUID userId = authService.login(request);
         String accessToken = jwtUtil.issue(userId);
         String refreshToken = refreshTokenService.issue(userId, deviceId);
-        return new LoginResponse(accessToken, refreshToken, userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        List<LoginResponse.UserGroupInfo> groups = groupService.getUserGroupsForLogin(userId);
+
+        return new LoginResponse(accessToken, refreshToken, userId, user.getUsername(), user.getNickname(), groups);
     }
 
     @Operation(summary = "토큰 갱신", description = "리프레시 토큰을 사용하여 새로운 액세스 토큰과 리프레시 토큰을 발급합니다.", security = {})
@@ -111,7 +132,12 @@ public class AuthController {
         String newAccessToken = jwtUtil.issue(userId);
         String newRefreshToken = refreshTokenService.issue(userId, deviceId);
 
-        return new LoginResponse(newAccessToken, newRefreshToken, userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        List<LoginResponse.UserGroupInfo> groups = groupService.getUserGroupsForLogin(userId);
+
+        return new LoginResponse(newAccessToken, newRefreshToken, userId, user.getUsername(), user.getNickname(), groups);
     }
 
     @Operation(summary = "로그아웃", description = "사용자의 리프레시 토큰을 무효화하여 로그아웃을 처리합니다.")
