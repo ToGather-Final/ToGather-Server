@@ -40,6 +40,7 @@ public class TradingService {
     private final OrderService orderService;
     private final PortfolioCalculationService portfolioCalculationService;
     private final PayServiceClient payServiceClient;
+    private final HistoryRepository historyRepository;
 
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
@@ -86,6 +87,40 @@ public class TradingService {
         
         balance.setBalance(balance.getBalance() + request.getAmount().intValue());
         balanceCacheRepository.save(balance);
+        
+        
+        // History 테이블에 현금 입금 완료 히스토리 저장 (일단 주석 처리)
+        /*
+        try {
+            // 개인 거래의 경우 사용자 ID를 기반으로 임시 그룹 ID 생성
+            UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
+            
+            if (tempGroupId != null) {
+                String payload = String.format(
+                    "{\"amount\":%d,\"accountBalance\":%d}",
+                    request.getAmount().intValue(),
+                    balance.getBalance()
+                );
+                
+                String title = String.format("현금 입금 완료 - %d원", request.getAmount().intValue());
+                
+                History history = History.create(
+                    tempGroupId,
+                    HistoryCategory.CASH,
+                    HistoryType.CASH_DEPOSIT_COMPLETED,
+                    title,
+                    payload
+                );
+                
+                historyRepository.save(history);
+                
+                log.info("현금 입금 완료 히스토리 저장 완료 - 임시그룹ID: {}, 금액: {}", 
+                        tempGroupId, request.getAmount().intValue());
+            }
+        } catch (Exception e) {
+            log.error("현금 입금 완료 히스토리 저장 실패 - 사용자: {} - {}", userId, e.getMessage());
+        }
+        */
         
         log.info("예수금이 충전되었습니다. 사용자: {}, 충전 금액: {}", userId, request.getAmount());
     }

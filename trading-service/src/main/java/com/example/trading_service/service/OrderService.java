@@ -26,6 +26,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final StockRepository stockRepository;
     private final TradeExecutionService tradeExecutionService;
+    // private final HistoryRepository historyRepository; // 히스토리 기능 주석
 
     // 주식 매수 주문
     public void buyStock(UUID userId, BuyRequest request) {
@@ -46,6 +47,44 @@ public class OrderService {
         BigDecimal totalAmount = request.getPrice().multiply(BigDecimal.valueOf(request.getQuantity()));
         
         if (balance.getBalance() < totalAmount.floatValue()) {
+            
+            // History 테이블에 거래 실패 히스토리 저장 (주석)
+            /*
+            try {
+                // TODO: 그룹 ID를 어떻게 가져올지 결정 필요 (현재는 임시로 null 처리)
+                UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
+                
+                if (tempGroupId != null) {
+                    String payload = String.format(
+                        "{\"side\":\"BUY\",\"stockName\":\"%s\",\"reason\":\"잔고부족\"}",
+                        stock.getStockName()
+                    );
+                    
+                    String title = String.format("%s %d주 %d원 매수 실패",
+                        stock.getStockName(),
+                        request.getQuantity(),
+                        request.getPrice().intValue()
+                    );
+                    
+                    History history = History.create(
+                        tempGroupId,
+                        HistoryCategory.TRADE,
+                        HistoryType.TRADE_FAILED,
+                        title,
+                        payload
+                    );
+                    
+                    history.setStockId(stock.getId());
+                    historyRepository.save(history);
+                    
+                    log.info("거래 실패 히스토리 저장 완료 - 임시그룹ID: {}, 종목: {}, 사유: 잔고부족", 
+                            tempGroupId, stock.getStockName());
+                }
+            } catch (Exception e) {
+                log.error("거래 실패 히스토리 저장 실패 - 사용자: {} - {}", userId, e.getMessage());
+            }
+            */
+            
             throw new InsufficientBalanceException(totalAmount.floatValue(), balance.getBalance());
         }
 
@@ -83,6 +122,44 @@ public class OrderService {
                 .orElseThrow(() -> new BusinessException("보유하지 않은 종목입니다", "HOLDING_NOT_FOUND"));
 
         if (holding.getQuantity() < request.getQuantity()) {
+            
+            // History 테이블에 거래 실패 히스토리 저장 (주석)
+            /*
+            try {
+                // TODO: 그룹 ID를 어떻게 가져올지 결정 필요 (현재는 임시로 null 처리)
+                UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
+                
+                if (tempGroupId != null) {
+                    String payload = String.format(
+                        "{\"side\":\"SELL\",\"stockName\":\"%s\",\"reason\":\"보유수량부족\"}",
+                        stock.getStockName()
+                    );
+                    
+                    String title = String.format("%s %d주 %d원 매도 실패",
+                        stock.getStockName(),
+                        request.getQuantity(),
+                        request.getPrice().intValue()
+                    );
+                    
+                    History history = History.create(
+                        tempGroupId,
+                        HistoryCategory.TRADE,
+                        HistoryType.TRADE_FAILED,
+                        title,
+                        payload
+                    );
+                    
+                    history.setStockId(stock.getId());
+                    historyRepository.save(history);
+                    
+                    log.info("거래 실패 히스토리 저장 완료 - 임시그룹ID: {}, 종목: {}, 사유: 보유수량부족", 
+                            tempGroupId, stock.getStockName());
+                }
+            } catch (Exception e) {
+                log.error("거래 실패 히스토리 저장 실패 - 사용자: {} - {}", userId, e.getMessage());
+            }
+            */
+            
             throw new InsufficientHoldingException(request.getQuantity(), holding.getQuantity());
         }
 

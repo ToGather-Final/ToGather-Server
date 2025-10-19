@@ -25,7 +25,7 @@ public class BatchProcessingService {
     private final HoldingRepository holdingRepository;
     private final GroupHoldingRepository groupHoldingRepository;
     private final BalanceRepository balanceRepository;
-    private final HistoryRepository historyRepository;
+    // private final HistoryRepository historyRepository; // 히스토리 기능 주석
 
     /**
      * 매일 자정에 실행되는 배치 처리
