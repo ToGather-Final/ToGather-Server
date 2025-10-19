@@ -92,6 +92,43 @@ public class WebSocketController {
     }
 
     /**
+     * 웹소켓 연결 상태 모니터링 및 자동 재연결 (30초마다)
+     * 주기적으로 모니터링하되, 이미 연결 중이면 재연결하지 않음
+     */
+    @Scheduled(fixedRate = 30000)
+    public void monitorWebSocketConnection() {
+        try {
+            // 이미 연결되어 있으면 모니터링만 하고 재연결하지 않음
+            if (kisWebSocketClient.isConnected()) {
+                log.debug("✅ 웹소켓 연결 상태 양호");
+                return;
+            }
+            
+            // 연결이 끊어진 경우에만 재연결 시도
+            if (!kisWebSocketClient.isHealthy()) {
+                log.warn("⚠️ 웹소켓 연결 상태 불량 - 재연결 시도");
+                kisWebSocketClient.checkAndReconnect();
+            }
+        } catch (Exception e) {
+            log.error("웹소켓 연결 모니터링 중 오류 발생", e);
+        }
+    }
+
+    /**
+     * 누락된 주식 구독 확인 및 추가 (30초마다)
+     */
+    @Scheduled(fixedRate = 30000)
+    public void ensureAllStocksSubscribed() {
+        try {
+            if (kisWebSocketClient.isHealthy()) {
+                kisWebSocketClient.ensureAllStocksSubscribed();
+            }
+        } catch (Exception e) {
+            log.error("누락된 주식 구독 확인 중 오류 발생", e);
+        }
+    }
+
+    /**
      * 테스트용 주기적 메시지 브로드캐스트 (5초마다)
      */
     @Scheduled(fixedRate = 5000)

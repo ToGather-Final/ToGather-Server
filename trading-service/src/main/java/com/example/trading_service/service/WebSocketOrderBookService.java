@@ -1,7 +1,9 @@
 package com.example.trading_service.service;
 
+import com.example.trading_service.domain.Stock;
 import com.example.trading_service.dto.OrderBookItem;
 import com.example.trading_service.dto.OrderBookResponse;
+import com.example.trading_service.dto.StockPriceResponse;
 import com.example.trading_service.repository.StockRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,9 +59,28 @@ public class WebSocketOrderBookService {
             // JSON 형식 메시지 처리
             JsonNode rootNode = objectMapper.readTree(message);
             
+            // AppKey 중복 사용 오류 처리
+            if (isAppKeyInUseError(rootNode)) {
+                log.error("❌ AppKey 중복 사용 오류 감지 - 구독 중단");
+                // AppKey 중복 사용 시 구독을 즉시 중단
+                return;
+            }
+            
+            // 구독 한도 초과 오류 처리
+            if (isMaxSubscribeOverError(rootNode)) {
+                log.warn("⚠️ 구독 한도 초과 - 더 이상 구독할 수 없습니다");
+                return;
+            }
+            
             // PINGPONG 메시지 처리
             if (isPingPongMessage(rootNode)) {
                 log.info("💓 PINGPONG 하트비트 메시지 수신 - 연결 유지 중");
+                return;
+            }
+            
+            // 구독 성공 메시지 처리
+            if (isSubscribeSuccessMessage(rootNode)) {
+                log.info("✅ 주식 구독 성공 메시지 수신");
                 return;
             }
             
@@ -106,6 +127,22 @@ public class WebSocketOrderBookService {
     }
 
     /**
+     * 구독 성공 메시지인지 확인
+     */
+    private boolean isSubscribeSuccessMessage(JsonNode rootNode) {
+        try {
+            JsonNode body = rootNode.get("body");
+            if (body != null) {
+                String msg1 = body.get("msg1").asText();
+                return "SUBSCRIBE SUCCESS".equals(msg1);
+            }
+        } catch (Exception e) {
+            // 구독 성공 메시지가 아닌 경우 무시
+        }
+        return false;
+    }
+    
+    /**
      * 연결 확인 메시지인지 체크 (한투 API 문서 기준)
      */
     private boolean isConnectionMessage(JsonNode rootNode) {
@@ -120,6 +157,59 @@ public class WebSocketOrderBookService {
             // 연결 확인 메시지가 아닌 경우 무시
         }
         return false;
+    }
+    
+    /**
+     * AppKey 중복 사용 오류인지 확인
+     */
+    private boolean isAppKeyInUseError(JsonNode rootNode) {
+        try {
+            JsonNode body = rootNode.get("body");
+            if (body != null) {
+                String msgCd = body.get("msg_cd").asText();
+                String msg1 = body.get("msg1").asText();
+                return "OPSP8996".equals(msgCd) && msg1.contains("ALREADY IN USE appkey");
+            }
+        } catch (Exception e) {
+            // AppKey 오류가 아닌 경우 무시
+        }
+        return false;
+    }
+    
+    /**
+     * 구독 한도 초과 오류인지 확인
+     */
+    private boolean isMaxSubscribeOverError(JsonNode rootNode) {
+        try {
+            JsonNode body = rootNode.get("body");
+            if (body != null) {
+                String msgCd = body.get("msg_cd").asText();
+                String msg1 = body.get("msg1").asText();
+                return "OPSP0008".equals(msgCd) && "MAX SUBSCRIBE OVER".equals(msg1);
+            }
+        } catch (Exception e) {
+            // 구독 한도 오류가 아닌 경우 무시
+        }
+        return false;
+    }
+    
+    /**
+     * AppKey 중복 사용 오류 처리
+     */
+    private void handleAppKeyInUseError() {
+        try {
+            log.warn("🔄 AppKey 중복 사용으로 인한 웹소켓 재연결 시도...");
+            
+            // KisWebSocketClient에 재연결 요청
+            // 이 부분은 KisWebSocketClient를 주입받아서 처리하거나
+            // 이벤트를 발생시켜서 처리할 수 있습니다.
+            
+            // 현재는 로그만 남기고, 실제 재연결은 모니터링 스케줄러에서 처리
+            log.warn("⚠️ AppKey 중복 사용 오류 - 다음 모니터링 주기에서 재연결 시도 예정");
+            
+        } catch (Exception e) {
+            log.error("❌ AppKey 중복 사용 오류 처리 중 예외 발생", e);
+        }
     }
 
     /**
@@ -141,6 +231,9 @@ public class WebSocketOrderBookService {
                 if ("0".equals(encryptionFlag) && "H0STASP0".equals(trId)) {
                     // 암호화되지 않은 호가 데이터 처리
                     parseRealtimeOrderBook(responseData);
+                } else if ("0".equals(encryptionFlag) && "H0STCNT0".equals(trId)) {
+                    // 암호화되지 않은 현재가 데이터 처리
+                    parseRealtimeCurrentPrice(responseData);
                 } else if ("1".equals(encryptionFlag)) {
                     log.warn("⚠️ 암호화된 데이터 수신 - 복호화 로직 필요");
                 } else {
@@ -291,6 +384,80 @@ public class WebSocketOrderBookService {
             
         } catch (Exception e) {
             log.error("❌ 실시간 호가 데이터 파싱 실패: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 실시간 현재가 데이터 파싱 (H0STCNT0)
+     * 형식: 종목코드^현재가^전일대비^등락률^거래량^거래대금^시가^고가^저가^...
+     */
+    private void parseRealtimeCurrentPrice(String responseData) {
+        try {
+            // ^로 구분되는 데이터 파싱
+            String[] dataParts = responseData.split("\\^");
+            log.info("📈 실시간 현재가 데이터: {}개 필드", dataParts.length);
+            
+            if (dataParts.length < 10) {
+                log.warn("⚠️ 현재가 데이터 필드가 부족함: {}", dataParts.length);
+                return;
+            }
+            
+            // 현재가 데이터 파싱
+            String stockCode = dataParts[0];
+            String currentPriceStr = dataParts[1];
+            String changeAmountStr = dataParts[2];
+            String changeRateStr = dataParts[3];
+            String volumeStr = dataParts[4];
+            String openPriceStr = dataParts[6];
+            String highPriceStr = dataParts[7];
+            String lowPriceStr = dataParts[8];
+            
+            log.info("📊 현재가 데이터 - 종목: {}, 현재가: {}, 변동: {}, 변동률: {}%", 
+                    stockCode, currentPriceStr, changeAmountStr, changeRateStr);
+            
+            // StockPriceResponse 생성
+            StockPriceResponse priceResponse = new StockPriceResponse();
+            priceResponse.setStockCode(stockCode);
+            priceResponse.setCurrentPrice(new java.math.BigDecimal(currentPriceStr));
+            priceResponse.setChangePrice(new java.math.BigDecimal(changeAmountStr));
+            priceResponse.setChangeRate(Float.parseFloat(changeRateStr));
+            priceResponse.setVolume(Long.parseLong(volumeStr));
+            priceResponse.setOpenPrice(new java.math.BigDecimal(openPriceStr));
+            priceResponse.setHighPrice(new java.math.BigDecimal(highPriceStr));
+            priceResponse.setLowPrice(new java.math.BigDecimal(lowPriceStr));
+            priceResponse.setPrevClosePrice(priceResponse.getCurrentPrice().subtract(priceResponse.getChangePrice()));
+            
+            // Redis에 주식 가격 캐시 (StockPriceService에서 사용하는 키 형식)
+            cacheStockPriceFromWebSocket(stockCode, priceResponse);
+            
+            // WebSocket으로 브로드캐스트
+            messagingTemplate.convertAndSend("/topic/stockprice/" + stockCode, priceResponse);
+            
+            log.info("✅ 실시간 현재가 데이터 처리 완료: {} - 현재가: {}", stockCode, currentPriceStr);
+            
+        } catch (Exception e) {
+            log.error("❌ 실시간 현재가 데이터 파싱 실패: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 웹소켓에서 받은 주식 가격 데이터를 Redis에 캐시
+     */
+    private void cacheStockPriceFromWebSocket(String stockCode, StockPriceResponse priceResponse) {
+        try {
+            // Stock 엔티티에서 UUID 조회
+            Stock stock = stockRepository.findByStockCode(stockCode).orElse(null);
+            if (stock == null) {
+                log.warn("⚠️ 주식 정보를 찾을 수 없음: {}", stockCode);
+                return;
+            }
+            
+            // Redis에 캐시 (StockPriceService와 동일한 키 형식 사용)
+            redisCacheService.cacheStockPrice(stock.getId(), priceResponse);
+            log.info("💾 웹소켓 주식 가격 캐시 저장: {} - 현재가: {}", stockCode, priceResponse.getCurrentPrice());
+            
+        } catch (Exception e) {
+            log.error("❌ 웹소켓 주식 가격 캐시 실패: {}", stockCode, e);
         }
     }
 
