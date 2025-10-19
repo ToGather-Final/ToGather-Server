@@ -1,6 +1,10 @@
 package com.example.trading_service.controller;
 
 import com.example.trading_service.service.KisWebSocketClient;
+import com.example.trading_service.service.RedisCacheService;
+import com.example.trading_service.service.OrderBookService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -21,22 +25,77 @@ public class WebSocketController {
 
     private final KisWebSocketClient kisWebSocketClient;
     private final SimpMessagingTemplate messagingTemplate;
+    private final RedisCacheService redisCacheService;
+    private final OrderBookService orderBookService;
+    private final ObjectMapper objectMapper;
 
     /**
      * 호가 구독 요청
      */
     @MessageMapping("/orderbook/subscribe")
-    @SendTo("/topic/orderbook/status")
-    public Map<String, Object> subscribeOrderBook(String stockCode, SimpMessageHeaderAccessor headerAccessor) {
-        log.info("호가 구독 요청: {}", stockCode);
+    public void subscribeOrderBook(String message, SimpMessageHeaderAccessor headerAccessor) {
+        log.info("📡 호가 구독 요청: {}", message);
         
-        Map<String, Object> response = new HashMap<>();
-        response.put("action", "subscribe");
-        response.put("stockCode", stockCode);
-        response.put("status", "success");
-        response.put("message", "호가 구독이 시작되었습니다");
+        String stockCode = null; // 변수 스코프를 메서드 레벨로 이동
         
-        return response;
+        try {
+            // JSON 메시지에서 stockCode 추출
+            try {
+                JsonNode jsonNode = objectMapper.readTree(message);
+                stockCode = jsonNode.get("stockCode").asText();
+                log.info("📊 추출된 종목코드: {}", stockCode);
+            } catch (Exception e) {
+                // JSON 파싱 실패 시 메시지 자체를 stockCode로 사용
+                stockCode = message;
+                log.info("📊 JSON 파싱 실패, 메시지 자체를 종목코드로 사용: {}", stockCode);
+            }
+            
+            // 1. 캐시된 호가 데이터 조회
+            Object cachedOrderBook = redisCacheService.getCachedWebSocketOrderBook(stockCode);
+            
+            if (cachedOrderBook != null) {
+                // 캐시된 데이터가 있으면 즉시 전송
+                messagingTemplate.convertAndSend("/topic/orderbook/" + stockCode, cachedOrderBook);
+                log.info("✅ 캐시된 호가 데이터 전송: {}", stockCode);
+            } else {
+                // 캐시된 데이터가 없음 - OrderBookService에서 REST API 폴백 처리
+                log.info("📊 캐시된 데이터 없음 - OrderBookService에서 REST API 폴백 처리: {}", stockCode);
+                try {
+                    // OrderBookService.getOrderBook() 호출 (REST API 폴백 포함)
+                    Object orderBookData = orderBookService.getOrderBook(stockCode);
+                    if (orderBookData != null) {
+                        messagingTemplate.convertAndSend("/topic/orderbook/" + stockCode, orderBookData);
+                        log.info("✅ REST API 폴백 호가 데이터 전송: {}", stockCode);
+                    } else {
+                        log.warn("⚠️ REST API 폴백에서도 호가 데이터를 찾을 수 없음: {}", stockCode);
+                    }
+                } catch (Exception e) {
+                    log.error("❌ REST API 폴백 호가 데이터 조회 실패: {} - {}", stockCode, e.getMessage());
+                }
+            }
+            
+            // 2. 구독 상태 응답
+            Map<String, Object> statusResponse = new HashMap<>();
+            statusResponse.put("action", "subscribe");
+            statusResponse.put("stockCode", stockCode);
+            statusResponse.put("status", "success");
+            statusResponse.put("message", "호가 구독이 시작되었습니다");
+            statusResponse.put("hasCachedData", cachedOrderBook != null);
+            
+            messagingTemplate.convertAndSend("/topic/orderbook/status", statusResponse);
+            
+        } catch (Exception e) {
+            log.error("❌ 호가 구독 처리 실패: {} - {}", stockCode != null ? stockCode : "unknown", e.getMessage());
+            
+            // 에러 응답
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("action", "subscribe");
+            errorResponse.put("stockCode", stockCode != null ? stockCode : "unknown");
+            errorResponse.put("status", "error");
+            errorResponse.put("message", "호가 구독 처리 중 오류 발생: " + e.getMessage());
+            
+            messagingTemplate.convertAndSend("/topic/orderbook/status", errorResponse);
+        }
     }
 
     /**

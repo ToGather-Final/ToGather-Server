@@ -359,10 +359,10 @@ public class GroupTradingService {
             
             // 현재가 조회 (OrderBookService 사용)
             OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
-            BigDecimal currentPrice = orderBook.getCurrentPrice();
+            Float currentPrice = orderBook.getCurrentPrice();
             
             // 평가금액 계산
-            float evaluatedPrice = currentPrice.floatValue() * holding.getTotalQuantity();
+            float evaluatedPrice = currentPrice * holding.getTotalQuantity();
             
             // 평가손익 계산
             float totalCost = holding.getAvgCost() * holding.getTotalQuantity();
@@ -371,18 +371,14 @@ public class GroupTradingService {
             // 수익률 계산
             float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
             
-            // 전일 대비 변동률 (OrderBook에서 가져옴)
+            // 전일 대비 변동 정보 (OrderBook에서 가져옴)
             float changeRate = orderBook.getChangeRate() != null ? orderBook.getChangeRate() : 0;
-            float changeAmount = orderBook.getChangePrice() != null ? 
-                    orderBook.getChangePrice().floatValue() * holding.getTotalQuantity() : 0;
+            float changeAmount = orderBook.getChangeAmount() != null ? 
+                    orderBook.getChangeAmount() * holding.getTotalQuantity() : 0;
             
-            // 변동 방향 결정
-            String changeDirection = "unchanged";
-            if (changeRate > 0) {
-                changeDirection = "up";
-            } else if (changeRate < 0) {
-                changeDirection = "down";
-            }
+            // 변동 방향 (OrderBook에서 가져옴)
+            String changeDirection = orderBook.getChangeDirection() != null ? 
+                    orderBook.getChangeDirection() : "unchanged";
             
             // 멤버당 평균 보유 수량 계산
             float avgQuantityPerMember = holding.getMemberCount() > 0 ? 
@@ -397,7 +393,7 @@ public class GroupTradingService {
                     stock.getStockImage(),
                     holding.getTotalQuantity(),
                     holding.getAvgCost(),
-                    currentPrice.floatValue(),
+                    currentPrice,
                     changeAmount,
                     changeRate,
                     profit,
