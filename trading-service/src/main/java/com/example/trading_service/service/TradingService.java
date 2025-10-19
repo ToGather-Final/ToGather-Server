@@ -132,7 +132,7 @@ public class TradingService {
                 .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
 
         // 실시간 가격 정보 조회
-        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode);
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode, stock.getPrdtTypeCd());
         
         // 간단한 차트 데이터 조회 (80일)
         List<ChartData> chartData = chartService.getStockChart(stockCode, 80);
@@ -178,7 +178,7 @@ public class TradingService {
                 .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
 
         // 실시간 가격 정보 조회
-        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode);
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode, stock.getPrdtTypeCd());
         
         // 차트 데이터 조회 (기간분류코드 사용)
         List<ChartData> chartData = chartService.getStockChartByPeriod(stockCode, periodDiv);
@@ -427,7 +427,7 @@ public class TradingService {
 
     private StockResponse convertToStockResponse(Stock stock) {
         // 캐시된 주식 가격 정보 조회 (일관성 보장)
-        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode(), stock.getPrdtTypeCd());
         
         return new StockResponse(
                 stock.getId(),
@@ -435,7 +435,7 @@ public class TradingService {
                 stock.getStockName(),
                 stock.getStockImage(),
                 stock.getCountry().toString(),
-                "300", // 기본값: 주식 (300), ETF는 500
+                stock.getPrdtTypeCd(), // 주식 (300), ETF (500)
                 priceInfo.getCurrentPrice().floatValue(),
                 priceInfo.getChangePrice().floatValue(),
                 priceInfo.getChangeRate(),
@@ -452,7 +452,7 @@ public class TradingService {
     private StockDetailResponse convertToStockDetailResponse(Stock stock, int days) {
         try {
             // 주식 상세 정보 조회
-            Map<String, Object> detailData = stockPriceService.getStockDetail(stock.getStockCode());
+            Map<String, Object> detailData = stockPriceService.getStockDetail(stock.getStockCode(), stock.getPrdtTypeCd());
             Map<String, Object> output = (Map<String, Object>) detailData.get("output");
             
             if (output == null) {
@@ -659,7 +659,7 @@ public class TradingService {
         Stock stock = holding.getStock();
         
         // 캐시된 주식 가격 정보 조회 (일관성 보장)
-        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode(), stock.getPrdtTypeCd());
         
         return new StockResponse(
                 stock.getId(),
@@ -667,7 +667,7 @@ public class TradingService {
                 stock.getStockName(),
                 stock.getStockImage(),
                 stock.getCountry().toString(),
-                "300", // 기본값: 주식 (300), ETF는 500
+                stock.getPrdtTypeCd(), // 주식 (300), ETF (500)
                 priceInfo.getCurrentPrice().floatValue(),
                 priceInfo.getChangePrice().floatValue(),
                 priceInfo.getChangeRate(),

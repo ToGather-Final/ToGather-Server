@@ -113,6 +113,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
      * 인증 제외 경로 확인
      */
     private boolean isExcludedPath(String path) {
+        // WebSocket 경로는 특별 처리
+        if (path.startsWith("/ws")) {
+            return true;
+        }
+        
         return EXCLUDED_PATHS.stream().anyMatch(path::startsWith);
     }
 

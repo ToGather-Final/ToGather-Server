@@ -36,6 +36,9 @@ public class Stock {
     @Column(name = "enabled", nullable = false)
     private boolean enabled; // 사용 가능 여부
 
+    @Column(name = "prdt_type_cd", nullable = false)
+    private String prdtTypeCd; // 상품타입코드 (300: 주식, 500: ETF)
+
     public enum Country {
         KR, US
         // 필요시 추가
