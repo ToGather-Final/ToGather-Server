@@ -21,9 +21,9 @@ public class GroupBuyRequest {
     private UUID stockId;
     
     @NotNull(message = "주문 수량은 필수입니다.")
-    @Min(value = 1, message = "주문 수량은 1 이상이어야 합니다.")
+    @DecimalMin(value = "0.01", message = "주문 수량은 0.01 이상이어야 합니다.")
     @Max(value = 10000, message = "주문 수량은 10,000 이하여야 합니다.")
-    private Integer quantity;
+    private Float quantity;
     
     @NotNull(message = "주문 가격은 필수입니다.")
     @DecimalMin(value = "0.01", message = "주문 가격은 0.01 이상이어야 합니다.")
