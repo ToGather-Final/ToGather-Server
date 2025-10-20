@@ -23,7 +23,7 @@ public interface HoldingRepository extends JpaRepository<Holding, UUID> {
     
     // 보유 수량이 0보다 큰 종목만 조회
     @Query("SELECT h FROM Holding h WHERE h.investmentAccount.investmentAccountId = :accountId AND h.quantity > :quantity")
-    List<Holding> findByAccountIdAndQuantityGreaterThan(@Param("accountId") UUID accountId, @Param("quantity") int quantity);
+    List<Holding> findByAccountIdAndQuantityGreaterThan(@Param("accountId") UUID accountId, @Param("quantity") float quantity);
 }
 
 

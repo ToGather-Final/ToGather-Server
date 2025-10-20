@@ -20,12 +20,12 @@ public interface GroupHoldingCacheRepository extends JpaRepository<GroupHoldingC
     Optional<GroupHoldingCache> findByGroupIdAndStock_Id(UUID groupId, UUID stockId);
     
     // 보유 수량이 0보다 큰 그룹 보유 종목만 조회
-    List<GroupHoldingCache> findByGroupIdAndTotalQuantityGreaterThan(UUID groupId, int quantity);
+    List<GroupHoldingCache> findByGroupIdAndTotalQuantityGreaterThan(UUID groupId, float quantity);
     
     // 모든 그룹의 특정 종목 보유 현황 조회
-    List<GroupHoldingCache> findByStock_IdAndTotalQuantityGreaterThan(UUID stockId, int quantity);
+    List<GroupHoldingCache> findByStock_IdAndTotalQuantityGreaterThan(UUID stockId, float quantity);
     
     // 그룹별 총 보유 종목 수 조회
     @Query("SELECT COUNT(ghc) FROM GroupHoldingCache ghc WHERE ghc.groupId = :groupId AND ghc.totalQuantity > :quantity")
-    long countByGroupIdAndTotalQuantityGreaterThan(@Param("groupId") UUID groupId, @Param("quantity") int quantity);
+    long countByGroupIdAndTotalQuantityGreaterThan(@Param("groupId") UUID groupId, @Param("quantity") float quantity);
 }
