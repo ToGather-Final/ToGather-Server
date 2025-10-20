@@ -39,9 +39,9 @@ spec:
               value: "1"
             # 🚀 API 엔드포인트 설정 (배포 환경)
             - name: NEXT_PUBLIC_API_BASE_URL
-              value: "https://xn--o79aq2k062a.store"
+              value: "https://xn--o79aq2k062a.store/api"
             - name: SERVER_API_BASE_URL
-              value: "http://api-gateway.togather.svc.cluster.local:8000"
+              value: "http://api-gateway.togather.svc.cluster.local:8000/api"
             # 💡 아래 환경 변수들이 Next.js의 상세 로그를 활성화합니다.
             - name: DEBUG
               value: "next:*"
@@ -51,7 +51,7 @@ spec:
           # ✅ 안정적인 Health Check를 위한 Probe 설정
           startupProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 3000
             # Next.js가 완전히 구동될 때까지 최대 5분(30 * 10초) 동안 기다립니다.
             initialDelaySeconds: 15
@@ -60,7 +60,7 @@ spec:
             failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -68,7 +68,7 @@ spec:
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 20

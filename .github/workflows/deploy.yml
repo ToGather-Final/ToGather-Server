@@ -99,6 +99,10 @@ jobs:
         # 🚀 API 엔드포인트 환경변수 설정
         CDN_URL=$CDN_URL_CLEAN NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store pnpm run build
         
+        SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
+        NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
+        CDN_URL=$CDN_URL_CLEAN pnpm run build
+    
         # 정적 자산 업로드: 반드시 _next/static/* 경로 유지
         # (upload-assets 스크립트가 .next/static을 그대로 S3 루트에 _next/static/ 로 올리게 하세요)
         pnpm run upload-assets
@@ -131,7 +135,8 @@ jobs:
     - name: Build and push Next.js runtime image
       run: |
         docker build \
-          --build-arg NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store \
+          --build-arg SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
+          --build-arg NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
           -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
           -f ./togather-client/Dockerfile ./togather-client
         docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
