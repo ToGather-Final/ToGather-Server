@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -839,6 +840,7 @@ public class WebSocketOrderBookService {
      * 대기 중인 지정가 주문 체결 확인
      * WebSocket 호가 업데이트마다 자동 호출
      */
+    @Transactional
     private void checkPendingLimitOrders(String stockCode) {
         try {
             // 해당 종목의 대기 중인 주문들 조회

@@ -23,8 +23,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     @Query("SELECT o FROM Order o WHERE o.investmentAccount.investmentAccountId = :accountId AND o.status = 'PENDING'")
     List<Order> findPendingOrdersByAccountId(@Param("accountId") UUID accountId);
     
-    // 특정 종목의 대기 중인 주문 조회 (PENDING 상태) - 메서드 네이밍 컨벤션 사용
-    List<Order> findByStock_StockCodeAndStatus(String stockCode, Status status);
+    // 특정 종목의 대기 중인 주문 조회 (PENDING 상태) - JOIN FETCH로 Stock 즉시 로딩
+    @Query("SELECT o FROM Order o JOIN FETCH o.stock s WHERE s.stockCode = :stockCode AND o.status = :status")
+    List<Order> findByStock_StockCodeAndStatus(@Param("stockCode") String stockCode, @Param("status") Status status);
 }
 
 
