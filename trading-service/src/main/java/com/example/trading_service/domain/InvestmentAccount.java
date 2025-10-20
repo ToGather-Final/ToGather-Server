@@ -16,7 +16,7 @@ import java.util.UUID;
 public class InvestmentAccount {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "investment_account_id", nullable = false, updatable = false)
+    @Column(name = "investment_account_id", nullable = false, updatable = false, columnDefinition = "BINARY(16)")
     private UUID investmentAccountId;
 
     @Column(name = "user_id", nullable = false, columnDefinition = "BINARY(16)")

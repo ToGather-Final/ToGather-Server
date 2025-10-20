@@ -7,6 +7,7 @@ import com.example.vote_service.dto.InternalDepositRequest;
 import com.example.vote_service.dto.payload.TradePayload;
 import com.example.vote_service.dto.payload.PayPayload;
 import com.example.vote_service.event.VoteExpirationEvent;
+import com.example.vote_service.model.ProposalStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.Vote;
@@ -82,6 +83,8 @@ public class VoteService {
         // 투표 완료
         // 마감 시간(closeAt)에 스케줄러가 자동으로 가결/부결 판단
         log.info("투표 완료 - proposalId: {}, userId: {}", proposalId, userId);
+
+        checkAndExecuteIfQuorumReached(proposalId, proposal.getGroupId());
         
         return savedVote.getVoteId();
     }
@@ -378,6 +381,63 @@ public class VoteService {
             log.error("❌ VOTE_APPROVED 히스토리 생성 실패 - proposalId: {}, error: {}", 
                     proposal.getProposalId(), e.getMessage(), e);
             // 실패 시 히스토리 생성하지 않음 (에러 로그만 남김)
+        }
+    }
+
+    private void checkAndExecuteIfQuorumReached(UUID proposalId, UUID groupId) {
+        try {
+            long approveCount = countApproveVotes(proposalId);
+            long rejectCount = countRejectVotes(proposalId);
+
+            Integer voteQuorum = userServiceClient.getVoteQuorumInternal(groupId);
+
+            log.info("정족수 확인 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}",
+                    proposalId, approveCount, rejectCount, voteQuorum);
+
+            boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+
+            if (isApproved) {
+                log.info("🎉 정족수 도달! 즉시 투표 집계 실행 - proposalId: {}", proposalId);
+
+                tallyVotesImmediately(proposalId, voteQuorum);
+
+                Proposal proposal = proposalService.getProposal(proposalId);
+                if (proposal.getStatus() == ProposalStatus.APPROVED) {
+                    log.info("🚀 즉시 거래 실행 시작 - proposalId: {}", proposalId);
+                    proposalService.executeVoteBasedTrading(proposalId);
+                }
+            }
+        } catch (Exception e) {
+            log.error("정족수 확인 중 오류 발생 - proposalId: {}, error: {}",
+                    proposalId, e.getMessage(), e);
+        }
+    }
+
+    private void tallyVotesImmediately(UUID proposalId, Integer voteQuorum) {
+        Proposal proposal = proposalService.getProposal(proposalId);
+
+        if (!proposal.isOpen()) {
+            throw new IllegalStateException("이미 종료된 제안입니다.");
+        }
+
+        long approveCount = countApproveVotes(proposalId);
+        long rejectCount = countRejectVotes(proposalId);
+
+        log.info("즉시 투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}",
+                proposalId, approveCount, rejectCount, voteQuorum);
+
+        // 가결 조건 확인
+        boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+
+        log.info("가결 여부: {} (찬성 >= 정족수: {}, 찬성 > 반대: {})",
+                isApproved, (approveCount >= voteQuorum), (approveCount > rejectCount));
+
+        if (isApproved) {
+            proposalService.approveProposal(proposalId);
+            log.info("투표 가결 확인 - 거래 실행 시작: proposalId={}", proposalId);
+        } else {
+            proposalService.rejectProposal(proposalId);
+            log.info("투표 부결: proposalId={}", proposalId);
         }
     }
 

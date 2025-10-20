@@ -1,6 +1,7 @@
 package com.example.trading_service.repository;
 
 import com.example.trading_service.domain.Order;
+import com.example.trading_service.domain.Order.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,6 +22,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     // 대기 중인 주문 조회 (PENDING 상태)
     @Query("SELECT o FROM Order o WHERE o.investmentAccount.investmentAccountId = :accountId AND o.status = 'PENDING'")
     List<Order> findPendingOrdersByAccountId(@Param("accountId") UUID accountId);
+    
+    // 특정 종목의 대기 중인 주문 조회 (PENDING 상태) - 메서드 네이밍 컨벤션 사용
+    List<Order> findByStock_StockCodeAndStatus(String stockCode, Status status);
 }
 
 

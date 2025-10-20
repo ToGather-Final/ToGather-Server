@@ -113,6 +113,8 @@ server:
 
 pay-service:
   url: ${PAY_SERVICE_URL:http://localhost:8083}
+user-service:
+  url: ${USER_SERVICE_URL:http://localhost:8082}
 
 ---
 # ===============================================

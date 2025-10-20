@@ -1,5 +1,6 @@
 package com.example.trading_service.controller;
 
+import com.example.module_common.dto.InvestmentAccountDto;
 import com.example.trading_service.service.*;
 import com.example.trading_service.dto.*;
 import com.example.trading_service.exception.BusinessException;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -23,6 +25,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/trading")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "투자 거래", description = "주식 매매, 포트폴리오 관리, 계좌 관리 관련 API")
 public class TradingController {
 
@@ -143,7 +146,7 @@ public class TradingController {
     }
 
     // 그룹 포트폴리오 요약 정보 조회
-    @GetMapping("/trading/portfolio/summary")
+    @GetMapping("/portfolio/summary")
     public ResponseEntity<ApiResponse<PortfolioSummaryResponse>> getGroupPortfolioSummary(
             @RequestParam UUID groupId) {
         PortfolioSummaryResponse summary = groupTradingService.calculateGroupPortfolioSummary(groupId);
@@ -201,11 +204,27 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(chartInfo));
     }
 
-    // 대기 중인 주문 조회
+    // 전체 주문 조회 (모든 상태)
+    @GetMapping("/orders")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getAllOrders(Authentication authentication) {
+        UUID userId = getUserIdFromAuthentication(authentication);
+        List<OrderResponse> orders = orderService.getAllOrders(userId);
+        return ResponseEntity.ok(ApiResponse.success(orders));
+    }
+    
+    // 대기 중인 주문 조회 (PENDING)
     @GetMapping("/orders/pending")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getPendingOrders(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
         List<OrderResponse> orders = orderService.getPendingOrders(userId);
+        return ResponseEntity.ok(ApiResponse.success(orders));
+    }
+    
+    // 체결 완료된 주문 조회 (FILLED)
+    @GetMapping("/orders/filled")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getFilledOrders(Authentication authentication) {
+        UUID userId = getUserIdFromAuthentication(authentication);
+        List<OrderResponse> orders = orderService.getFilledOrders(userId);
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
@@ -259,12 +278,24 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(history));
     }
 
+    @GetMapping("/internal/accounts/user/{userId}")
+    @Operation(summary = "사용자별 투자 계좌 조회 (Internal)", description = "사용자 ID로 투자 계좌 정보를 조회합니다.")
+    public InvestmentAccountDto getAccountByUserId(@PathVariable UUID userId) {
+        return tradingService.getAccountByUserIdInternal(userId);
+    }
+
     // 헬퍼 메서드: 인증에서 사용자 ID 추출
     private UUID getUserIdFromAuthentication(Authentication authentication) {
-        if (authentication != null && authentication.getName() != null) {
-            return UUID.fromString(authentication.getName());
+        try {
+            if (authentication != null && authentication.getName() != null && !authentication.getName().equals("anonymousUser")) {
+                log.debug("인증된 사용자 ID: {}", authentication.getName());
+                return UUID.fromString(authentication.getName());
+            }
+        } catch (IllegalArgumentException e) {
+            log.warn("사용자 ID를 UUID로 변환할 수 없습니다: {} - 테스트 UUID 사용", authentication.getName());
         }
         // 테스트용 기본 UUID (실제 운영에서는 제거해야 함)
+        log.debug("테스트용 기본 UUID 사용: 550e8400-e29b-41d4-a716-446655440000");
         return UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
     }
 }

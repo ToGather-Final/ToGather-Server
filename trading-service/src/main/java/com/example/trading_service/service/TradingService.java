@@ -1,5 +1,6 @@
 package com.example.trading_service.service;
 
+import com.example.module_common.dto.InvestmentAccountDto;
 import com.example.module_common.dto.pay.PayRechargeRequest;
 import com.example.module_common.dto.pay.PayRechargeResponse;
 import com.example.module_common.dto.vote.VoteTradingRequest;
@@ -43,6 +44,7 @@ public class TradingService {
     private final PortfolioCalculationService portfolioCalculationService;
     private final PayServiceClient payServiceClient;
     private final HistoryRepository historyRepository;
+    private final VoteTradingService voteTradingService;
 
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
@@ -161,12 +163,12 @@ public class TradingService {
             log.info("투표 기반 거래 실행 시작 - proposalId: {}, groupId: {}, stockId: {}, action: {}, quantity: {}, price: {}", 
                     request.proposalId(), request.groupId(), request.stockId(), request.tradingAction(), 
                     request.quantity(), request.price());
+
+            int processedCount = voteTradingService.executeVoteBasedTrading(request);
+
+            log.info("투표 기반 거래 실행 완료 - proposalId: {}, 처리된 거래 수: {}", request.proposalId(), processedCount);
             
-            // TODO: 실제 거래 로직 구현
-            // 현재는 성공 응답만 반환
-            log.info("투표 기반 거래 실행 완료 - proposalId: {}", request.proposalId());
-            
-            return new VoteTradingResponse(true, "투표 기반 거래가 성공적으로 실행되었습니다", 1);
+            return new VoteTradingResponse(true, "투표 기반 거래가 성공적으로 실행되었습니다", processedCount);
             
         } catch (Exception e) {
             log.error("투표 기반 거래 실행 실패 - proposalId: {}, 오류: {}", request.proposalId(), e.getMessage(), e);
@@ -354,6 +356,18 @@ public class TradingService {
                 groupId
         );
         log.info("그룹 페이 계좌 충전 완료: {}", response);
+    }
+
+    @Transactional(readOnly = true)
+    public InvestmentAccountDto getAccountByUserIdInternal(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+
+        return InvestmentAccountDto.builder()
+                .investmentAccountId(account.getInvestmentAccountId())
+                .userId(account.getUserId())
+                .accountNo(account.getAccountNo())
+                .createdAt(account.getCreatedAt())
+                .build();
     }
 
     private UUID getCurrentUserId() {
@@ -701,7 +715,7 @@ public class TradingService {
                     true
             );
         } else {
-            return new AccountInfoResponse(null, null, userId.toString(), null, false);
+            return new AccountInfoResponse(null, null, userId, null, false);
         }
     }
 
