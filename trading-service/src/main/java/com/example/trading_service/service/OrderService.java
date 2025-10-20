@@ -211,6 +211,11 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
     
+    // 계좌 ID로 대기 중인 주문 엔티티 조회 (Internal용)
+    public List<Order> getPendingOrdersByAccountId(UUID accountId) {
+        return orderRepository.findPendingOrdersByAccountId(accountId);
+    }
+    
     // 체결 완료된 주문 조회 (FILLED)
     public List<OrderResponse> getFilledOrders(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
@@ -262,7 +267,7 @@ public class OrderService {
                 stock.getStockCode() != null ? stock.getStockCode() : "",
                 stock.getStockName() != null ? stock.getStockName() : "",
                 order.getOrderType().toString(),
-                (int) order.getQuantity(),
+                order.getQuantity(),
                 order.getPrice(),
                 order.getStatus().toString(),
                 order.getCreatedAt(),

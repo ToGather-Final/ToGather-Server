@@ -13,7 +13,7 @@ public class HoldingResponse {
     private String stockCode;
     private String stockName;
     private String stockImage; // 주식 로고/이미지
-    private Integer quantity;
+    private Float quantity;
     private Float avgCost;
     private Float currentPrice;
     private Float changeAmount; // 전일 대비 변동금액

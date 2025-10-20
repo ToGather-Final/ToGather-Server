@@ -25,7 +25,7 @@ public class GroupHolding {
     private Stock stock;
 
     @Column(name = "total_quantity", nullable = false)
-    private int totalQuantity; // 그룹 전체 보유 수량
+    private float totalQuantity; // 그룹 전체 보유 수량
 
     @Column(name = "avg_cost", nullable = false)
     private float avgCost; // 평균 매입 단가

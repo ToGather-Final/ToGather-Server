@@ -14,7 +14,7 @@ public class OrderResponse {
     private String stockCode;
     private String stockName;
     private String orderType; // BUY, SELL
-    private Integer quantity;
+    private Float quantity;
     private Float price;
     private String status; // PENDING, FILLED, CANCELLED
     private LocalDateTime createdAt;

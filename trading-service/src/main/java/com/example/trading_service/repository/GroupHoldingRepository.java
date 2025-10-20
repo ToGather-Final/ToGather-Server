@@ -20,10 +20,10 @@ public interface GroupHoldingRepository extends JpaRepository<GroupHolding, UUID
     Optional<GroupHolding> findByGroupIdAndStock_Id(UUID groupId, UUID stockId);
     
     // 보유 수량이 0보다 큰 그룹 보유 종목만 조회
-    List<GroupHolding> findByGroupIdAndTotalQuantityGreaterThan(UUID groupId, int quantity);
+    List<GroupHolding> findByGroupIdAndTotalQuantityGreaterThan(UUID groupId, float quantity);
     
     // 모든 그룹의 특정 종목 보유 현황 조회
-    List<GroupHolding> findByStock_IdAndTotalQuantityGreaterThan(UUID stockId, int quantity);
+    List<GroupHolding> findByStock_IdAndTotalQuantityGreaterThan(UUID stockId, float quantity);
     
     // 그룹별 총 보유 종목 수 조회
     @Query("SELECT COUNT(gh) FROM GroupHolding gh WHERE gh.groupId = :groupId AND gh.totalQuantity > 0")
