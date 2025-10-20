@@ -205,16 +205,24 @@ public class ProposalService {
 
     public void executeVoteBasedTrading(UUID proposalId) {
         Proposal proposal = getProposal(proposalId);
+        
+        log.info("📊 거래 실행 조건 확인 - proposalId: {}, status: {}, category: {}", 
+                proposalId, proposal.getStatus(), proposal.getCategory());
 
         if (proposal.getStatus() == ProposalStatus.APPROVED && proposal.getCategory() == ProposalCategory.TRADE) {
             try {
+                log.info("✅ 거래 실행 조건 충족 - trading-service 호출 시작");
                 VoteTradingRequest request = parsePayloadToVoteTradingRequest(proposal);
-
+                
+                log.info("📞 trading-service API 호출 - request: {}", request);
                 VoteTradingResponse response = tradingServiceClient.executeVoteBasedTrading(request);
-                log.info("투표 기반 거래 실행 완료: {}", response);
+                log.info("✅ 투표 기반 거래 실행 완료: {}", response);
             } catch (Exception e) {
-                log.error("투표 기반 거래 실행 실패: {}", e.getMessage());
+                log.error("❌ 투표 기반 거래 실행 실패 - proposalId: {}, error: {}", proposalId, e.getMessage(), e);
             }
+        } else {
+            log.warn("⚠️ 거래 실행 조건 불충족 - status: {} (APPROVED 필요), category: {} (TRADE 필요)", 
+                    proposal.getStatus(), proposal.getCategory());
         }
     }
 

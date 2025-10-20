@@ -106,32 +106,36 @@ public class TradeExecutionService {
             
             if (tempGroupId != null) {
                 String payload = String.format(
-                    "{\"side\":\"%s\",\"stockName\":\"%s\",\"shares\":%d,\"unitPrice\":%d,\"accountBalance\":%d}",
+                    "{\"side\":\"%s\",\"stockName\":\"%s\",\"shares\":%.2f,\"unitPrice\":%d,\"accountBalance\":%d}",
                     order.getOrderType().toString(),
                     order.getStock().getStockName(),
-                    (int) trade.getQuantity(),
+                    trade.getQuantity(),
                     (int) trade.getPrice(),
                     getAccountBalance(order.getInvestmentAccount().getInvestmentAccountId())
                 );
                 
-                String title = String.format("%s %d주 %d원 %s 체결",
+                String title = String.format("%s %.2f주 %d원 %s 체결",
                     order.getStock().getStockName(),
-                    (int) trade.getQuantity(),
+                    trade.getQuantity(),
                     (int) trade.getPrice(),
                     order.getOrderType() == Order.OrderType.BUY ? "매수" : "매도"
                 );
                 
-                History history = History.create(
-                    tempGroupId,
-                    HistoryCategory.TRADE,
-                    HistoryType.TRADE_EXECUTED,
-                    title,
-                    payload,
-                    (int) trade.getPrice(),
-                    (int) trade.getQuantity()
-                );
-                
-                history.setStockId(order.getStock().getId());
+                // History 생성 (create 메서드 없으므로 직접 생성)
+                History history = new History();
+                history.setGroupId(tempGroupId);
+                history.setHistoryCategory("TRADE");
+                history.setHistoryType("TRADE_EXECUTED");
+                history.setTitle(title);
+                history.setPayload(payload);
+                history.setPrice(trade.getPrice());
+                history.setQuantity(trade.getQuantity());
+                history.setTransactionType(order.getOrderType() == Order.OrderType.BUY ? 
+                    History.TransactionType.BUY : History.TransactionType.SELL);
+                history.setTotalAmount(trade.getPrice().multiply(java.math.BigDecimal.valueOf(trade.getQuantity())));
+                history.setInvestmentAccount(order.getInvestmentAccount());
+                history.setStock(order.getStock());
+                history.setOrderId(order.getOrderId());
                 historyRepository.save(history);
                 
                 log.info("거래 체결 히스토리 저장 완료 - 임시그룹ID: {}, 종목: {}, 수량: {}", 
@@ -153,11 +157,11 @@ public class TradeExecutionService {
         if (order.getOrderType() == Order.OrderType.BUY) {
             // 매수: 잔고 차감, 보유 종목 추가/업데이트
             updateBalance(order.getInvestmentAccount().getInvestmentAccountId(), -totalAmount);
-            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), (int) order.getQuantity(), executionPrice, true);
+            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), order.getQuantity(), executionPrice, true);
         } else {
             // 매도: 잔고 증가, 보유 종목 차감
             updateBalance(order.getInvestmentAccount().getInvestmentAccountId(), totalAmount);
-            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), (int) order.getQuantity(), executionPrice, false);
+            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), order.getQuantity(), executionPrice, false);
         }
     }
 
@@ -171,7 +175,7 @@ public class TradeExecutionService {
     }
 
     // 보유 종목 업데이트
-    private void updateHolding(UUID accountId, UUID stockId, int quantity, float price, boolean isBuy) {
+    private void updateHolding(UUID accountId, UUID stockId, float quantity, float price, boolean isBuy) {
         Optional<HoldingCache> existingHolding = holdingCacheRepository
                 .findByAccountIdAndStockId(accountId, stockId);
         

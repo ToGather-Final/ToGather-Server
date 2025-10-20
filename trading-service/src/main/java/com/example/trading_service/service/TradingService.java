@@ -443,11 +443,11 @@ public class TradingService {
         if (order.getOrderType() == Order.OrderType.BUY) {
             // 매수: 잔고 차감, 보유 종목 추가/업데이트
             updateBalance(order.getInvestmentAccount().getInvestmentAccountId(), -totalAmount);
-            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), (int) order.getQuantity(), executionPrice, true);
+            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), order.getQuantity(), executionPrice, true);
         } else {
             // 매도: 잔고 증가, 보유 종목 차감
             updateBalance(order.getInvestmentAccount().getInvestmentAccountId(), totalAmount);
-            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), (int) order.getQuantity(), executionPrice, false);
+            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), order.getQuantity(), executionPrice, false);
         }
     }
 
@@ -461,7 +461,7 @@ public class TradingService {
     }
 
     // 보유 종목 업데이트
-    private void updateHolding(UUID accountId, UUID stockId, int quantity, float price, boolean isBuy) {
+    private void updateHolding(UUID accountId, UUID stockId, float quantity, float price, boolean isBuy) {
         Optional<HoldingCache> existingHolding = holdingCacheRepository
                 .findByAccountIdAndStockId(accountId, stockId);
         
@@ -592,7 +592,7 @@ public class TradingService {
                 stock.getStockCode() != null ? stock.getStockCode() : "",
                 stock.getStockName() != null ? stock.getStockName() : "",
                 order.getOrderType().toString(),
-                (int) trade.getQuantity(),
+                trade.getQuantity(),
                 trade.getPrice(),
                 trade.getCreatedAt(),
                 "FILLED"
@@ -842,7 +842,7 @@ public class TradingService {
                 stock.getStockCode() != null ? stock.getStockCode() : "",
                 stock.getStockName() != null ? stock.getStockName() : "",
                 order.getOrderType().toString(),
-                (int) order.getQuantity(),
+                order.getQuantity(),
                 order.getPrice(),
                 order.getStatus().toString(),
                 order.getCreatedAt(),

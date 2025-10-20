@@ -23,7 +23,7 @@ public interface HoldingCacheRepository extends JpaRepository<HoldingCache, UUID
     
     // 보유 수량이 0보다 큰 종목만 조회
     @Query("SELECT h FROM HoldingCache h WHERE h.investmentAccount.investmentAccountId = :accountId AND h.quantity > :quantity")
-    List<HoldingCache> findByAccountIdAndQuantityGreaterThan(@Param("accountId") UUID accountId, @Param("quantity") int quantity);
+    List<HoldingCache> findByAccountIdAndQuantityGreaterThan(@Param("accountId") UUID accountId, @Param("quantity") float quantity);
 }
 
 

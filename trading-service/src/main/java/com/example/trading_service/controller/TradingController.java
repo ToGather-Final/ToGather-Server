@@ -1,7 +1,10 @@
 package com.example.trading_service.controller;
 
 import com.example.module_common.dto.InvestmentAccountDto;
+
 import com.example.module_common.dto.TransferToPayResponse;
+import com.example.trading_service.domain.InvestmentAccount;
+import com.example.trading_service.domain.Order;
 import com.example.trading_service.service.*;
 import com.example.trading_service.dto.*;
 import com.example.trading_service.exception.BusinessException;
@@ -20,7 +23,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -36,6 +41,7 @@ public class TradingController {
     private final OrderBookService orderBookService;
     private final ChartService chartService;
     private final GroupTradingService groupTradingService;
+    private final TradeExecutionService tradeExecutionService;
 
     @Operation(summary = "투자 계좌 개설", description = "사용자의 투자 계좌를 새로 개설합니다.")
     @ApiResponses(value = {
@@ -293,6 +299,7 @@ public class TradingController {
                 .body(ApiResponse.success("투자 계좌가 성공적으로 개설되었습니다", accountId));
     }
 
+
     @PostMapping("/internal/transfer-to-pay")
     @Operation(summary = "투자계좌에서 페이계좌로 송금 (Internal)", description = "서비스 간 통신용 송금 API")
     public ResponseEntity<TransferToPayResponse> internalTransferToPay(
@@ -304,6 +311,83 @@ public class TradingController {
 
         TransferToPayResponse response = tradingService.transferToPay(userId, amount, transferId);
         return ResponseEntity.ok(response);
+    }
+  
+    // 테스트용: 그룹의 모든 대기 중인 주문을 강제 체결
+    @PostMapping("/internal/orders/execute-all")
+    @Operation(summary = "그룹의 대기 중인 주문 강제 체결 (테스트용)", description = "그룹의 모든 PENDING 주문을 즉시 체결합니다.")
+    public ResponseEntity<ApiResponse<String>> executeAllPendingOrdersForGroup(@RequestParam UUID groupId) {
+        log.info("🔥 그룹 강제 체결 요청 - 그룹ID: {}", groupId);
+        
+        try {
+            // 1. 그룹 멤버들의 계좌 조회
+            List<InvestmentAccount> groupMembers = groupTradingService.getGroupMembers(groupId);
+            log.info("📋 그룹 멤버 수: {}", groupMembers.size());
+            
+            int totalExecutedCount = 0;
+            Map<UUID, Float> stockQuantityMap = new HashMap<>(); // 주식별 총 수량 집계
+            Map<UUID, Float> stockPriceMap = new HashMap<>();     // 주식별 가격 (평균 계산용)
+            
+            // 2. 각 멤버의 대기 중인 주문 조회 및 체결
+            for (InvestmentAccount memberAccount : groupMembers) {
+                List<Order> pendingOrders = orderService.getPendingOrdersByAccountId(
+                    memberAccount.getInvestmentAccountId()
+                );
+                
+                log.info("👤 사용자 {} - 대기 중인 주문: {}건", 
+                    memberAccount.getUserId(), pendingOrders.size());
+                
+                // 3. 각 주문을 강제 체결
+                for (Order order : pendingOrders) {
+                    try {
+                        // 로그용 정보를 미리 가져오기 (트랜잭션 안에서)
+                        UUID orderId = order.getOrderId();
+                        UUID stockId = order.getStock().getId();
+                        float quantity = order.getQuantity();
+                        float price = order.getPrice();
+                        
+                        // 주문가로 즉시 체결
+                        tradeExecutionService.executeTrade(order, price);
+                        totalExecutedCount++;
+                        
+                        // 주식별 수량 집계
+                        stockQuantityMap.merge(stockId, quantity, Float::sum);
+                        stockPriceMap.put(stockId, price);
+                        
+                        log.info("✅ 주문 체결 완료 - 주문ID: {}, 수량: {}, 가격: {}", 
+                            orderId, quantity, price);
+                    } catch (Exception e) {
+                        log.error("❌ 주문 체결 실패 - 주문ID: {} - {}", 
+                            order.getOrderId(), e.getMessage());
+                    }
+                }
+            }
+            
+            // 4. 그룹 보유량 업데이트 (GroupHoldingCache)
+            for (Map.Entry<UUID, Float> entry : stockQuantityMap.entrySet()) {
+                UUID stockId = entry.getKey();
+                float totalQuantity = entry.getValue();
+                float price = stockPriceMap.get(stockId);
+                
+                try {
+                    groupTradingService.updateGroupHoldingAfterTrade(
+                        groupId, stockId, totalQuantity, price, groupMembers.size()
+                    );
+                    log.info("📊 그룹 보유량 업데이트 - 종목ID: {}, 수량: {}", stockId, totalQuantity);
+                } catch (Exception e) {
+                    log.error("❌ 그룹 보유량 업데이트 실패 - 종목ID: {} - {}", stockId, e.getMessage());
+                }
+            }
+            
+            String message = String.format("그룹의 대기 중인 주문 %d건이 강제 체결되었습니다", totalExecutedCount);
+            log.info("🎉 {}", message);
+            return ResponseEntity.ok(ApiResponse.success(message));
+            
+        } catch (Exception e) {
+            log.error("❌ 그룹 주문 강제 체결 실패 - 그룹ID: {} - {}", groupId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("그룹 주문 강제 체결 실패: " + e.getMessage(), "EXECUTION_FAILED"));
+        }
     }
 
     // 헬퍼 메서드: 인증에서 사용자 ID 추출

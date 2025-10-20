@@ -121,10 +121,10 @@ public class GroupTradingService {
         }
 
         // 8. 그룹 보유량 업데이트
-        updateGroupHolding(groupId, stockId, (int)totalQuantity, pricePerShare, memberCount);
+        updateGroupHolding(groupId, stockId, totalQuantity, pricePerShare, memberCount);
 
         // 9. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, (int)totalQuantity, pricePerShare, "BUY", executedOrders);
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerShare, "BUY", executedOrders);
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -154,7 +154,7 @@ public class GroupTradingService {
 
         if (groupHolding.getTotalQuantity() < totalQuantity) {
             throw new BusinessException(
-                    String.format("그룹 보유 수량이 부족합니다. 보유: %d, 요청: %d", 
+                    String.format("그룹 보유 수량이 부족합니다. 보유: %.2f, 요청: %.2f", 
                             groupHolding.getTotalQuantity(), totalQuantity),
                     "INSUFFICIENT_GROUP_HOLDING");
         }
@@ -214,10 +214,10 @@ public class GroupTradingService {
         }
 
         // 9. 그룹 보유량 업데이트
-        updateGroupHolding(groupId, stockId, (int)(-totalQuantity), price, memberCount);
+        updateGroupHolding(groupId, stockId, -totalQuantity, price, memberCount);
 
         // 10. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, (int)totalQuantity, price, "SELL", executedOrders);
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, price, "SELL", executedOrders);
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -227,22 +227,22 @@ public class GroupTradingService {
     /**
      * 그룹 멤버들의 투자 계좌 조회
      */
-    private List<InvestmentAccount> getGroupMembers(UUID groupId) {
+    public List<InvestmentAccount> getGroupMembers(UUID groupId) {
         try {
             List<InvestmentAccountDto> memberDtos = userServiceClient.getGroupMemberAccounts(groupId);
-
+            
             if (memberDtos.isEmpty()) {
                 log.warn("그룹에 실제 멤버가 없습니다 - groupId: {}", groupId);
                 throw new BusinessException("그룹에 멤버가 없습니다.");
             }
-
+            
             List<InvestmentAccount> members = new ArrayList<>();
             for (InvestmentAccountDto dto : memberDtos) {
                 InvestmentAccount account = investmentAccountRepository.findById(dto.getInvestmentAccountId())
                         .orElseThrow(() -> new BusinessException("투자 계좌를 찾을 수 없습니다."));
                 members.add(account);
             }
-
+            
             log.info("실제 그룹 멤버 조회 완료 - 그룹ID: {}, 멤버 수: {}", groupId, members.size());
             return members;
             
@@ -295,9 +295,17 @@ public class GroupTradingService {
     }
 
     /**
-     * 그룹 보유량 업데이트
+     * 그룹 보유량 업데이트 (외부 호출용 - public)
      */
-    private void updateGroupHolding(UUID groupId, UUID stockId, int quantityChange, BigDecimal price, int memberCount) {
+    @Transactional
+    public void updateGroupHoldingAfterTrade(UUID groupId, UUID stockId, float totalQuantity, float price, int memberCount) {
+        updateGroupHolding(groupId, stockId, totalQuantity, BigDecimal.valueOf(price), memberCount);
+    }
+    
+    /**
+     * 그룹 보유량 업데이트 (내부용 - private)
+     */
+    private void updateGroupHolding(UUID groupId, UUID stockId, float quantityChange, BigDecimal price, int memberCount) {
         Optional<GroupHoldingCache> existingHolding = groupHoldingCacheRepository
                 .findByGroupIdAndStock_Id(groupId, stockId);
 
@@ -307,7 +315,7 @@ public class GroupTradingService {
         if (existingHolding.isPresent()) {
             // 기존 보유량 업데이트
             GroupHoldingCache holding = existingHolding.get();
-            int newQuantity = holding.getTotalQuantity() + quantityChange;
+            float newQuantity = holding.getTotalQuantity() + quantityChange;
             
             if (newQuantity <= 0) {
                 groupHoldingCacheRepository.delete(holding);
@@ -320,6 +328,19 @@ public class GroupTradingService {
                 holding.setTotalQuantity(newQuantity);
                 holding.setAvgCost(newAvgCost);
                 holding.setMemberCount(memberCount);
+                
+                // 평가금액과 손익 계산
+                try {
+                    OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
+                    float currentPrice = orderBook.getCurrentPrice();
+                    holding.setEvaluatedPrice(currentPrice * newQuantity);
+                    holding.setProfit((currentPrice - newAvgCost) * newQuantity);
+                } catch (Exception e) {
+                    log.warn("주가 조회 실패, 평균 매입가로 대체 - 종목: {}", stock.getStockCode());
+                    holding.setEvaluatedPrice(newAvgCost * newQuantity);
+                    holding.setProfit(0f);
+                }
+                
                 groupHoldingCacheRepository.save(holding);
             }
         } else if (quantityChange > 0) {
@@ -330,6 +351,19 @@ public class GroupTradingService {
             newHolding.setTotalQuantity(quantityChange);
             newHolding.setAvgCost(price.floatValue());
             newHolding.setMemberCount(memberCount);
+            
+            // 평가금액과 손익 계산
+            try {
+                OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
+                float currentPrice = orderBook.getCurrentPrice();
+                newHolding.setEvaluatedPrice(currentPrice * quantityChange);
+                newHolding.setProfit((currentPrice - price.floatValue()) * quantityChange);
+            } catch (Exception e) {
+                log.warn("주가 조회 실패, 평균 매입가로 대체 - 종목: {}", stock.getStockCode());
+                newHolding.setEvaluatedPrice(price.floatValue() * quantityChange);
+                newHolding.setProfit(0f);
+            }
+            
             groupHoldingCacheRepository.save(newHolding);
         }
     }
@@ -337,28 +371,27 @@ public class GroupTradingService {
     /**
      * 새로운 평균 매입가 계산
      */
-    private float calculateNewAverageCost(int currentQuantity, float currentAvgCost, 
-                                        int newQuantity, float newPrice) {
+    private float calculateNewAverageCost(float currentQuantity, float currentAvgCost, 
+                                        float newQuantity, float newPrice) {
         if (currentQuantity <= 0) return newPrice;
         
-        long totalCost = (long) currentQuantity * (long) currentAvgCost + 
-                        (long) newQuantity * (long) newPrice;
-        int totalQuantity = currentQuantity + newQuantity;
+        float totalCost = currentQuantity * currentAvgCost + newQuantity * newPrice;
+        float totalQuantity = currentQuantity + newQuantity;
         
-        return (float) totalCost / totalQuantity;
+        return totalCost / totalQuantity;
     }
 
     /**
      * 그룹 거래 히스토리 저장 (주석)
      */
-    private void saveGroupTradingHistory(UUID groupId, UUID stockId, int quantity, 
+    private void saveGroupTradingHistory(UUID groupId, UUID stockId, float quantity, 
                                        BigDecimal price, String transactionType, 
                                        List<Order> executedOrders) {
         try {
             // 주식 정보 조회
             Stock stock = stockRepository.findById(stockId)
                     .orElseThrow(() -> new BusinessException("주식을 찾을 수 없습니다.", "STOCK_NOT_FOUND"));
-
+            
             History history = new History();
             history.setInvestmentAccount(null);
             history.setStock(stock);
@@ -369,10 +402,10 @@ public class GroupTradingService {
             history.setGroupId(groupId);
             history.setHistoryCategory("TRADE");
             history.setHistoryType("TRADE_EXECUTED");
-            history.setTitle(String.format("%s %d주 %d원 %s",
+            history.setTitle(String.format("%s %.2f주 %d원 %s",
                     stock.getStockName(), quantity, price.intValue(),
                     "BUY".equals(transactionType) ? "매수" : "매도"));
-            history.setPayload(String.format("{\"groupTrading\":true,\"stockName\":\"%s\",\"quantity\":%d,\"price\":%d}",
+            history.setPayload(String.format("{\"groupTrading\":true,\"stockName\":\"%s\",\"quantity\":%.2f,\"price\":%d}",
                     stock.getStockName(), quantity, price.intValue()));
 
             if(!executedOrders.isEmpty()) {
@@ -440,7 +473,7 @@ public class GroupTradingService {
             
             // 멤버당 평균 보유 수량 계산
             float avgQuantityPerMember = holding.getMemberCount() > 0 ? 
-                    (float) holding.getTotalQuantity() / holding.getMemberCount() : 0;
+                    holding.getTotalQuantity() / holding.getMemberCount() : 0;
             
             GroupHoldingResponse response = new GroupHoldingResponse(
                     holding.getGroupHoldingId(),
@@ -639,7 +672,7 @@ public class GroupTradingService {
         
         // 멤버당 평균 보유 수량 계산
         float avgQuantityPerMember = holding.getMemberCount() > 0 ? 
-                (float) holding.getTotalQuantity() / holding.getMemberCount() : 0;
+                holding.getTotalQuantity() / holding.getMemberCount() : 0;
         
         return new GroupHoldingResponse(
                 holding.getGroupHoldingId(),
