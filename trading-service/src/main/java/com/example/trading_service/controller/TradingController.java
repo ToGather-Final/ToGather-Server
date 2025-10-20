@@ -284,6 +284,14 @@ public class TradingController {
         return tradingService.getAccountByUserIdInternal(userId);
     }
 
+    @PostMapping("/internal/accounts/create")
+    @Operation(summary = "투자 계좌 생성 (Internal)", description = "그룹 참여 시 자동으로 투자 계좌를 생성합니다.")
+    public ResponseEntity<ApiResponse<UUID>> createInvestmentAccountInternal(@RequestHeader("X-User-Id") UUID userId) {
+        UUID accountId = tradingService.createInvestmentAccount(userId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("투자 계좌가 성공적으로 개설되었습니다", accountId));
+    }
+
     // 헬퍼 메서드: 인증에서 사용자 ID 추출
     private UUID getUserIdFromAuthentication(Authentication authentication) {
         try {
