@@ -22,6 +22,20 @@ metadata:
 
     # Inbound CIDR (CloudFront Origin Access)
     alb.ingress.kubernetes.io/inbound-cidrs: 13.35.0.0/16,13.249.0.0/16,18.64.0.0/16,18.160.0.0/16,18.172.0.0/16,18.232.0.0/16,18.244.0.0/16,43.250.248.0/24,43.250.249.0/24,43.250.250.0/24,43.250.251.0/24,52.82.128.0/19,52.222.128.0/17,54.182.0.0/16,54.230.0.0/16,204.246.164.0/22,204.246.168.0/22,204.246.174.0/23,204.246.176.0/20
+    
+    # 🚀 ALB 타임아웃 설정 (Cold Start 방지)
+    alb.ingress.kubernetes.io/target-group-attributes: |
+      deregistration_delay.timeout_seconds=30,
+      stickiness.enabled=false,
+      load_balancing.algorithm.type=round_robin,
+      health_check.interval_seconds=10,
+      health_check.timeout_seconds=5,
+      health_check.healthy_threshold_count=2,
+      health_check.unhealthy_threshold_count=3,
+      health_check.protocol=HTTP,
+      health_check.path=/,
+      health_check.port=traffic-port,
+      health_check.matcher.http_code=200
 
 spec:
   ingressClassName: alb

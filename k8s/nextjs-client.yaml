@@ -4,12 +4,12 @@ metadata:
   name: nextjs-client
   namespace: togather
 spec:
-  replicas: 2  # 🚀 HPA minReplicas와 일치 (고가용성)
+  replicas: 1  # 🚀 단일 Pod 고정 (Cold Start 완전 제거)
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 2         # rolling update 시 일시적으로 +2개 허용 (총 5개)
-      maxUnavailable: 1   # 최소 1개 유지 (가용성 보장)
+    type: Recreate       # 🚀 단일 Pod이므로 Recreate 사용
+    rollingUpdate:       # 🚀 RollingUpdate 설정 제거 (단일 Pod)
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: nextjs-client
@@ -18,40 +18,28 @@ spec:
       labels:
         app: nextjs-client
     spec:
-      # Pod Anti-Affinity: 각 노드에 고르게 분산
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                    - key: app
-                      operator: In
-                      values:
-                        - nextjs-client
-                topologyKey: kubernetes.io/hostname
+      # 🚀 단일 Pod이므로 Anti-Affinity 설정 제거
       containers:
         - name: nextjs-client
           image: ${ECR_REGISTRY}/togather/client:latest
           ports:
             - containerPort: 3000
           resources:
-              # 🚀 HPA 호환을 위한 리소스 설정 (넉넉하게)
+              # 🚀 t3.large 두 개에 최적화된 리소스 설정
               requests:
-                memory: "512Mi"    # 메모리 요청 증가
-                cpu: "200m"        # CPU 요청 증가
+                memory: "2Gi"      # 메모리 요청 2GB (t3.large에 적합)
+                cpu: "1000m"       # CPU 요청 1 vCPU (안정적)
               limits:
-                memory: "2Gi"      # 메모리 제한 2GB (넉넉하게)
-                cpu: "1000m"       # CPU 제한 1 vCPU
+                memory: "4Gi"      # 메모리 제한 4GB (충분한 여유)
+                cpu: "2000m"       # CPU 제한 2 vCPU (고성능)
           env:
             - name: NODE_ENV
               value: "production"
             - name: NEXT_TELEMETRY_DISABLED
               value: "1"
-            # 🚀 Node.js 성능 최적화 (무제한 메모리 사용)
+            # 🚀 Node.js 최적화 (t3.large에 맞춤)
             - name: NODE_OPTIONS
-              value: "--max-old-space-size=2048 --max-semi-space-size=256"
+              value: "--max-old-space-size=3584 --max-semi-space-size=512 --optimize-for-size --gc-interval=100"
             # Next.js 성능 최적화
             - name: NEXT_PUBLIC_ANALYTICS_ID
               value: ""
@@ -73,31 +61,35 @@ spec:
               value: "1"
             - name: NEXT_PRIVATE_DEBUG_MEMORY
               value: "1"
-          # 🚀 Health Check 최적화 (빠른 응답)
+            # 🚀 Cold Start 방지 설정
+            - name: NEXT_PRIVATE_DEBUG_CACHE_MISSES
+              value: "0"
+            - name: NEXT_PRIVATE_DEBUG_CACHE_HITS
+              value: "0"
+            # Next.js 성능 최적화
+            - name: NEXT_PRIVATE_DEBUG_SWC
+              value: "0"
+            - name: NEXT_PRIVATE_DEBUG_SWC_CACHE
+              value: "0"
+            # 메모리 최적화 (중복 제거)
+          # 🚀 단일 Pod Health Check 최적화
           livenessProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 30  # 🚀 초기 지연 감소
-            periodSeconds: 15        # 🚀 체크 주기 감소
-            timeoutSeconds: 5        # 🚀 타임아웃 감소
+            initialDelaySeconds: 10  # 🚀 단일 Pod이므로 빠른 시작
+            periodSeconds: 30        # 🚀 체크 주기 증가 (안정적)
+            timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 10  # 🚀 초기 지연 감소
-            periodSeconds: 5         # 🚀 체크 주기 감소
-            timeoutSeconds: 3        # 🚀 타임아웃 감소
+            initialDelaySeconds: 2   # 🚀 매우 빠른 시작
+            periodSeconds: 5         # 🚀 체크 주기
+            timeoutSeconds: 3
             failureThreshold: 2
-          startupProbe:
-            httpGet:
-              path: /
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 2         # 🚀 체크 주기 감소
-            timeoutSeconds: 2
-            failureThreshold: 15     # 🚀 실패 임계값 감소
+          # startupProbe 제거 (단일 Pod이므로 불필요)
 ---
 apiVersion: v1
 kind: Service
