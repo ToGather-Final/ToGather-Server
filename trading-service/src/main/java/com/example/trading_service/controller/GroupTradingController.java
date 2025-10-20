@@ -48,7 +48,7 @@ public class GroupTradingController {
             );
 
             return ResponseEntity.ok(ApiResponse.success(
-                    String.format("그룹 매수 주문이 완료되었습니다. 처리된 주문 수: %d", processedCount),
+                    String.format("그룹 매수 주문이 생성되었습니다. (생성된 주문 수: %d, 상태: PENDING, 호가 조건 만족 시 자동 체결)", processedCount),
                     processedCount
             ));
 
@@ -80,7 +80,7 @@ public class GroupTradingController {
             );
 
             return ResponseEntity.ok(ApiResponse.success(
-                    String.format("그룹 매도 주문이 완료되었습니다. 처리된 주문 수: %d", processedCount),
+                    String.format("그룹 매도 주문이 생성되었습니다. (생성된 주문 수: %d, 상태: PENDING, 호가 조건 만족 시 자동 체결)", processedCount),
                     processedCount
             ));
 

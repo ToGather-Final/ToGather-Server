@@ -21,6 +21,7 @@ public class RedisCacheService {
     
     // 캐시 키 상수
     private static final String STOCK_PRICE_KEY = "stock:price:";
+    private static final String STOCK_PREV_CLOSE_KEY = "stock:prevclose:";
     private static final String USER_BALANCE_KEY = "user:balance:";
     private static final String USER_HOLDINGS_KEY = "user:holdings:";
     private static final String KIS_TOKEN_KEY = "kis:token";
@@ -245,10 +246,14 @@ public class RedisCacheService {
                 // 검증 오류는 무시하고 계속 진행
             }
         } catch (IllegalStateException e) {
-            if (e.getMessage().contains("STOPPING")) {
-                log.warn("⚠️ Redis 연결 팩토리가 STOPPING 상태 - 캐싱 건너뜀: {}", stockCode);
+            // Redis 연결이 종료된 상태일 때 (애플리케이션 종료 중)
+            if (e.getMessage() != null && 
+                (e.getMessage().contains("STOPPING") || 
+                 e.getMessage().contains("destroyed") || 
+                 e.getMessage().contains("cannot be used anymore"))) {
+                log.debug("Redis 연결 종료 상태 - 캐싱 건너뜀: {}", stockCode);
             } else {
-                log.error("❌ Redis 연결 상태 오류 - 종목코드: {} - {}", stockCode, e.getMessage());
+                log.warn("⚠️ Redis 연결 상태 오류 - 종목코드: {} - {}", stockCode, e.getMessage());
             }
         } catch (Exception e) {
             log.error("❌ WebSocket 호가 데이터 캐싱 실패 - 종목코드: {} - {}", stockCode, e.getMessage(), e);
@@ -313,6 +318,41 @@ public class RedisCacheService {
             log.error("Redis 키 패턴 조회 실패 - 패턴: {}", pattern, e);
             return java.util.Set.of();
         }
+    }
+
+    /**
+     * 전일 종가 캐싱 (stockCode 기반)
+     */
+    public void cachePrevClosePrice(String stockCode, Float prevClosePrice) {
+        String key = STOCK_PREV_CLOSE_KEY + stockCode;
+        try {
+            // 하루 동안 캐싱 (전일 종가는 하루 종일 변하지 않음)
+            redisTemplate.opsForValue().set(key, prevClosePrice, Duration.ofHours(24));
+            log.debug("전일 종가 캐싱 완료 - 종목코드: {}, 전일종가: {}", stockCode, prevClosePrice);
+        } catch (Exception e) {
+            log.error("전일 종가 캐싱 실패 - 종목코드: {}", stockCode, e);
+        }
+    }
+
+    /**
+     * 전일 종가 조회 (stockCode 기반)
+     */
+    public Float getCachedPrevClosePrice(String stockCode) {
+        String key = STOCK_PREV_CLOSE_KEY + stockCode;
+        try {
+            Object cached = redisTemplate.opsForValue().get(key);
+            if (cached instanceof Float) {
+                log.debug("전일 종가 캐시 히트 - 종목코드: {}", stockCode);
+                return (Float) cached;
+            } else if (cached instanceof Double) {
+                return ((Double) cached).floatValue();
+            } else if (cached instanceof Number) {
+                return ((Number) cached).floatValue();
+            }
+        } catch (Exception e) {
+            log.debug("전일 종가 캐시 조회 실패 - 종목코드: {}", stockCode, e);
+        }
+        return null;
     }
 
     /**

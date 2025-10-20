@@ -188,12 +188,38 @@ public class OrderService {
 
     // 대기 중인 주문 조회
     @Transactional(readOnly = true)
+    // 전체 주문 조회 (모든 상태)
+    public List<OrderResponse> getAllOrders(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        
+        List<Order> orders = orderRepository.findByInvestmentAccount_InvestmentAccountIdOrderByCreatedAtDesc(
+                account.getInvestmentAccountId());
+        
+        return orders.stream()
+                .map(this::convertToOrderResponse)
+                .collect(Collectors.toList());
+    }
+    
+    // 대기 중인 주문 조회 (PENDING)
     public List<OrderResponse> getPendingOrders(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<Order> orders = orderRepository.findPendingOrdersByAccountId(account.getInvestmentAccountId());
         
         return orders.stream()
+                .map(this::convertToOrderResponse)
+                .collect(Collectors.toList());
+    }
+    
+    // 체결 완료된 주문 조회 (FILLED)
+    public List<OrderResponse> getFilledOrders(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        
+        List<Order> orders = orderRepository.findByInvestmentAccount_InvestmentAccountIdOrderByCreatedAtDesc(
+                account.getInvestmentAccountId());
+        
+        return orders.stream()
+                .filter(order -> order.getStatus() == Order.Status.FILLED)
                 .map(this::convertToOrderResponse)
                 .collect(Collectors.toList());
     }
