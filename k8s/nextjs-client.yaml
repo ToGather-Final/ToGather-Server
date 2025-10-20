@@ -40,6 +40,8 @@ spec:
             # 🚀 API 엔드포인트 설정 (배포 환경)
             - name: NEXT_PUBLIC_API_BASE_URL
               value: "https://xn--o79aq2k062a.store"
+            - name: SERVER_API_BASE_URL
+              value: "http://api-gateway.togather.svc.cluster.local:8000"
             # 💡 아래 환경 변수들이 Next.js의 상세 로그를 활성화합니다.
             - name: DEBUG
               value: "next:*"
