@@ -91,7 +91,7 @@ public class GroupTradingService {
                 // 개인 매수 주문 생성 (멤버당 가격과 수량 사용)
                 BuyRequest buyRequest = new BuyRequest(stockId, null, quantityPerMember.intValue(), pricePerMember, false);
 
-                orderService.buyStock(UUID.fromString(memberAccount.getUserId()), buyRequest);
+                orderService.buyStock(memberAccount.getUserId(), buyRequest);
                 
                 // 주문 실행은 OrderService 내부에서 처리됨
                 // TODO: 실제 주문 객체를 가져와서 executedOrders에 추가
@@ -170,7 +170,7 @@ public class GroupTradingService {
                 // 개인 매도 주문 생성 (멤버당 가격과 수량 사용)
                 SellRequest sellRequest = new SellRequest(stockId, null, quantityPerMember.intValue(), pricePerMember, false);
 
-                orderService.sellStock(UUID.fromString(memberAccount.getUserId()), sellRequest);
+                orderService.sellStock(memberAccount.getUserId(), sellRequest);
                 
                 // 주문 실행은 OrderService 내부에서 처리됨
                 // TODO: 실제 주문 객체를 가져와서 executedOrders에 추가
@@ -213,7 +213,7 @@ public class GroupTradingService {
             for (int i = 1; i <= 3; i++) { // 3명으로 줄임 (테스트용)
                 InvestmentAccount account = new InvestmentAccount();
                 account.setInvestmentAccountId(UUID.randomUUID());
-                account.setUserId("group_" + groupId + "_member_" + i);
+                account.setUserId(UUID.randomUUID());
                 members.add(account);
             }
             
@@ -474,7 +474,7 @@ public class GroupTradingService {
             for (InvestmentAccount member : groupMembers) {
                 try {
                     // 각 멤버의 예수금 조회
-                    BigDecimal memberBalance = portfolioCalculationService.getUserBalanceWithCache(UUID.fromString(member.getUserId()));
+                    BigDecimal memberBalance = portfolioCalculationService.getUserBalanceWithCache(member.getUserId());
                     totalCash += memberBalance.floatValue();
                 } catch (Exception e) {
                     log.warn("멤버 예수금 조회 실패 - 사용자ID: {} - {}", member.getUserId(), e.getMessage());

@@ -232,7 +232,7 @@ public class PortfolioService {
     }
 
     private InvestmentAccount getInvestmentAccountByUserId(UUID userId) {
-        return investmentAccountRepository.findByUserId(userId.toString())
+        return investmentAccountRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("투자 계좌를 찾을 수 없습니다."));
     }
 }

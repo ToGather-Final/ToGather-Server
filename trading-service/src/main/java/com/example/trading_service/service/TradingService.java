@@ -47,13 +47,14 @@ public class TradingService {
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
         // 이미 계좌가 있는지 확인
-        if (investmentAccountRepository.existsByUserId(userId.toString())) {
+        if (investmentAccountRepository.existsByUserId(userId)) {
             throw new IllegalArgumentException("이미 투자 계좌가 존재합니다.");
         }
 
         // 계좌 생성
         InvestmentAccount account = new InvestmentAccount();
-        account.setUserId(userId.toString());
+        log.info("🔍 투자 계좌 생성 - userId: {}, 타입: {}", userId, userId.getClass().getName());
+        account.setUserId(userId);
         account.setAccountNo(generateAccountNumber());
         
         InvestmentAccount savedAccount = investmentAccountRepository.save(account);
@@ -188,7 +189,7 @@ public class TradingService {
             for (UUID memberId : memberIds) {
                 try {
                     // 투자 계좌 조회
-                    Optional<InvestmentAccount> accountOpt = investmentAccountRepository.findByUserId(memberId.toString());
+                    Optional<InvestmentAccount> accountOpt = investmentAccountRepository.findByUserId(memberId);
                     if (accountOpt.isPresent()) {
                         InvestmentAccount account = accountOpt.get();
                         
@@ -454,7 +455,7 @@ public class TradingService {
 
     // 헬퍼 메서드들
     private InvestmentAccount getInvestmentAccountByUserId(UUID userId) {
-        return investmentAccountRepository.findByUserId(userId.toString())
+        return investmentAccountRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("투자 계좌를 찾을 수 없습니다."));
     }
 
@@ -688,14 +689,14 @@ public class TradingService {
     // 계좌 정보 조회
     @Transactional(readOnly = true)
     public AccountInfoResponse getAccountInfo(UUID userId) {
-        Optional<InvestmentAccount> accountOpt = investmentAccountRepository.findByUserId(userId.toString());
+        Optional<InvestmentAccount> accountOpt = investmentAccountRepository.findByUserId(userId);
         
         if (accountOpt.isPresent()) {
             InvestmentAccount account = accountOpt.get();
             return new AccountInfoResponse(
                     account.getInvestmentAccountId(),
                     account.getAccountNo(),
-                    account.getUserId(),
+                    account.getUserId().toString(),
                     account.getCreatedAt(),
                     true
             );

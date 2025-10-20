@@ -101,7 +101,7 @@ public class TradeExecutionService {
         /*
         try {
             // 개인 거래의 경우 사용자 ID를 기반으로 임시 그룹 ID 생성
-            UUID userId = UUID.fromString(order.getInvestmentAccount().getUserId());
+            UUID userId = order.getInvestmentAccount().getUserId();
             UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
             
             if (tempGroupId != null) {

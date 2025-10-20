@@ -218,7 +218,7 @@ public class OrderService {
 
     // 헬퍼 메서드들
     private InvestmentAccount getInvestmentAccountByUserId(UUID userId) {
-        return investmentAccountRepository.findByUserId(userId.toString())
+        return investmentAccountRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException("투자 계좌를 찾을 수 없습니다.", "ACCOUNT_NOT_FOUND"));
     }
 
