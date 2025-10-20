@@ -123,11 +123,11 @@ public class ProposalService {
     }
 
     /**
-     * 특정 그룹의 제안 목록 조회
+     * 특정 그룹의 제안 목록 조회 (최신순)
      */
     @Transactional(readOnly = true)
     public List<Proposal> getProposalsByGroup(UUID groupId) {
-        return proposalRepository.findByGroupId(groupId);
+        return proposalRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
     }
 
     /**

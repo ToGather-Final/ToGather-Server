@@ -3,6 +3,8 @@ package com.example.vote_service.repository;
 import com.example.vote_service.model.Vote;
 import com.example.vote_service.model.VoteChoice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -40,5 +42,22 @@ public interface VoteRepository extends JpaRepository<Vote, UUID> {
      * 특정 사용자의 투표 존재 여부 확인
      */
     boolean existsByProposalIdAndUserId(UUID proposalId, UUID userId);
+
+    /**
+     * 여러 제안의 찬성 투표 수를 한 번에 조회 (성능 최적화)
+     */
+    @Query("SELECT v.proposalId, COUNT(v) FROM Vote v WHERE v.proposalId IN :proposalIds AND v.choice = 'AGREE' GROUP BY v.proposalId")
+    List<Object[]> countApprovesByProposalIds(@Param("proposalIds") List<UUID> proposalIds);
+
+    /**
+     * 여러 제안의 반대 투표 수를 한 번에 조회 (성능 최적화)
+     */
+    @Query("SELECT v.proposalId, COUNT(v) FROM Vote v WHERE v.proposalId IN :proposalIds AND v.choice = 'DISAGREE' GROUP BY v.proposalId")
+    List<Object[]> countRejectsByProposalIds(@Param("proposalIds") List<UUID> proposalIds);
+
+    /**
+     * 사용자의 여러 제안에 대한 투표를 한 번에 조회 (성능 최적화)
+     */
+    List<Vote> findByUserIdAndProposalIdIn(UUID userId, List<UUID> proposalIds);
 }
 

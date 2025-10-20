@@ -16,9 +16,9 @@ import java.util.UUID;
 public interface ProposalRepository extends JpaRepository<Proposal, UUID> {
 
     /**
-     * 특정 그룹의 모든 제안 조회
+     * 특정 그룹의 모든 제안 조회 (최신순)
      */
-    List<Proposal> findByGroupId(UUID groupId);
+    List<Proposal> findByGroupIdOrderByCreatedAtDesc(UUID groupId);
 
     /**
      * 특정 그룹의 특정 상태의 제안 조회
