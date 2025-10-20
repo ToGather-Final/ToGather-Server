@@ -253,7 +253,7 @@ jobs:
       uses: chetan/invalidate-cloudfront-action@v2
       env:
           DISTRIBUTION: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
-          PATHS: "/*" # 💡 모든 파일(*)을 무효화하여 즉시 변경사항 반영
+          PATHS: "/*" # 💡 모든 파일(*)을 무효화하여 즉시 변경사항 반영d
           AWS_REGION: "us-east-1" # 인증서는 us-east-1에 있어야 하므로 명시
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
