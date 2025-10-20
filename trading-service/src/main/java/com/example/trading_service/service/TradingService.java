@@ -138,16 +138,8 @@ public class TradingService {
     public void internalDepositFunds(InternalDepositRequest request) {
         UUID userId = request.getUserId();
         
-        // 투자 계좌 조회 (없으면 생성)
-        InvestmentAccount account;
-        try {
-            account = getInvestmentAccountByUserId(userId);
-        } catch (IllegalArgumentException e) {
-            // 계좌가 없으면 자동 생성
-            log.info("투자 계좌가 없어 자동 생성합니다. 사용자: {}", userId);
-            UUID accountId = createInvestmentAccount(userId);
-            account = getInvestmentAccountByUserId(userId); // 생성 후 다시 조회
-        }
+        // 투자 계좌 조회 (계좌가 없으면 예외 발생)
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         // 잔고 업데이트
         BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())

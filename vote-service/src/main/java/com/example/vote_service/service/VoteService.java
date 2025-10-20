@@ -25,6 +25,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Vote 서비스
@@ -168,24 +170,22 @@ public class VoteService {
         log.info("투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}", 
                 proposalId, approveCount, rejectCount, voteQuorum);
 
-        // 가결 조건:
-        // 1. 찬성 투표 수가 정족수(voteQuorum) 이상
-        // 2. 찬성이 반대보다 많음 (동점이면 부결)
-        boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+        // 가결 조건: 찬성 투표 수가 정족수(voteQuorum) 이상
+        boolean isApproved = (approveCount >= voteQuorum);
         
-        log.info("가결 여부: {} (찬성 >= 정족수: {}, 찬성 > 반대: {})", 
-                isApproved, (approveCount >= voteQuorum), (approveCount > rejectCount));
+        log.info("가결 여부: {} (찬성 >= 정족수: {})", 
+                isApproved, (approveCount >= voteQuorum));
 
         if (isApproved) {
             proposalService.approveProposal(proposalId);
             
-            // PAY 카테고리 투표 가결 시 자동 예수금 충전
+            // 히스토리 생성 (VOTE_APPROVED) - 실제 payload에서 정보 읽어오기 (먼저 생성)
+            createVoteApprovedHistoryFromProposal(proposal);
+            
+            // PAY 카테고리 투표 가결 시 자동 예수금 충전 (투표 가결 히스토리 생성 이후 처리)
             if (proposal.getCategory().name().equals("PAY")) {
                 processPayVoteApproval(proposal);
             }
-            
-            // 히스토리 생성 (VOTE_APPROVED) - 실제 payload에서 정보 읽어오기
-            createVoteApprovedHistoryFromProposal(proposal);
         } else {
             proposalService.rejectProposal(proposalId);
             // 히스토리 생성 (VOTE_REJECTED)
@@ -339,13 +339,14 @@ public class VoteService {
                 historyService.createVoteApprovedHistory(
                     proposal.getGroupId(),
                     proposal.getProposalId(),
-                    LocalDateTime.now().plusHours(1).toString(), // scheduledAt - 1시간 후 실행 예정
+                    LocalDateTime.now().toString(), // scheduledAt - 함수가 실행된 시점
+                    "TRADE", // historyType - TRADE
                     proposal.getAction().name(), // side - BUY/SELL
                     tradePayload.stockName(), // stockName
                     tradePayload.quantity(), // shares
                     tradePayload.price(), // unitPrice
                     "KRW", // currency
-                    tradePayload.stockId() // stockId - DB의 stock_id 컬럼에 저장
+                    tradePayload.stockId() // stockId - UUID 객체로 전달 (BINARY(16) 변환 자동 처리)
                 );
                 
                 log.info("✅ TRADE 투표 가결 히스토리 생성 - stockName: {}, quantity: {}, price: {}", 
@@ -358,12 +359,13 @@ public class VoteService {
                 historyService.createVoteApprovedHistory(
                     proposal.getGroupId(),
                     proposal.getProposalId(),
-                    LocalDateTime.now().plusMinutes(5).toString(), // scheduledAt - 5분 후 실행 예정
+                    LocalDateTime.now().toString(), // scheduledAt - 함수가 실행된 시점
+                    "PAY", // historyType - PAY
                     "PAY", // side - PAY로 고정
-                    "예수금 충전이 자동으로 진행됩니다.", // stockName 대신 안내 메시지
-                    payPayload.amountPerPerson(), // shares 대신 1인당 금액
-                    1, // unitPrice - 1로 고정
-                    "KRW", // currency
+                    null, // stockName - PAY에서는 null
+                    null, // shares - PAY에서는 null
+                    payPayload.amountPerPerson(), // unitPrice - 1인당 금액
+                    null, // currency - PAY에서는 null
                     null // stockId - PAY에서는 null
                 );
                 
@@ -439,6 +441,55 @@ public class VoteService {
         }
     }
 
+    /**
+     * 여러 제안의 찬성 투표 수를 한 번에 조회 (성능 최적화)
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> getApproveVoteCounts(List<UUID> proposalIds) {
+        if (proposalIds.isEmpty()) {
+            return Map.of();
+        }
+        
+        List<Object[]> results = voteRepository.countApprovesByProposalIds(proposalIds);
+        return results.stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],  // proposalId
+                        row -> (Long) row[1]   // count
+                ));
+    }
 
+    /**
+     * 여러 제안의 반대 투표 수를 한 번에 조회 (성능 최적화)
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> getRejectVoteCounts(List<UUID> proposalIds) {
+        if (proposalIds.isEmpty()) {
+            return Map.of();
+        }
+        
+        List<Object[]> results = voteRepository.countRejectsByProposalIds(proposalIds);
+        return results.stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],  // proposalId
+                        row -> (Long) row[1]   // count
+                ));
+    }
+
+    /**
+     * 사용자의 여러 제안에 대한 투표 선택을 한 번에 조회 (성능 최적화)
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, VoteChoice> getUserVoteChoices(UUID userId, List<UUID> proposalIds) {
+        if (proposalIds.isEmpty()) {
+            return Map.of();
+        }
+        
+        List<Vote> votes = voteRepository.findByUserIdAndProposalIdIn(userId, proposalIds);
+        return votes.stream()
+                .collect(Collectors.toMap(
+                        Vote::getProposalId,
+                        Vote::getChoice
+                ));
+    }
 }
 
