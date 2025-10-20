@@ -710,7 +710,7 @@ public class TradingService {
             return new AccountInfoResponse(
                     account.getInvestmentAccountId(),
                     account.getAccountNo(),
-                    account.getUserId().toString(),
+                    account.getUserId(),
                     account.getCreatedAt(),
                     true
             );
