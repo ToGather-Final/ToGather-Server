@@ -233,6 +233,8 @@ public class GroupController {
         return ResponseEntity.ok(response);
     }
 
+    
+
     @Operation(summary = "그룹 상태 확인", description = "그룹의 현재 상태(대기중/활성화), 현재 멤버 수, 최대 멤버 수를 확인합니다. 클라이언트에서 대기중 화면 표시 여부를 결정할 때 사용합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "그룹 상태 조회 성공"),

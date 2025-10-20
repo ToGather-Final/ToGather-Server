@@ -1,6 +1,8 @@
 package com.example.trading_service.controller;
 
 import com.example.module_common.dto.InvestmentAccountDto;
+
+import com.example.module_common.dto.TransferToPayResponse;
 import com.example.trading_service.domain.InvestmentAccount;
 import com.example.trading_service.domain.Order;
 import com.example.trading_service.service.*;
@@ -297,6 +299,20 @@ public class TradingController {
                 .body(ApiResponse.success("투자 계좌가 성공적으로 개설되었습니다", accountId));
     }
 
+
+    @PostMapping("/internal/transfer-to-pay")
+    @Operation(summary = "투자계좌에서 페이계좌로 송금 (Internal)", description = "서비스 간 통신용 송금 API")
+    public ResponseEntity<TransferToPayResponse> internalTransferToPay(
+            @Parameter(description = "사용자 ID", required = true) @RequestParam UUID userId,
+            @Parameter(description = "송금 금액", required = true) @RequestParam Long amount,
+            @Parameter(description = "Transfer ID", required = true) @RequestParam UUID transferId
+    ) {
+        log.info("Internal 투자계좌에서 페이계좌로 송금: userId={}, amount={}, transferId={}", userId, amount, transferId);
+
+        TransferToPayResponse response = tradingService.transferToPay(userId, amount, transferId);
+        return ResponseEntity.ok(response);
+    }
+  
     // 테스트용: 그룹의 모든 대기 중인 주문을 강제 체결
     @PostMapping("/internal/orders/execute-all")
     @Operation(summary = "그룹의 대기 중인 주문 강제 체결 (테스트용)", description = "그룹의 모든 PENDING 주문을 즉시 체결합니다.")
