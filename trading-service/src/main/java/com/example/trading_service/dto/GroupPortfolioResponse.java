@@ -32,7 +32,7 @@ public class GroupPortfolioResponse {
 class GroupHoldingInfo {
     private String stockCode;
     private String stockName;
-    private Integer totalQuantity;
+    private Float totalQuantity;
     private BigDecimal avgCost;
     private BigDecimal currentPrice;
     private BigDecimal totalValue;

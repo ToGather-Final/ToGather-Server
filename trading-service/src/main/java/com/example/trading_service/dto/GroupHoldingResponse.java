@@ -14,7 +14,7 @@ public class GroupHoldingResponse {
     private String stockCode;
     private String stockName;
     private String stockImage; // 주식 로고/이미지
-    private Integer totalQuantity; // 그룹 전체 보유 수량
+    private Float totalQuantity; // 그룹 전체 보유 수량
     private Float avgCost; // 평균 매입 단가
     private Float currentPrice; // 현재가
     private Float changeAmount; // 평균 매입가 대비 변동금액
