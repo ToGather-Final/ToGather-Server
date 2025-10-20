@@ -195,7 +195,7 @@ spec:
 ---
 # 🚀 Next.js 클라이언트 HPA 비활성화 (단일 Pod 고정)
 # apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
+# kind: HorizontalPodAutoscalerㄴ
 # metadata:
 #   name: nextjs-client-hpa
 #   namespace: togather
