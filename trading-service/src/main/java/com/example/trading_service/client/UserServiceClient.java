@@ -1,5 +1,6 @@
 package com.example.trading_service.client;
 
+import com.example.module_common.dto.InvestmentAccountDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,4 +24,7 @@ public interface UserServiceClient {
      */
     @GetMapping("/internal/groups/{groupId}/members")
     List<UUID> getGroupMembers(@PathVariable UUID groupId);
+
+    @GetMapping("/internal/groups/{groupId}/members/accounts")
+    List<InvestmentAccountDto> getGroupMemberAccounts(@PathVariable("groupId") UUID groupId);
 }

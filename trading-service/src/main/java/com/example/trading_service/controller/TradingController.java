@@ -1,5 +1,6 @@
 package com.example.trading_service.controller;
 
+import com.example.module_common.dto.InvestmentAccountDto;
 import com.example.trading_service.service.*;
 import com.example.trading_service.dto.*;
 import com.example.trading_service.exception.BusinessException;
@@ -257,6 +258,12 @@ public class TradingController {
         UUID userId = getUserIdFromAuthentication(authentication);
         List<TradeHistoryResponse> history = tradingService.getStockTradeHistory(userId, stockCode);
         return ResponseEntity.ok(ApiResponse.success(history));
+    }
+
+    @GetMapping("/internal/accounts/user/{userId}")
+    @Operation(summary = "사용자별 투자 계좌 조회 (Internal)", description = "사용자 ID로 투자 계좌 정보를 조회합니다.")
+    public InvestmentAccountDto getAccountByUserId(@PathVariable UUID userId) {
+        return tradingService.getAccountByUserIdInternal(userId);
     }
 
     // 헬퍼 메서드: 인증에서 사용자 ID 추출

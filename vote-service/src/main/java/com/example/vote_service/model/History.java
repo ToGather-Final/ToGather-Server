@@ -18,7 +18,6 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "history")
 public class History {
-
     @Id
     @org.hibernate.annotations.UuidGenerator
     @Column(name = "history_id", columnDefinition = "BINARY(16)")
