@@ -14,7 +14,7 @@ public class TradeHistoryResponse {
     private String stockCode;
     private String stockName;
     private String orderType; // BUY, SELL
-    private Integer quantity;
+    private Float quantity;
     private Float price;
     private LocalDateTime createdAt;
     private String status;

@@ -26,7 +26,7 @@ public class HoldingCache {
     private Stock stock;
 
     @Column(name = "quantity", nullable = false)
-    private int quantity; // 현재 보유 수량
+    private float quantity; // 현재 보유 수량
 
     @Column(name = "avg_cost", nullable = false)
     private float avgCost; // 평균 매입 단가

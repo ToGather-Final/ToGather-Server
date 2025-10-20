@@ -224,7 +224,7 @@ public class PortfolioService {
 
         holding.setInvestmentAccount(account);
         holding.setStock(stock);
-        holding.setQuantity((int) quantity);
+        holding.setQuantity(quantity);
         holding.setAvgCost(avgCost);
         holding.setEvaluatedPrice(avgCost * quantity); // 초기값은 평균 매입가로 설정
 

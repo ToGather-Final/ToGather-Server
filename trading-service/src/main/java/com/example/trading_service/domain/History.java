@@ -30,7 +30,7 @@ public class History {
     private TransactionType transactionType; // BUY, SELL
 
     @Column(name = "quantity", nullable = false)
-    private int quantity;
+    private float quantity;
 
     @Column(name = "price", nullable = false, precision = 19, scale = 2)
     private java.math.BigDecimal price;
