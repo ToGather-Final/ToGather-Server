@@ -35,9 +35,9 @@ public interface TradingServiceClient {
 
     /**
      * 예수금 충전 (그룹 초기 자금 지급)
-     * - POST /internal/deposit 사용
+     * - POST /trading/internal/deposit 사용
      * - InternalDepositRequest: userId, amount, groupId, description
      */
-    @PostMapping("/internal/deposit")
+    @PostMapping("/trading/internal/deposit")
     ResponseEntity<Map<String, Object>> depositFunds(@RequestBody InternalDepositRequest request);
 }

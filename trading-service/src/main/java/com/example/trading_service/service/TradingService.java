@@ -49,8 +49,28 @@ public class TradingService {
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
         // 이미 계좌가 있는지 확인
-        if (investmentAccountRepository.existsByUserId(userId)) {
-            throw new IllegalArgumentException("이미 투자 계좌가 존재합니다.");
+        Optional<InvestmentAccount> existingAccount = investmentAccountRepository.findByUserId(userId);
+        
+        if (existingAccount.isPresent()) {
+            // 계좌는 있지만 BalanceCache가 없는 경우 생성
+            InvestmentAccount account = existingAccount.get();
+            Optional<BalanceCache> existingBalance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId());
+            
+            if (existingBalance.isEmpty()) {
+                log.warn("⚠️ 투자 계좌는 있지만 BalanceCache가 없음 - userId: {}, accountId: {}. BalanceCache 생성 중...", 
+                        userId, account.getInvestmentAccountId());
+                
+                BalanceCache balance = new BalanceCache();
+                balance.setInvestmentAccount(account);
+                balance.setBalance(0);
+                balanceCacheRepository.save(balance);
+                
+                log.info("✅ BalanceCache 생성 완료 - userId: {}, accountId: {}", userId, account.getInvestmentAccountId());
+            } else {
+                log.info("✅ 기존 투자 계좌 확인 - userId: {}, 계좌번호: {}", userId, account.getAccountNo());
+            }
+            
+            return account.getInvestmentAccountId();
         }
 
         // 계좌 생성
@@ -67,7 +87,7 @@ public class TradingService {
         balance.setBalance(0);
         balanceCacheRepository.save(balance);
         
-        log.info("투자 계좌가 생성되었습니다. 사용자: {}, 계좌번호: {}", userId, savedAccount.getAccountNo());
+        log.info("✅ 투자 계좌가 생성되었습니다. 사용자: {}, 계좌번호: {}", userId, savedAccount.getAccountNo());
         return savedAccount.getInvestmentAccountId();
     }
 
@@ -142,15 +162,28 @@ public class TradingService {
         // 투자 계좌 조회 (계좌가 없으면 예외 발생)
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
-        // 잔고 업데이트
+        // 잔고 업데이트 (BalanceCache가 없으면 자동 생성)
         BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())
-                .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
+                .orElseGet(() -> {
+                    log.warn("⚠️ BalanceCache가 없음 - userId: {}, accountId: {}. 자동 생성 중...", 
+                            userId, account.getInvestmentAccountId());
+                    
+                    BalanceCache newBalance = new BalanceCache();
+                    newBalance.setInvestmentAccount(account);
+                    newBalance.setBalance(0);
+                    BalanceCache saved = balanceCacheRepository.save(newBalance);
+                    
+                    log.info("✅ BalanceCache 자동 생성 완료 - userId: {}, accountId: {}", 
+                            userId, account.getInvestmentAccountId());
+                    
+                    return saved;
+                });
         
         balance.setBalance(balance.getBalance() + request.getAmount().intValue());
         balanceCacheRepository.save(balance);
         
-        log.info("Internal 예수금 충전 완료 - 사용자: {}, 그룹: {}, 충전 금액: {}, 설명: {}", 
-                userId, request.getGroupId(), request.getAmount(), request.getDescription());
+        log.info("✅ Internal 예수금 충전 완료 - 사용자: {}, 그룹: {}, 충전 금액: {}원, 현재 잔고: {}원, 설명: {}", 
+                userId, request.getGroupId(), request.getAmount(), balance.getBalance(), request.getDescription());
     }
 
     /**
