@@ -22,21 +22,21 @@ spec:
           ports:
             - containerPort: 3000
           resources:
-              # 🚀 t3.large 두 개에 최적화된 리소스 설정
+              # 🚀 t3.large 두 개에 최적화된 리소스 설정 (CPU 부족 해결)
               requests:
                 memory: "2Gi"      # 메모리 요청 2GB (t3.large에 적합)
-                cpu: "1000m"       # CPU 요청 1 vCPU (안정적)
+                cpu: "500m"        # CPU 요청 0.5 vCPU (리소스 절약)
               limits:
                 memory: "4Gi"      # 메모리 제한 4GB (충분한 여유)
-                cpu: "2000m"       # CPU 제한 2 vCPU (고성능)
+                cpu: "1000m"       # CPU 제한 1 vCPU (안정적)
           env:
             - name: NODE_ENV
               value: "production"
             - name: NEXT_TELEMETRY_DISABLED
               value: "1"
-            # 🚀 Node.js 최적화 (t3.large에 맞춤)
+            # 🚀 Node.js 최적화 (t3.large에 맞춤, CPU 부족 해결)
             - name: NODE_OPTIONS
-              value: "--max-old-space-size=3584 --max-semi-space-size=512 --optimize-for-size --gc-interval=100"
+              value: "--max-old-space-size=2048 --max-semi-space-size=256 --optimize-for-size --gc-interval=100"
             # Next.js 성능 최적화
             - name: NEXT_PUBLIC_ANALYTICS_ID
               value: ""
