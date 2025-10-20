@@ -280,7 +280,7 @@ jobs:
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
         fi
         
-        # API Gateway 배포 확인!
+        # API Gateway 배포 확인!!
         echo ""
         echo "🚀 API Gateway 배포 상태 확인 중..."
         if kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=240s; then
