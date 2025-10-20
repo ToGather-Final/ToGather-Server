@@ -92,6 +92,7 @@ public class GroupTradingService {
         }
 
         // 7. 각 멤버별로 개인 주문 생성 및 실행
+        List<Order> executedOrders = new ArrayList<>();
         int processedCount = 0;
 
         for (InvestmentAccount memberAccount : groupMembers) {
@@ -124,8 +125,8 @@ public class GroupTradingService {
         // 8. 그룹 보유량 업데이트
         updateGroupHolding(groupId, stockId, (int)totalQuantity, pricePerShare, memberCount);
 
-        // 4. 거래 히스토리 저장 (주석)
-        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "BUY", executedOrders);
+        // 9. 거래 히스토리 저장
+        saveGroupTradingHistory(groupId, stockId, (int)totalQuantity, pricePerShare, "BUY", executedOrders);
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -186,6 +187,7 @@ public class GroupTradingService {
         }
 
         // 8. 각 멤버별로 개인 매도 주문 생성 및 실행
+        List<Order> executedOrders = new ArrayList<>();
         int processedCount = 0;
 
         for (InvestmentAccount memberAccount : groupMembers) {
@@ -217,8 +219,8 @@ public class GroupTradingService {
         // 9. 그룹 보유량 업데이트
         updateGroupHolding(groupId, stockId, (int)(-totalQuantity), price, memberCount);
 
-        // 5. 거래 히스토리 저장 (주석)
-        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "SELL", executedOrders);
+        // 10. 거래 히스토리 저장
+        saveGroupTradingHistory(groupId, stockId, (int)totalQuantity, price, "SELL", executedOrders);
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -246,8 +248,6 @@ public class GroupTradingService {
 
             log.info("실제 그룹 멤버 조회 완료 - 그룹ID: {}, 멤버 수: {}", groupId, members.size());
             return members;
-            
-            return allAccounts;
             
         } catch (Exception e) {
             log.error("그룹 멤버 조회 실패 - 그룹ID: {} - {}", groupId, e.getMessage());
