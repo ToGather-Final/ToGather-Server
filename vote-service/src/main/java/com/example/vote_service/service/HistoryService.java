@@ -96,12 +96,13 @@ public class HistoryService {
      */
     @Transactional
     public void createVoteApprovedHistory(UUID groupId, UUID proposalId, String scheduledAt, 
-                                        String side, String stockName, Integer shares, 
+                                        String historyType, String side, String stockName, Integer shares, 
                                         Integer unitPrice, String currency, UUID stockId) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("proposalId", proposalId.toString());
             payload.put("scheduledAt", scheduledAt);
+            payload.put("historyType", historyType);
             payload.put("side", side);
             payload.put("stockName", stockName);
             payload.put("shares", shares);
@@ -293,6 +294,7 @@ public class HistoryService {
                     return new VoteApprovedPayloadDTO(
                             UUID.fromString((String) payloadMap.get("proposalId")),
                             (String) payloadMap.get("scheduledAt"),
+                            (String) payloadMap.get("historyType"),
                             (String) payloadMap.get("side"),
                             (String) payloadMap.get("stockName"),
                             (Integer) payloadMap.get("shares"),
