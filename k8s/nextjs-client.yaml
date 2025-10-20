@@ -4,9 +4,9 @@ metadata:
   name: nextjs-client
   namespace: togather
 spec:
-  replicas: 1  # 🚀 단일 Pod 고정 (Cold Start 완전 제거)
+  replicas: 1
   strategy:
-    type: Recreate       # 🚀 단일 Pod이므로 Recreate 사용
+    type: Recreate
   selector:
     matchLabels:
       app: nextjs-client
@@ -15,78 +15,60 @@ spec:
       labels:
         app: nextjs-client
     spec:
-      # 🚀 단일 Pod이므로 Anti-Affinity 설정 제거
       containers:
         - name: nextjs-client
           image: ${ECR_REGISTRY}/togather/client:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           resources:
-              # 🚀 t3.large 두 개에 최적화된 리소스 설정 (CPU 부족 해결)
-              requests:
-                memory: "2Gi"      # 메모리 요청 2GB (t3.large에 적합)
-                cpu: "500m"        # CPU 요청 0.5 vCPU (리소스 절약)
-              limits:
-                memory: "4Gi"      # 메모리 제한 4GB (충분한 여유)
-                cpu: "1000m"       # CPU 제한 1 vCPU (안정적)
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "1500m"
           env:
             - name: NODE_ENV
               value: "production"
             - name: NEXT_TELEMETRY_DISABLED
               value: "1"
-            # 🚀 Node.js 최적화 (t3.large에 맞춤, CPU 부족 해결)
             - name: NODE_OPTIONS
-              value: "--max-old-space-size=2048 --max-semi-space-size=256 --optimize-for-size --gc-interval=100"
-            # Next.js 성능 최적화
-            - name: NEXT_PUBLIC_ANALYTICS_ID
-              value: ""
-            - name: NEXT_PUBLIC_VERCEL_ANALYTICS_ID
-              value: ""
+              value: "--max-old-space-size=3072"
             - name: NODE_NO_WARNINGS
               value: "1"
-            # 🔍 로깅 및 성능 모니터링 설정
+            # 💡 아래 환경 변수들이 Next.js의 상세 로그를 활성화합니다.
             - name: DEBUG
               value: "next:*"
             - name: NEXT_DEBUG
               value: "1"
-            - name: NEXT_LOG_LEVEL
-              value: "debug"
-            - name: NODE_DEBUG
-              value: "http,net,tls"
-            # 성능 모니터링
-            - name: NEXT_PRIVATE_DEBUG_CACHE
-              value: "1"
-            - name: NEXT_PRIVATE_DEBUG_MEMORY
-              value: "1"
-            # 🚀 Cold Start 방지 설정
-            - name: NEXT_PRIVATE_DEBUG_CACHE_MISSES
-              value: "0"
-            - name: NEXT_PRIVATE_DEBUG_CACHE_HITS
-              value: "0"
-            # Next.js 성능 최적화
-            - name: NEXT_PRIVATE_DEBUG_SWC
-              value: "0"
-            - name: NEXT_PRIVATE_DEBUG_SWC_CACHE
-              value: "0"
-            # 메모리 최적화 (중복 제거)
-          # 🚀 단일 Pod Health Check 최적화
-          livenessProbe:
+
+          # ✅ 안정적인 Health Check를 위한 Probe 설정
+          startupProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 10  # 🚀 단일 Pod이므로 빠른 시작
-            periodSeconds: 30        # 🚀 체크 주기 증가 (안정적)
+            # Next.js가 완전히 구동될 때까지 최대 5분(30 * 10초) 동안 기다립니다.
+            initialDelaySeconds: 15
+            periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 3
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /
               port: 3000
-            initialDelaySeconds: 2   # 🚀 매우 빠른 시작
-            periodSeconds: 5         # 🚀 체크 주기
-            timeoutSeconds: 3
-            failureThreshold: 2
-          # startupProbe 제거 (단일 Pod이므로 불필요)
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
@@ -100,3 +82,106 @@ spec:
     - port: 3000
       targetPort: 3000
   type: ClusterIP
+
+#apiVersion: apps/v1
+#kind: Deployment
+#metadata:
+#  name: nextjs-client
+#  namespace: togather
+#spec:
+#  replicas: 1  # 🚀 전용 노드 단일 Pod (최고 성능)
+#  strategy:
+#    type: Recreate       # 🚀 단일 Pod이므로 Recreate 사용
+#  selector:
+#    matchLabels:
+#      app: nextjs-client
+#  template:
+#    metadata:
+#      labels:
+#        app: nextjs-client
+#    spec:
+#      # 🚀 단일 Pod이므로 Anti-Affinity 설정 제거
+#      containers:
+#        - name: nextjs-client
+#          image: ${ECR_REGISTRY}/togather/client:latest
+#          ports:
+#            - containerPort: 3000
+#          resources:
+#              # 🚀 전용 노드 최적화 리소스 설정
+#              requests:
+#                memory: "2Gi"      # 메모리 요청 2GB (전용 노드 여유)
+#                cpu: "500m"        # CPU 요청 0.5 vCPU (안정적)
+#              limits:
+#                memory: "4Gi"      # 메모리 제한 4GB (전용 노드 최대 활용)
+#                cpu: "1500m"       # CPU 제한 1.5 vCPU (고성능)
+#          env:
+#            - name: NODE_ENV
+#              value: "production"
+#            - name: NEXT_TELEMETRY_DISABLED
+#              value: "1"
+#            # 🚀 Node.js 최적화 (전용 노드 고성능)
+#            - name: NODE_OPTIONS
+#              value: "--max-old-space-size=3072 --max-semi-space-size=512 --gc-interval=100"
+#            # Next.js 성능 최적화
+#            - name: NEXT_PUBLIC_ANALYTICS_ID
+#              value: ""
+#            - name: NEXT_PUBLIC_VERCEL_ANALYTICS_ID
+#              value: ""
+#            - name: NODE_NO_WARNINGS
+#              value: "1"
+#            # 🔍 로깅 및 성능 모니터링 설정
+#            - name: DEBUG
+#              value: "next:*"
+#            - name: NEXT_DEBUG
+#              value: "1"
+#            - name: NEXT_LOG_LEVEL
+#              value: "debug"
+#            - name: NODE_DEBUG
+#              value: "http,net,tls"
+#            # 성능 모니터링
+#            - name: NEXT_PRIVATE_DEBUG_CACHE
+#              value: "1"
+#            - name: NEXT_PRIVATE_DEBUG_MEMORY
+#              value: "1"
+#            # 🚀 Cold Start 방지 설정
+#            - name: NEXT_PRIVATE_DEBUG_CACHE_MISSES
+#              value: "0"
+#            - name: NEXT_PRIVATE_DEBUG_CACHE_HITS
+#              value: "0"
+#            # Next.js 성능 최적화
+#            - name: NEXT_PRIVATE_DEBUG_SWC
+#              value: "0"
+#            - name: NEXT_PRIVATE_DEBUG_SWC_CACHE
+#              value: "0"
+#            # 메모리 최적화 (중복 제거)
+#          # 🚀 단일 Pod Health Check 최적화
+#          livenessProbe:
+#            httpGet:
+#              path: /
+#              port: 3000
+#            initialDelaySeconds: 10  # 🚀 단일 Pod이므로 빠른 시작
+#            periodSeconds: 30        # 🚀 체크 주기 증가 (안정적)
+#            timeoutSeconds: 5
+#            failureThreshold: 3
+#          readinessProbe:
+#            httpGet:
+#              path: /
+#              port: 3000
+#            initialDelaySeconds: 2   # 🚀 매우 빠른 시작
+#            periodSeconds: 5         # 🚀 체크 주기
+#            timeoutSeconds: 3
+#            failureThreshold: 2
+#          # startupProbe 제거 (단일 Pod이므로 불필요)
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: nextjs-client
+#  namespace: togather
+#spec:
+#  selector:
+#    app: nextjs-client
+#  ports:
+#    - port: 3000
+#      targetPort: 3000
+#  type: ClusterIP

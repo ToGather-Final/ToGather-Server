@@ -8,8 +8,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: api-gateway
-  minReplicas: 2  # 🚀 고가용성: 최소 2개 유지
-  maxReplicas: 5  # 🚀 확장성: 최대 5개까지 확장 가능
+  minReplicas: 2  # 🚀 전용 노드 고가용성 (API Gateway + Redis)
+  maxReplicas: 4  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
@@ -47,8 +47,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: user-service
-  minReplicas: 1  # 🚀 기본 서비스: 최소 1개 유지
-  maxReplicas: 3  # 🚀 확장성: 최대 3개까지 확장 가능
+  minReplicas: 1  # 🚀 전용 노드 단일 Pod (Trading + User Service)
+  maxReplicas: 2  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
@@ -86,8 +86,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: trading-service
-  minReplicas: 2  # 🚀 고가용성: 최소 2개 유지
-  maxReplicas: 5  # 🚀 확장성: 최대 5개까지 확장 가능
+  minReplicas: 2  # 🚀 전용 노드 고가용성 (Trading + User Service)
+  maxReplicas: 4  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
@@ -125,8 +125,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: pay-service
-  minReplicas: 1  # 🚀 기본 서비스: 최소 1개 유지
-  maxReplicas: 3  # 🚀 확장성: 최대 3개까지 확장 가능
+  minReplicas: 1  # 🚀 전용 노드 단일 Pod (Pay + Vote + RabbitMQ)
+  maxReplicas: 2  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
@@ -164,8 +164,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: vote-service
-  minReplicas: 1  # 🚀 기본 서비스: 최소 1개 유지
-  maxReplicas: 3  # 🚀 확장성: 최대 3개까지 확장 가능
+  minReplicas: 1  # 🚀 전용 노드 단일 Pod (Pay + Vote + RabbitMQ)
+  maxReplicas: 2  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:

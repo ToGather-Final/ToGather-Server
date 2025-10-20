@@ -6,7 +6,7 @@ metadata:
   labels:
     app: pay-service
 spec:
-  replicas: 1  # 🚀 HPA minReplicas와 일치 (기본 서비스)
+  replicas: 1  # 🚀 전용 노드 단일 Pod (Pay + Vote + RabbitMQ)
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -43,11 +43,11 @@ spec:
               name: togather-secrets
         resources:
           requests:
-            memory: "512Mi"  # 🚀 메모리 요청 증가
-            cpu: "200m"      # 🚀 CPU 요청 증가
+            memory: "300Mi"  # 🚀 전용 노드 최적화 (실제 사용량 기반)
+            cpu: "150m"      # 🚀 CPU 요청 최적화
           limits:
-            memory: "1Gi"    # 🚀 메모리 제한 1GB (넉넉하게)
-            cpu: "400m"      # 🚀 CPU 제한 증가
+            memory: "600Mi"  # 🚀 메모리 제한 최적화
+            cpu: "300m"      # 🚀 CPU 제한 최적화
         livenessProbe:
           httpGet:
             path: /actuator/health

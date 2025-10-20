@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2  # 🚀 HPA minReplicas와 일치 (고가용성)ss
+  replicas: 2  # 🚀 전용 노드 고가용성 (API Gateway + Redis)
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -79,11 +79,11 @@ spec:
                 name: togather-secrets
           resources:
               requests:
-                memory: "512Mi"  # 🚀 메모리 요청 대폭 증가
-                cpu: "200m"      # 🚀 CPU 요청 증가
+                memory: "256Mi"  # 🚀 전용 노드 최적화 (실제 사용량 기반)
+                cpu: "100m"      # 🚀 CPU 요청 최적화
               limits:
-                memory: "1Gi"    # 🚀 메모리 제한 1GB (넉넉하게)
-                cpu: "500m"      # 🚀 CPU 제한 증가
+                memory: "512Mi"  # 🚀 메모리 제한 최적화
+                cpu: "300m"      # 🚀 CPU 제한 최적화
           livenessProbe:
             httpGet:
               path: /api/health
