@@ -43,7 +43,6 @@ public class GroupTradingService {
     private final PortfolioCalculationService portfolioCalculationService;
     private final UserServiceClient userServiceClient;
     private final HistoryRepository historyRepository;
-    private final StockPriceService stockPriceService;
 
     /**
      * 그룹 매수 주문 처리 (그룹 분할 매매)
@@ -122,10 +121,10 @@ public class GroupTradingService {
         }
 
         // 8. 그룹 보유량 업데이트
-        updateGroupHolding(groupId, stockId, (int)totalQuantity, pricePerShare, memberCount);
+        updateGroupHolding(groupId, stockId, totalQuantity, pricePerShare, memberCount);
 
         // 9. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, (int)totalQuantity, pricePerShare, "BUY", executedOrders);
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerShare, "BUY", executedOrders);
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -215,10 +214,10 @@ public class GroupTradingService {
         }
 
         // 9. 그룹 보유량 업데이트
-        updateGroupHolding(groupId, stockId, (int)(-totalQuantity), price, memberCount);
+        updateGroupHolding(groupId, stockId, -totalQuantity, price, memberCount);
 
         // 10. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, (int)totalQuantity, price, "SELL", executedOrders);
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, price, "SELL", executedOrders);
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -231,19 +230,19 @@ public class GroupTradingService {
     public List<InvestmentAccount> getGroupMembers(UUID groupId) {
         try {
             List<InvestmentAccountDto> memberDtos = userServiceClient.getGroupMemberAccounts(groupId);
-
+            
             if (memberDtos.isEmpty()) {
                 log.warn("그룹에 실제 멤버가 없습니다 - groupId: {}", groupId);
                 throw new BusinessException("그룹에 멤버가 없습니다.");
             }
-
+            
             List<InvestmentAccount> members = new ArrayList<>();
             for (InvestmentAccountDto dto : memberDtos) {
                 InvestmentAccount account = investmentAccountRepository.findById(dto.getInvestmentAccountId())
                         .orElseThrow(() -> new BusinessException("투자 계좌를 찾을 수 없습니다."));
                 members.add(account);
             }
-
+            
             log.info("실제 그룹 멤버 조회 완료 - 그룹ID: {}, 멤버 수: {}", groupId, members.size());
             return members;
             
@@ -332,7 +331,8 @@ public class GroupTradingService {
                 
                 // 평가금액과 손익 계산
                 try {
-                    float currentPrice = stockPriceService.getCurrentPrice(stock.getStockCode());
+                    OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
+                    float currentPrice = orderBook.getCurrentPrice();
                     holding.setEvaluatedPrice(currentPrice * newQuantity);
                     holding.setProfit((currentPrice - newAvgCost) * newQuantity);
                 } catch (Exception e) {
@@ -354,7 +354,8 @@ public class GroupTradingService {
             
             // 평가금액과 손익 계산
             try {
-                float currentPrice = stockPriceService.getCurrentPrice(stock.getStockCode());
+                OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
+                float currentPrice = orderBook.getCurrentPrice();
                 newHolding.setEvaluatedPrice(currentPrice * quantityChange);
                 newHolding.setProfit((currentPrice - price.floatValue()) * quantityChange);
             } catch (Exception e) {
@@ -383,14 +384,14 @@ public class GroupTradingService {
     /**
      * 그룹 거래 히스토리 저장 (주석)
      */
-    private void saveGroupTradingHistory(UUID groupId, UUID stockId, int quantity, 
+    private void saveGroupTradingHistory(UUID groupId, UUID stockId, float quantity, 
                                        BigDecimal price, String transactionType, 
                                        List<Order> executedOrders) {
         try {
             // 주식 정보 조회
             Stock stock = stockRepository.findById(stockId)
                     .orElseThrow(() -> new BusinessException("주식을 찾을 수 없습니다.", "STOCK_NOT_FOUND"));
-
+            
             History history = new History();
             history.setInvestmentAccount(null);
             history.setStock(stock);
@@ -401,10 +402,10 @@ public class GroupTradingService {
             history.setGroupId(groupId);
             history.setHistoryCategory("TRADE");
             history.setHistoryType("TRADE_EXECUTED");
-            history.setTitle(String.format("%s %d주 %d원 %s",
+            history.setTitle(String.format("%s %.2f주 %d원 %s",
                     stock.getStockName(), quantity, price.intValue(),
                     "BUY".equals(transactionType) ? "매수" : "매도"));
-            history.setPayload(String.format("{\"groupTrading\":true,\"stockName\":\"%s\",\"quantity\":%d,\"price\":%d}",
+            history.setPayload(String.format("{\"groupTrading\":true,\"stockName\":\"%s\",\"quantity\":%.2f,\"price\":%d}",
                     stock.getStockName(), quantity, price.intValue()));
 
             if(!executedOrders.isEmpty()) {
