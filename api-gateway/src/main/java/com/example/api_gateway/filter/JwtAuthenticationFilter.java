@@ -34,7 +34,12 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/auth/login",
             "/api/auth/signup",
             "/api/auth/refresh",
-            "/api/trading/stocks"  // 주식 조회는 인증 불필요
+            "/api/trading/stocks",  // 주식 조회는 인증 불필요
+            "/api/websocket",       // WebSocket API는 인증 불필요
+            "/ws",                  // WebSocket 연결 엔드포인트
+            "/actuator",             // Spring Actuator 엔드포인트
+            "/v3/api-docs",
+            "/swagger-ui"
     );
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil) {
@@ -110,6 +115,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
      * 인증 제외 경로 확인
      */
     private boolean isExcludedPath(String path) {
+        // WebSocket 경로는 특별 처리
+        if (path.startsWith("/ws")) {
+            return true;
+        }
+        
         return EXCLUDED_PATHS.stream().anyMatch(path::startsWith);
     }
 

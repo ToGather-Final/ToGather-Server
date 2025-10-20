@@ -43,6 +43,8 @@ public class SecurityConfig {
         });
         http.authorizeHttpRequests(reg -> {
             reg.requestMatchers("/actuator/**").permitAll();
+            reg.requestMatchers("/v3/api-docs/**").permitAll();
+            reg.requestMatchers("/swagger-ui/**").permitAll();
             reg.anyRequest().authenticated();
         });
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

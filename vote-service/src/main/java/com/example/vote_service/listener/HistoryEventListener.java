@@ -58,27 +58,30 @@ public class HistoryEventListener {
      */
     private String createNotificationMessage(History history) {
         HistoryType type = history.getHistoryType();
-        String title = history.getTitle();
         
         switch (type) {
-            case VOTE_CREATED:
-                return String.format("🗳️ 새로운 투표가 생성되었습니다: %s", title);
+            case VOTE_CREATED_BUY:
+                return "🗳️ 매수 제안 투표가 생성되었습니다.";
+            case VOTE_CREATED_SELL:
+                return "🗳️ 매도 제안 투표가 생성되었습니다.";
+            case VOTE_CREATED_PAY:
+                return "🗳️ 예수금 충전 제안 투표가 생성되었습니다.";
             case VOTE_APPROVED:
-                return String.format("✅ 투표가 가결되었습니다: %s", title);
+                return "✅ 투표가 가결되었습니다.";
             case VOTE_REJECTED:
-                return String.format("❌ 투표가 부결되었습니다: %s", title);
+                return "❌ 투표가 부결되었습니다.";
             case TRADE_EXECUTED:
-                return String.format("💰 거래가 체결되었습니다: %s", title);
+                return "💰 거래가 체결되었습니다.";
             case TRADE_FAILED:
-                return String.format("⚠️ 거래가 실패했습니다: %s", title);
+                return "⚠️ 거래가 실패했습니다.";
             case CASH_DEPOSIT_COMPLETED:
-                return String.format("💳 예수금 충전이 완료되었습니다: %s", title);
+                return "💳 예수금 충전이 완료되었습니다.";
             case PAY_CHARGE_COMPLETED:
-                return String.format("💸 페이 충전이 완료되었습니다: %s", title);
+                return "💸 페이 충전이 완료되었습니다.";
             case GOAL_ACHIEVED:
-                return String.format("🎯 목표가 달성되었습니다: %s", title);
+                return "🎯 목표가 달성되었습니다.";
             default:
-                return String.format("📢 새로운 소식이 있습니다: %s", title);
+                return "📢 새로운 소식이 있습니다.";
         }
     }
 }

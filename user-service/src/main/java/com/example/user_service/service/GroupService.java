@@ -14,6 +14,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.example.user_service.domain.InvitationCode.generateCode;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,7 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final InvitationCodeRepository invitationCodeRepository;
+    private final com.example.user_service.client.TradingServiceClient tradingServiceClient;
 
     @Transactional
     public UUID createGroup(UUID ownerId, GroupCreateRequest request) {
@@ -40,6 +43,9 @@ public class GroupService {
 
         GroupMember leader = GroupMember.join(saved.getGroupId(), ownerId);
         groupMemberRepository.save(leader);
+
+        // ❌ 그룹 생성 시에는 예수금 지급 안 함!
+        // ✅ 모든 멤버가 모였을 때 (ACTIVE 상태) 일괄 지급
 
         return saved.getGroupId();
     }
@@ -103,26 +109,69 @@ public class GroupService {
     @Transactional
     public String issueInvitation(UUID groupId, UUID operatorId) {
         assertOperatorIsOwner(groupId, operatorId);
-        InvitationCode invitation = InvitationCode.issue(groupId);
+
+        String code;
+        int maxAttempts = 10;
+        int attempts = 0;
+
+        do {
+            code = generateCode();
+            attempts++;
+
+            if (attempts > maxAttempts) {
+                throw new RuntimeException("초대 코드 생성에 실패했습니다. 다시 시도해주세요.");
+            }
+        } while (invitationCodeRepository.existsByCode(code));
+
+        InvitationCode invitation = InvitationCode.issue(groupId, code);
         InvitationCode saved = invitationCodeRepository.save(invitation);
         return saved.getCode();
     }
 
     @Transactional
-    public void acceptInvite(String code, UUID userId) {
+    public InviteAcceptResponse acceptInvite(String code, UUID userId) {
         InvitationCode invitationCode = invitationCodeRepository.findByCode(code)
                 .orElseThrow(() -> new NoSuchElementException("초대 코드를 찾을 수 없습니다."));
 
         validateInvitationAcceptable(invitationCode);
 
+        Group group = groupRepository.findById(invitationCode.getGroupId())
+                .orElseThrow(() -> new NoSuchElementException("그룹을 찾을 수 없습니다."));
+
+        if (group.getStatus() != GroupStatus.WAITING) {
+            throw new IllegalArgumentException("참여할 수 없는 그룹입니다.");
+        }
+
         GroupMemberId groupMemberId = new GroupMemberId(userId, invitationCode.getGroupId());
         boolean isAlreadyMember = groupMemberRepository.existsById(groupMemberId);
         if (!isAlreadyMember) {
+            // 이전 상태 저장
+            GroupStatus previousStatus = group.getStatus();
+            
+            // 멤버 추가 (이 시점에 WAITING → ACTIVE 변경 가능)
+            group.addMember();
+            groupRepository.save(group);
+
             groupMemberRepository.save(GroupMember.join(invitationCode.getGroupId(), userId));
+
+            // ✅ 그룹이 ACTIVE 상태가 되었는지 확인 (모든 멤버가 모임!)
+            if (previousStatus == GroupStatus.WAITING && group.getStatus() == GroupStatus.ACTIVE) {
+                log.info("🎉 그룹 완성! 모든 멤버에게 초기 예수금 일괄 지급 - groupId: {}, initialAmount: {}원", 
+                        group.getGroupId(), group.getInitialAmount());
+                
+                // 모든 그룹 멤버에게 예수금 일괄 지급
+                if (group.getInitialAmount() != null && group.getInitialAmount() > 0) {
+                    depositInitialFundsToAllMembers(group.getGroupId(), group.getInitialAmount());
+                }
+            }
         }
 
-        invitationCode.expire();
-        invitationCodeRepository.save(invitationCode);
+        if (group.isFull()) {
+            invitationCode.expire();
+            invitationCodeRepository.save(invitationCode);
+        }
+
+        return new InviteAcceptResponse(group.getGroupId(), group.getGroupName());
     }
 
     @Transactional(readOnly = true)
@@ -156,8 +205,8 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
 
-        if (group.getStatus() == GroupStatus.ACTIVE) {
-            throw new IllegalArgumentException("그룹이 이미 활성화되어 더 이상 멤버를 추가할 수 없습니다.");
+        if (group.getStatus() != GroupStatus.WAITING) {
+            throw new IllegalArgumentException("그룹이 이미 활성화되어 더 이상 참여할 수 없습니다.");
         }
 
         GroupMember member = GroupMember.join(groupId, request.userId());
@@ -173,11 +222,14 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("그룹을 찾을 수 없습니다."));
 
+        // 실제 GroupMember 테이블에서 멤버 수 계산
+        long actualMemberCount = groupMemberRepository.countByIdGroupId(groupId);
+
         return new GroupStatusResponse(
                 group.getStatus(),
-                group.getCurrentMembers(),
+                (int) actualMemberCount,  // 실제 멤버 수 사용
                 group.getMaxMembers(),
-                group.isFull()
+                actualMemberCount >= group.getMaxMembers()  // 실제 멤버 수로 계산
         );
     }
 
@@ -185,12 +237,43 @@ public class GroupService {
     public List<GroupStatusResponse> getMyGroupsStatus(UUID userId) {
         List<Group> groups = groupRepository.findAllByMember(userId);
         return groups.stream()
-                .map(g -> new GroupStatusResponse(
-                        g.getStatus(),
-                        g.getCurrentMembers(),
-                        g.getMaxMembers(),
-                        g.isFull()
-                ))
+                .map(g -> {
+                    // 실제 GroupMember 테이블에서 멤버 수 계산
+                    long actualMemberCount = groupMemberRepository.countByIdGroupId(g.getGroupId());
+                    return new GroupStatusResponse(
+                            g.getStatus(),
+                            (int) actualMemberCount,  // 실제 멤버 수 사용
+                            g.getMaxMembers(),
+                            actualMemberCount >= g.getMaxMembers()  // 실제 멤버 수로 계산
+                    );
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<LoginResponse.UserGroupInfo> getUserGroupsForLogin(UUID userId) {
+        List<Group> groups = groupRepository.findAllByMember(userId);
+        return groups.stream()
+                .map(g -> {
+                    long actualMemberCount = groupMemberRepository.countByIdGroupId(g.getGroupId());
+
+                    boolean isOwner = g.getOwnerId().equals(userId);
+
+                    String groupCode = invitationCodeRepository.findByGroupIdAndIsExpiredFalse(g.getGroupId())
+                            .map(InvitationCode::getCode)
+                            .orElse(null);
+
+                    return new LoginResponse.UserGroupInfo(
+                            g.getGroupId(),
+                            g.getGroupName(),
+                            groupCode,
+                            g.getStatus(),
+                            (int) actualMemberCount,
+                            g.getMaxMembers(),
+                            actualMemberCount >= g.getMaxMembers(),
+                            isOwner
+                    );
+                })
                 .toList();
     }
 
@@ -231,6 +314,14 @@ public class GroupService {
             log.error("❌ 예상치 못한 오류 발생 - groupId: {}, error: {}", groupId, e.getMessage(), e);
             throw new RuntimeException("투표 정족수 조회 중 오류가 발생했습니다.", e);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public String getCurrentInvitationCode(UUID groupId, UUID userId) {
+        assertMember(groupId, userId);
+        return invitationCodeRepository.findByGroupIdAndIsExpiredFalse(groupId)
+                .map(InvitationCode::getCode)
+                .orElse(null);
     }
 
     private void assertMember(UUID groupId, UUID userId) {
@@ -312,5 +403,70 @@ public class GroupService {
                 throw new IllegalArgumentException("그룹 해체 인원수는 그룹 최대 인원을 초과할 수 없습니다.");
             }
         });
+    }
+
+    /**
+     * 그룹이 완성되었을 때 모든 멤버에게 초기 예수금 일괄 지급
+     * - 그룹 상태가 WAITING → ACTIVE로 변경될 때 호출
+     */
+    private void depositInitialFundsToAllMembers(UUID groupId, Integer initialAmount) {
+        try {
+            log.info("🎉 그룹 완성! 모든 멤버에게 예수금 일괄 지급 시작 - groupId: {}, amount: {}원", groupId, initialAmount);
+            
+            // 그룹의 모든 멤버 조회
+            List<GroupMember> allMembers = groupMemberRepository.findByIdGroupId(groupId);
+            
+            if (allMembers.isEmpty()) {
+                log.warn("⚠️ 그룹 멤버가 없습니다 - groupId: {}", groupId);
+                return;
+            }
+            
+            log.info("👥 그룹 멤버 수: {}명", allMembers.size());
+            
+            int successCount = 0;
+            int failCount = 0;
+            
+            // 각 멤버에게 예수금 지급
+            for (GroupMember member : allMembers) {
+                try {
+                    UUID userId = member.getId().getUserId();
+                    
+                    // 1. 투자 계좌 생성 (이미 있으면 기존 계좌 반환)
+                    try {
+                        tradingServiceClient.createInvestmentAccount(userId);
+                        log.debug("✅ 투자 계좌 확인/생성 완료 - userId: {}", userId);
+                    } catch (Exception e) {
+                        log.debug("⚠️ 투자 계좌 생성 중 오류 (이미 존재할 수 있음) - userId: {}, error: {}", userId, e.getMessage());
+                    }
+                    
+                    // 2. 예수금 충전
+                    java.math.BigDecimal amount = java.math.BigDecimal.valueOf(initialAmount);
+                    com.example.user_service.dto.InternalDepositRequest depositRequest = 
+                            new com.example.user_service.dto.InternalDepositRequest(
+                                    userId,
+                                    amount,
+                                    groupId,
+                                    "그룹 시작 - 초기 예수금 지급"
+                            );
+                    
+                    tradingServiceClient.depositFunds(depositRequest);
+                    successCount++;
+                    
+                    log.info("✅ 멤버 예수금 지급 완료 - userId: {}, amount: {}원", userId, initialAmount);
+                    
+                } catch (Exception e) {
+                    failCount++;
+                    log.error("❌ 멤버 예수금 지급 실패 - userId: {}, amount: {}원, error: {}", 
+                            member.getId().getUserId(), initialAmount, e.getMessage());
+                }
+            }
+            
+            log.info("🎊 예수금 일괄 지급 완료! - 성공: {}명, 실패: {}명, 총 멤버: {}명", 
+                    successCount, failCount, allMembers.size());
+            
+        } catch (Exception e) {
+            log.error("❌ 예수금 일괄 지급 중 오류 발생 - groupId: {}, error: {}", 
+                    groupId, e.getMessage());
+        }
     }
 }

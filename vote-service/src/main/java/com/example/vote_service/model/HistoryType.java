@@ -2,7 +2,7 @@ package com.example.vote_service.model;
 
 /**
  * 히스토리 타입
- * - 투표 관련: VOTE_CREATED, VOTE_APPROVED, VOTE_REJECTED
+ * - 투표 관련: VOTE_CREATED_BUY, VOTE_CREATED_SELL, VOTE_CREATED_PAY, VOTE_APPROVED, VOTE_REJECTED
  * - 매매 관련: TRADE_EXECUTED, TRADE_FAILED
  * - 예수금 관련: CASH_DEPOSIT_COMPLETED
  * - 페이 관련: PAY_CHARGE_COMPLETED
@@ -10,7 +10,9 @@ package com.example.vote_service.model;
  */
 public enum HistoryType {
     // 투표 관련
-    VOTE_CREATED,           // 투표 올라옴 (매매/예수금/페이 충전)
+    VOTE_CREATED_BUY,       // 매수 투표 올라옴
+    VOTE_CREATED_SELL,      // 매도 투표 올라옴
+    VOTE_CREATED_PAY,       // 페이 관련 투표 올라옴 (예수금/페이 충전)
     VOTE_APPROVED,          // 투표 가결
     VOTE_REJECTED,          // 투표 부결
     

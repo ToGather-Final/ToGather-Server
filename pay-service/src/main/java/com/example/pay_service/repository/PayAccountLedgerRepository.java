@@ -2,6 +2,7 @@ package com.example.pay_service.repository;
 
 import com.example.pay_service.domain.PayAccountLedger;
 import com.example.pay_service.domain.TransactionType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -75,4 +76,35 @@ public interface PayAccountLedgerRepository extends JpaRepository<PayAccountLedg
     List<PayAccountLedger> findByCreatedAtBetween(
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
+
+    @Query("""
+            SELECT l FROM PayAccountLedger l
+                    WHERE l.payAccountId = :accountId
+                            AND (:type IS NULL OR l.transactionType = :type)
+                                    ORDER BY l.createdAt DESC, l.id DESC 
+            """)
+    List<PayAccountLedger> findFirstPage(
+            @Param("accountId") UUID accountId,
+            @Param("type") TransactionType type,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT l FROM PayAccountLedger l
+                WHERE l.payAccountId = :accountId
+                    AND (:type IS NULL OR l.transactionType = :type)
+                        AND (
+                            l.createdAt < :lastCreatedAt
+                                OR (l.createdAt = :lastCreatedAt AND l.id < :lastId)
+                            )
+                                ORDER BY l.createdAt DESC, l.id DESC 
+            """)
+    List<PayAccountLedger> findNextPageByCursor(
+            @Param("accountId") UUID accountId,
+            @Param("type") TransactionType type,
+            @Param("lastCreatedAt") LocalDateTime lastCreatedAt,
+            @Param("lastId") Long lastId,
+            Pageable pageable
+    );
+
 }

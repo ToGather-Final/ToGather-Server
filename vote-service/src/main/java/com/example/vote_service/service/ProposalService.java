@@ -12,10 +12,14 @@ import com.example.vote_service.dto.payload.PayPayload;
 import com.example.vote_service.dto.payload.TradePayload;
 import com.example.vote_service.event.VoteExpirationEvent;
 import com.example.vote_service.model.Proposal;
+import com.example.vote_service.model.ProposalAction;
 import com.example.vote_service.model.ProposalCategory;
 import com.example.vote_service.model.ProposalStatus;
+import com.example.vote_service.model.HistoryType;
+import com.example.vote_service.model.*;
 import com.example.vote_service.repository.ProposalRepository;
 import com.example.vote_service.repository.GroupMembersRepository;
+import com.example.vote_service.repository.VoteRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +54,7 @@ public class ProposalService {
     private final ObjectMapper objectMapper;
     private final TaskScheduler taskScheduler;
     private final ApplicationEventPublisher eventPublisher;
+    private final VoteRepository voteRepository;
 
     /**
      * 제안 생성
@@ -85,7 +90,7 @@ public class ProposalService {
         String validatedPayload = validateAndConvertPayload(request.payload());
         
         // 4. 투표 기간 설정 (그룹 규칙에서 가져오기)
-        LocalDateTime closeAt = calculateVoteCloseTime(groupId);
+        LocalDateTime closeAt = calculateVoteCloseTime(groupId, request);
         
         Proposal proposal = Proposal.create(
                 groupId,
@@ -100,12 +105,17 @@ public class ProposalService {
         
         Proposal saved = proposalRepository.save(proposal);
         
-        // 5. 히스토리 생성 (VOTE_CREATED)
+        // 5. 히스토리 생성 (VOTE_CREATED_BUY/SELL/PAY)
         createVoteCreatedHistory(saved, request, proposerName);
         
         // 6. 투표 마감 시간에 정확히 실행되는 작업 스케줄
         scheduleVoteExpiration(saved.getProposalId(), closeAt, groupId);
-        
+
+        // 7. 제안자 자동 찬성 투표
+        Vote proposerVote = Vote.create(saved.getProposalId(), userId, VoteChoice.AGREE);
+        voteRepository.save(proposerVote);
+        log.info("제안자 자동 찬성 투표 생성 - proposalId: {}, userId: {}", saved.getProposalId(), userId);
+
         log.info("투표 생성 완료 - proposalId: {}, closeAt: {}", 
                 saved.getProposalId(), closeAt);
         
@@ -113,11 +123,11 @@ public class ProposalService {
     }
 
     /**
-     * 특정 그룹의 제안 목록 조회
+     * 특정 그룹의 제안 목록 조회 (최신순)
      */
     @Transactional(readOnly = true)
     public List<Proposal> getProposalsByGroup(UUID groupId) {
-        return proposalRepository.findByGroupId(groupId);
+        return proposalRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
     }
 
     /**
@@ -212,12 +222,19 @@ public class ProposalService {
         try{
             Map<String, Object> payloadMap = objectMapper.readValue(proposal.getPayload(), Map.class);
 
+            // quantity: JSON 정수(Integer) 또는 소수(Double)를 Float으로 변환
+            Float quantity = null;
+            Object quantityObj = payloadMap.get("quantity");
+            if (quantityObj instanceof Number) {
+                quantity = ((Number) quantityObj).floatValue();
+            }
+
             return new VoteTradingRequest(
                     proposal.getProposalId(),
                     proposal.getGroupId(),
                     UUID.fromString((String) payloadMap.get("stockId")),
                     TradingAction.valueOf(proposal.getAction().name()),
-                    (Integer) payloadMap.get("quantity"),
+                    quantity,
                     new BigDecimal(payloadMap.get("price").toString()),
                     proposal.getPayload(),
                     null, null, null, null, null, null, null
@@ -251,15 +268,25 @@ public class ProposalService {
      * @param groupId 그룹 ID
      * @return 투표 마감 시간
      */
-    private LocalDateTime calculateVoteCloseTime(UUID groupId) {
+    private LocalDateTime calculateVoteCloseTime(UUID groupId, ProposalCreateRequest request) {
         // TODO: user-service에서 voteDurationHours 필드가 추가되면 API 호출로 변경
         // 현재는 기본값 5분 사용
         // LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
         // log.info("투표 마감 시간 설정 (기본값 5분) - groupId: {}, closeAt: {}", groupId, closeAt);
         
         // 디버깅용: 1분으로 설정
-        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(1);
-        log.info("투표 마감 시간 설정 (디버깅용 1분) - groupId: {}, closeAt: {}", groupId, closeAt);
+        int durationMinutes;
+
+        if (request.hasDuration()) {
+            durationMinutes = request.durationMinutes();
+            log.info("사용자 설정 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
+        } else {
+            durationMinutes = 1;
+            log.info("기본 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
+        }
+
+        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(durationMinutes);
+        log.info("투표 마감 시간 설정 - groupId: {}, durationMinutes: {}, closeAt: {}", groupId, durationMinutes, closeAt);
         
         return closeAt;
     }
@@ -351,13 +378,15 @@ public class ProposalService {
             if (request.isTradeCategory()) {
                 // TRADE 카테고리: TradePayload에서 정보 추출
                 TradePayload tradePayload = objectMapper.convertValue(request.payload(), TradePayload.class);
+                HistoryType historyType = request.action() == ProposalAction.BUY ? HistoryType.VOTE_CREATED_BUY : HistoryType.VOTE_CREATED_SELL;
                 historyService.createVoteCreatedHistory(
                         proposal.getUserId(),
                         proposal.getProposalId(),
                         request.proposalName(),
                         proposerName,
                         tradePayload.price(),
-                        tradePayload.quantity()
+                        tradePayload.quantity(),
+                        historyType
                 );
             } else if (request.isPayCategory()) {
                 // PAY 카테고리: PayPayload에서 정보 추출
@@ -368,7 +397,8 @@ public class ProposalService {
                         request.proposalName(),
                         proposerName,
                         payPayload.amountPerPerson(), // price: 인당 충전 금액
-                        1  // quantity: 기본값 1 (인당)
+                        1.0f,  // quantity: 기본값 1.0 (Float으로 인당)
+                        HistoryType.VOTE_CREATED_PAY
                 );
             } else {
                 // 기타 카테고리: 기본값 사용
@@ -378,7 +408,8 @@ public class ProposalService {
                         request.proposalName(),
                         proposerName,
                         0, // price 기본값
-                        0  // quantity 기본값
+                        0.0f,  // quantity 기본값 (Float)
+                        HistoryType.VOTE_CREATED_PAY // 기본값으로 PAY 사용
                 );
             }
         } catch (Exception e) {

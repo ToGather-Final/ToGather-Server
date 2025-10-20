@@ -4,6 +4,7 @@ import com.example.pay_service.domain.PayAccount;
 import com.example.pay_service.dto.GroupPayAccountCreateRequest;
 import com.example.pay_service.exception.AccountNotOwnedException;
 import com.example.pay_service.repository.PayAccountRepository;
+import com.example.pay_service.util.PayAccountNumberGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,27 +53,6 @@ public class PayAccountService {
         return payAccountRepository.existsByOwnerUserIdAndIsActiveTrue(userId);
     }
 
-    @Transactional
-    public PayAccount createGroupPayAccount(UUID groupId, UUID userId, GroupPayAccountCreateRequest request) {
-        if (hasGroupPayAccount(groupId)) {
-            throw new IllegalArgumentException("이미 그룹 페이 계좌가 존재합니다.");
-        }
-
-        if (!request.agreeToTerms()) {
-            throw new IllegalArgumentException("개인정보 처리 동의가 필요합니다.");
-        }
-
-        PayAccount payAccount = PayAccount.builder()
-                .ownerUserId(userId)
-                .balance(0L)
-                .nickname(request.name())
-                .isActive(true)
-                .groupId(groupId)
-                .build();
-
-        return payAccountRepository.save(payAccount);
-    }
-
     @Transactional(readOnly = true)
     public boolean hasGroupPayAccount(UUID groupId) {
         return payAccountRepository.existsByGroupIdAndIsActiveTrue(groupId);
@@ -108,5 +88,38 @@ public class PayAccountService {
                 .build();
 
         return payAccountRepository.save(updatedAccount);
+    }
+
+    @Transactional
+    public PayAccount createGroupPayAccount(UUID groupId, UUID userId, GroupPayAccountCreateRequest request) {
+        if (hasGroupPayAccount(groupId)) {
+            throw new IllegalArgumentException("이미 그룹 페이 계좌가 존재합니다.");
+        }
+
+        if (!request.agreeToTerms()) {
+            throw new IllegalArgumentException("개인정보 처리 동의가 필요합니다.");
+        }
+
+        String accountNumber = generateUniqueAccountNumber();
+
+        PayAccount payAccount = PayAccount.builder()
+                .ownerUserId(userId)
+                .balance(0L)
+                .nickname(request.name())
+                .isActive(true)
+                .groupId(groupId)
+                .accountNumber(accountNumber)
+                .build();
+
+        return payAccountRepository.save(payAccount);
+    }
+
+    private String generateUniqueAccountNumber() {
+        String accountNumber;
+        do {
+            accountNumber = PayAccountNumberGenerator.generatePayAccountNumber();
+        } while (payAccountRepository.existsByAccountNumber(accountNumber));
+
+        return accountNumber;
     }
 }

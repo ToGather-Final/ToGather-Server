@@ -1,7 +1,10 @@
 package com.example.trading_service.service;
 
+import com.example.module_common.dto.InvestmentAccountDto;
 import com.example.module_common.dto.pay.PayRechargeRequest;
 import com.example.module_common.dto.pay.PayRechargeResponse;
+import com.example.module_common.dto.vote.VoteTradingRequest;
+import com.example.module_common.dto.vote.VoteTradingResponse;
 import com.example.trading_service.client.PayServiceClient;
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.*;
@@ -39,17 +42,40 @@ public class TradingService {
     private final OrderService orderService;
     private final PortfolioCalculationService portfolioCalculationService;
     private final PayServiceClient payServiceClient;
+    private final HistoryRepository historyRepository;
+    private final VoteTradingService voteTradingService;
 
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
         // 이미 계좌가 있는지 확인
-        if (investmentAccountRepository.existsByUserId(userId.toString())) {
-            throw new IllegalArgumentException("이미 투자 계좌가 존재합니다.");
+        Optional<InvestmentAccount> existingAccount = investmentAccountRepository.findByUserId(userId);
+        
+        if (existingAccount.isPresent()) {
+            // 계좌는 있지만 BalanceCache가 없는 경우 생성
+            InvestmentAccount account = existingAccount.get();
+            Optional<BalanceCache> existingBalance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId());
+            
+            if (existingBalance.isEmpty()) {
+                log.warn("⚠️ 투자 계좌는 있지만 BalanceCache가 없음 - userId: {}, accountId: {}. BalanceCache 생성 중...", 
+                        userId, account.getInvestmentAccountId());
+                
+                BalanceCache balance = new BalanceCache();
+                balance.setInvestmentAccount(account);
+                balance.setBalance(0);
+                balanceCacheRepository.save(balance);
+                
+                log.info("✅ BalanceCache 생성 완료 - userId: {}, accountId: {}", userId, account.getInvestmentAccountId());
+            } else {
+                log.info("✅ 기존 투자 계좌 확인 - userId: {}, 계좌번호: {}", userId, account.getAccountNo());
+            }
+            
+            return account.getInvestmentAccountId();
         }
 
         // 계좌 생성
         InvestmentAccount account = new InvestmentAccount();
-        account.setUserId(userId.toString());
+        log.info("🔍 투자 계좌 생성 - userId: {}, 타입: {}", userId, userId.getClass().getName());
+        account.setUserId(userId);
         account.setAccountNo(generateAccountNumber());
         
         InvestmentAccount savedAccount = investmentAccountRepository.save(account);
@@ -60,7 +86,7 @@ public class TradingService {
         balance.setBalance(0);
         balanceCacheRepository.save(balance);
         
-        log.info("투자 계좌가 생성되었습니다. 사용자: {}, 계좌번호: {}", userId, savedAccount.getAccountNo());
+        log.info("✅ 투자 계좌가 생성되었습니다. 사용자: {}, 계좌번호: {}", userId, savedAccount.getAccountNo());
         return savedAccount.getInvestmentAccountId();
     }
 
@@ -86,9 +112,144 @@ public class TradingService {
         balance.setBalance(balance.getBalance() + request.getAmount().intValue());
         balanceCacheRepository.save(balance);
         
+        
+        // History 테이블에 현금 입금 완료 히스토리 저장 (일단 주석 처리)
+        /*
+        try {
+            // 개인 거래의 경우 사용자 ID를 기반으로 임시 그룹 ID 생성
+            UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
+            
+            if (tempGroupId != null) {
+                String payload = String.format(
+                    "{\"amount\":%d,\"accountBalance\":%d}",
+                    request.getAmount().intValue(),
+                    balance.getBalance()
+                );
+                
+                String title = String.format("현금 입금 완료 - %d원", request.getAmount().intValue());
+                
+                History history = History.create(
+                    tempGroupId,
+                    HistoryCategory.CASH,
+                    HistoryType.CASH_DEPOSIT_COMPLETED,
+                    title,
+                    payload
+                );
+                
+                historyRepository.save(history);
+                
+                log.info("현금 입금 완료 히스토리 저장 완료 - 임시그룹ID: {}, 금액: {}", 
+                        tempGroupId, request.getAmount().intValue());
+            }
+        } catch (Exception e) {
+            log.error("현금 입금 완료 히스토리 저장 실패 - 사용자: {} - {}", userId, e.getMessage());
+        }
+        */
+        
         log.info("예수금이 충전되었습니다. 사용자: {}, 충전 금액: {}", userId, request.getAmount());
     }
 
+    /**
+     * Internal 예수금 충전 (서비스 간 통신용)
+     * - vote-service에서 PAY 투표 가결 시 자동으로 호출
+     * - 인증 없이 직접 userId로 처리
+     */
+    @Transactional
+    public void internalDepositFunds(InternalDepositRequest request) {
+        UUID userId = request.getUserId();
+        
+        // 투자 계좌 조회 (계좌가 없으면 예외 발생)
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        
+        // 잔고 업데이트 (BalanceCache가 없으면 자동 생성)
+        BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())
+                .orElseGet(() -> {
+                    log.warn("⚠️ BalanceCache가 없음 - userId: {}, accountId: {}. 자동 생성 중...", 
+                            userId, account.getInvestmentAccountId());
+                    
+                    BalanceCache newBalance = new BalanceCache();
+                    newBalance.setInvestmentAccount(account);
+                    newBalance.setBalance(0);
+                    BalanceCache saved = balanceCacheRepository.save(newBalance);
+                    
+                    log.info("✅ BalanceCache 자동 생성 완료 - userId: {}, accountId: {}", 
+                            userId, account.getInvestmentAccountId());
+                    
+                    return saved;
+                });
+        
+        balance.setBalance(balance.getBalance() + request.getAmount().intValue());
+        balanceCacheRepository.save(balance);
+        
+        log.info("✅ Internal 예수금 충전 완료 - 사용자: {}, 그룹: {}, 충전 금액: {}원, 현재 잔고: {}원, 설명: {}", 
+                userId, request.getGroupId(), request.getAmount(), balance.getBalance(), request.getDescription());
+    }
+
+    /**
+     * 투표 기반 거래 실행
+     * - TRADE 투표 가결 시 자동으로 거래 실행
+     */
+    @Transactional
+    public VoteTradingResponse executeVoteBasedTrading(VoteTradingRequest request) {
+        try {
+            log.info("투표 기반 거래 실행 시작 - proposalId: {}, groupId: {}, stockId: {}, action: {}, quantity: {}, price: {}", 
+                    request.proposalId(), request.groupId(), request.stockId(), request.tradingAction(), 
+                    request.quantity(), request.price());
+
+            int processedCount = voteTradingService.executeVoteBasedTrading(request);
+
+            log.info("투표 기반 거래 실행 완료 - proposalId: {}, 처리된 거래 수: {}", request.proposalId(), processedCount);
+            
+            return new VoteTradingResponse(true, "투표 기반 거래가 성공적으로 실행되었습니다", processedCount);
+            
+        } catch (Exception e) {
+            log.error("투표 기반 거래 실행 실패 - proposalId: {}, 오류: {}", request.proposalId(), e.getMessage(), e);
+            return new VoteTradingResponse(false, "투표 기반 거래 실행 실패: " + e.getMessage(), 0);
+        }
+    }
+
+    /**
+     * 그룹 예수금 총합 조회
+     * - 그룹 멤버들의 예수금 잔액 합계
+     */
+    @Transactional(readOnly = true)
+    public Integer getGroupTotalBalance(List<UUID> memberIds) {
+        try {
+            log.info("그룹 예수금 총합 조회 시작 - memberCount: {}", memberIds.size());
+            
+            Integer totalBalance = 0;
+            
+            // 각 멤버의 예수금 잔액 조회 및 합산
+            for (UUID memberId : memberIds) {
+                try {
+                    // 투자 계좌 조회
+                    Optional<InvestmentAccount> accountOpt = investmentAccountRepository.findByUserId(memberId);
+                    if (accountOpt.isPresent()) {
+                        InvestmentAccount account = accountOpt.get();
+                        
+                        // 잔고 캐시 조회
+                        Optional<BalanceCache> balanceOpt = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId());
+                        if (balanceOpt.isPresent()) {
+                            BalanceCache balance = balanceOpt.get();
+                            totalBalance += balance.getBalance();
+                            log.debug("멤버 예수금 잔액 - memberId: {}, balance: {}", memberId, balance.getBalance());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("멤버 예수금 조회 실패 - memberId: {}, 오류: {}", memberId, e.getMessage());
+                    // 개별 멤버 조회 실패는 전체 프로세스를 중단하지 않음
+                }
+            }
+            
+            log.info("그룹 예수금 총합 조회 완료 - memberCount: {}, totalBalance: {}", 
+                    memberIds.size(), totalBalance);
+            return totalBalance;
+            
+        } catch (Exception e) {
+            log.error("그룹 예수금 총합 조회 실패 - memberCount: {}, 오류: {}", memberIds.size(), e.getMessage(), e);
+            return 0; // 실패 시 기본값 반환
+        }
+    }
 
     // 계좌 잔고 조회 (PortfolioCalculationService로 위임)
     @Transactional(readOnly = true)
@@ -131,7 +292,7 @@ public class TradingService {
                 .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
 
         // 실시간 가격 정보 조회
-        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode);
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode, stock.getPrdtTypeCd());
         
         // 간단한 차트 데이터 조회 (80일)
         List<ChartData> chartData = chartService.getStockChart(stockCode, 80);
@@ -165,7 +326,7 @@ public class TradingService {
                 .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
 
         // 실시간 가격 정보 조회
-        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode);
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode, stock.getPrdtTypeCd());
         
         // 차트 데이터 조회 (기간분류코드 사용)
         List<ChartData> chartData = chartService.getStockChartByPeriod(stockCode, periodDiv);
@@ -215,6 +376,18 @@ public class TradingService {
                 groupId
         );
         log.info("그룹 페이 계좌 충전 완료: {}", response);
+    }
+
+    @Transactional(readOnly = true)
+    public InvestmentAccountDto getAccountByUserIdInternal(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+
+        return InvestmentAccountDto.builder()
+                .investmentAccountId(account.getInvestmentAccountId())
+                .userId(account.getUserId())
+                .accountNo(account.getAccountNo())
+                .createdAt(account.getCreatedAt())
+                .build();
     }
 
     private UUID getCurrentUserId() {
@@ -316,7 +489,7 @@ public class TradingService {
 
     // 헬퍼 메서드들
     private InvestmentAccount getInvestmentAccountByUserId(UUID userId) {
-        return investmentAccountRepository.findByUserId(userId.toString())
+        return investmentAccountRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("투자 계좌를 찾을 수 없습니다."));
     }
 
@@ -414,7 +587,7 @@ public class TradingService {
 
     private StockResponse convertToStockResponse(Stock stock) {
         // 캐시된 주식 가격 정보 조회 (일관성 보장)
-        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode(), stock.getPrdtTypeCd());
         
         return new StockResponse(
                 stock.getId(),
@@ -422,7 +595,7 @@ public class TradingService {
                 stock.getStockName(),
                 stock.getStockImage(),
                 stock.getCountry().toString(),
-                "300", // 기본값: 주식 (300), ETF는 500
+                stock.getPrdtTypeCd(), // 주식 (300), ETF (500)
                 priceInfo.getCurrentPrice().floatValue(),
                 priceInfo.getChangePrice().floatValue(),
                 priceInfo.getChangeRate(),
@@ -439,7 +612,7 @@ public class TradingService {
     private StockDetailResponse convertToStockDetailResponse(Stock stock, int days) {
         try {
             // 주식 상세 정보 조회
-            Map<String, Object> detailData = stockPriceService.getStockDetail(stock.getStockCode());
+            Map<String, Object> detailData = stockPriceService.getStockDetail(stock.getStockCode(), stock.getPrdtTypeCd());
             Map<String, Object> output = (Map<String, Object>) detailData.get("output");
             
             if (output == null) {
@@ -550,7 +723,7 @@ public class TradingService {
     // 계좌 정보 조회
     @Transactional(readOnly = true)
     public AccountInfoResponse getAccountInfo(UUID userId) {
-        Optional<InvestmentAccount> accountOpt = investmentAccountRepository.findByUserId(userId.toString());
+        Optional<InvestmentAccount> accountOpt = investmentAccountRepository.findByUserId(userId);
         
         if (accountOpt.isPresent()) {
             InvestmentAccount account = accountOpt.get();
@@ -562,7 +735,7 @@ public class TradingService {
                     true
             );
         } else {
-            return new AccountInfoResponse(null, null, userId.toString(), null, false);
+            return new AccountInfoResponse(null, null, userId, null, false);
         }
     }
 
@@ -646,7 +819,7 @@ public class TradingService {
         Stock stock = holding.getStock();
         
         // 캐시된 주식 가격 정보 조회 (일관성 보장)
-        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode());
+        StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stock.getStockCode(), stock.getPrdtTypeCd());
         
         return new StockResponse(
                 stock.getId(),
@@ -654,7 +827,7 @@ public class TradingService {
                 stock.getStockName(),
                 stock.getStockImage(),
                 stock.getCountry().toString(),
-                "300", // 기본값: 주식 (300), ETF는 500
+                stock.getPrdtTypeCd(), // 주식 (300), ETF (500)
                 priceInfo.getCurrentPrice().floatValue(),
                 priceInfo.getChangePrice().floatValue(),
                 priceInfo.getChangeRate(),

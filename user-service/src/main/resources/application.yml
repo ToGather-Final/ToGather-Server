@@ -21,6 +21,9 @@ app:
     access-exp-seconds: ${JWT_ACCESS_EXP:1800}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
+jwt:
+  secret: ${JWT_SECRET_KEY}
+
 spring:
   config:
     import:
@@ -105,6 +108,9 @@ spring:
 
 server:
   port: 8082 # main과 다른 포트 사용
+
+trading-service:
+  url: ${TRADING_SERVICE_URL:http://localhost:8081}
 
 ---
 # ===============================================

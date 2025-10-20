@@ -39,9 +39,9 @@ public class InvitationCode {
         }
     }
 
-    public static InvitationCode issue(UUID groupId) {
+    public static InvitationCode issue(UUID groupId, String code) {
         InvitationCode invitationCode = new InvitationCode();
-        invitationCode.code = generateCode();
+        invitationCode.code = code;
         invitationCode.groupId = groupId;
         invitationCode.isExpired = false;
         return invitationCode;
@@ -55,7 +55,7 @@ public class InvitationCode {
         this.isExpired = true;
     }
 
-    private static String generateCode() {
+    public static String generateCode() {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         Random random = new Random();
         StringBuilder code = new StringBuilder();

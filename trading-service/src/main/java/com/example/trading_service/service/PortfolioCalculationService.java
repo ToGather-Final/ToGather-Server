@@ -121,11 +121,12 @@ public class PortfolioCalculationService {
                 totalProfit,
                 totalProfitRate,
                 holdings.size(),
-                topHoldings
+                topHoldings,
+                0.0f // totalCashBalance - 개인 포트폴리오에서는 0으로 설정
         );
     }
 
-    // 보유 종목 목록 계산
+    // 보유 종목 목록 계산 (주식만)
     public List<HoldingResponse> calculateUserHoldings(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
@@ -279,7 +280,7 @@ public class PortfolioCalculationService {
     }
 
     private InvestmentAccount getInvestmentAccountByUserId(UUID userId) {
-        return investmentAccountRepository.findByUserId(userId.toString())
+        return investmentAccountRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("투자 계좌를 찾을 수 없습니다"));
     }
 }

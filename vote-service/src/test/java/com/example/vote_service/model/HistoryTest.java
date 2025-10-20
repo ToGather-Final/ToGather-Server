@@ -15,7 +15,7 @@ class HistoryTest {
         // Given
         UUID groupId = UUID.randomUUID();
         HistoryCategory category = HistoryCategory.VOTE;
-        HistoryType type = HistoryType.VOTE_CREATED;
+        HistoryType type = HistoryType.VOTE_CREATED_BUY;
         String title = "투표가 생성되었습니다: 삼성전자 100주 매수";
         String payload = "{\"proposalId\":\"123\",\"proposalName\":\"삼성전자 100주 매수\"}";
 
@@ -100,7 +100,7 @@ class HistoryTest {
     void setHistoryIdForTest_Success() {
         // Given
         UUID groupId = UUID.randomUUID();
-        History history = History.create(groupId, HistoryCategory.VOTE, HistoryType.VOTE_CREATED, "테스트", "{}");
+        History history = History.create(groupId, HistoryCategory.VOTE, HistoryType.VOTE_CREATED_BUY, "테스트", "{}");
         UUID testId = UUID.randomUUID();
 
         // When

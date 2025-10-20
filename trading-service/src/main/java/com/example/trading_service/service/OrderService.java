@@ -26,9 +26,10 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final StockRepository stockRepository;
     private final TradeExecutionService tradeExecutionService;
+    // private final HistoryRepository historyRepository; // 히스토리 기능 주석
 
     // 주식 매수 주문
-    public void buyStock(UUID userId, BuyRequest request) {
+    public Order buyStock(UUID userId, BuyRequest request) {
         // 투자 계좌 조회
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
@@ -46,6 +47,43 @@ public class OrderService {
         BigDecimal totalAmount = request.getPrice().multiply(BigDecimal.valueOf(request.getQuantity()));
         
         if (balance.getBalance() < totalAmount.floatValue()) {
+            // History 테이블에 거래 실패 히스토리 저장 (주석)
+            /*
+            try {
+                // TODO: 그룹 ID를 어떻게 가져올지 결정 필요 (현재는 임시로 null 처리)
+                UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
+
+                if (tempGroupId != null) {
+                    String payload = String.format(
+                        "{\"side\":\"BUY\",\"stockName\":\"%s\",\"reason\":\"잔고부족\"}",
+                        stock.getStockName()
+                    );
+
+                    String title = String.format("%s %d주 %d원 매수 실패",
+                        stock.getStockName(),
+                        request.getQuantity(),
+                        request.getPrice().intValue()
+                    );
+
+                    History history = History.create(
+                        tempGroupId,
+                        HistoryCategory.TRADE,
+                        HistoryType.TRADE_FAILED,
+                        title,
+                        payload
+                    );
+
+                    history.setStockId(stock.getId());
+                    historyRepository.save(history);
+
+                    log.info("거래 실패 히스토리 저장 완료 - 임시그룹ID: {}, 종목: {}, 사유: 잔고부족",
+                            tempGroupId, stock.getStockName());
+                }
+            } catch (Exception e) {
+                log.error("거래 실패 히스토리 저장 실패 - 사용자: {} - {}", userId, e.getMessage());
+            }
+            */
+            
             throw new InsufficientBalanceException(totalAmount.floatValue(), balance.getBalance());
         }
 
@@ -67,10 +105,12 @@ public class OrderService {
 
         log.info("매수 주문이 생성되었습니다. 사용자: {}, 종목: {}, 수량: {}, 가격: {}", 
                 userId, stock.getStockName(), request.getQuantity(), request.getPrice());
+
+        return savedOrder;
     }
 
     // 주식 매도 주문
-    public void sellStock(UUID userId, SellRequest request) {
+    public Order sellStock(UUID userId, SellRequest request) {
         // 투자 계좌 조회
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
@@ -83,6 +123,44 @@ public class OrderService {
                 .orElseThrow(() -> new BusinessException("보유하지 않은 종목입니다", "HOLDING_NOT_FOUND"));
 
         if (holding.getQuantity() < request.getQuantity()) {
+            
+            // History 테이블에 거래 실패 히스토리 저장 (주석)
+            /*
+            try {
+                // TODO: 그룹 ID를 어떻게 가져올지 결정 필요 (현재는 임시로 null 처리)
+                UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
+                
+                if (tempGroupId != null) {
+                    String payload = String.format(
+                        "{\"side\":\"SELL\",\"stockName\":\"%s\",\"reason\":\"보유수량부족\"}",
+                        stock.getStockName()
+                    );
+                    
+                    String title = String.format("%s %d주 %d원 매도 실패",
+                        stock.getStockName(),
+                        request.getQuantity(),
+                        request.getPrice().intValue()
+                    );
+                    
+                    History history = History.create(
+                        tempGroupId,
+                        HistoryCategory.TRADE,
+                        HistoryType.TRADE_FAILED,
+                        title,
+                        payload
+                    );
+                    
+                    history.setStockId(stock.getId());
+                    historyRepository.save(history);
+                    
+                    log.info("거래 실패 히스토리 저장 완료 - 임시그룹ID: {}, 종목: {}, 사유: 보유수량부족", 
+                            tempGroupId, stock.getStockName());
+                }
+            } catch (Exception e) {
+                log.error("거래 실패 히스토리 저장 실패 - 사용자: {} - {}", userId, e.getMessage());
+            }
+            */
+            
             throw new InsufficientHoldingException(request.getQuantity(), holding.getQuantity());
         }
 
@@ -104,16 +182,44 @@ public class OrderService {
 
         log.info("매도 주문이 생성되었습니다. 사용자: {}, 종목: {}, 수량: {}, 가격: {}", 
                 userId, request.getStockId(), request.getQuantity(), request.getPrice());
+
+        return savedOrder;
     }
 
     // 대기 중인 주문 조회
     @Transactional(readOnly = true)
+    // 전체 주문 조회 (모든 상태)
+    public List<OrderResponse> getAllOrders(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        
+        List<Order> orders = orderRepository.findByInvestmentAccount_InvestmentAccountIdOrderByCreatedAtDesc(
+                account.getInvestmentAccountId());
+        
+        return orders.stream()
+                .map(this::convertToOrderResponse)
+                .collect(Collectors.toList());
+    }
+    
+    // 대기 중인 주문 조회 (PENDING)
     public List<OrderResponse> getPendingOrders(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         List<Order> orders = orderRepository.findPendingOrdersByAccountId(account.getInvestmentAccountId());
         
         return orders.stream()
+                .map(this::convertToOrderResponse)
+                .collect(Collectors.toList());
+    }
+    
+    // 체결 완료된 주문 조회 (FILLED)
+    public List<OrderResponse> getFilledOrders(UUID userId) {
+        InvestmentAccount account = getInvestmentAccountByUserId(userId);
+        
+        List<Order> orders = orderRepository.findByInvestmentAccount_InvestmentAccountIdOrderByCreatedAtDesc(
+                account.getInvestmentAccountId());
+        
+        return orders.stream()
+                .filter(order -> order.getStatus() == Order.Status.FILLED)
                 .map(this::convertToOrderResponse)
                 .collect(Collectors.toList());
     }
@@ -141,7 +247,7 @@ public class OrderService {
 
     // 헬퍼 메서드들
     private InvestmentAccount getInvestmentAccountByUserId(UUID userId) {
-        return investmentAccountRepository.findByUserId(userId.toString())
+        return investmentAccountRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException("투자 계좌를 찾을 수 없습니다.", "ACCOUNT_NOT_FOUND"));
     }
 

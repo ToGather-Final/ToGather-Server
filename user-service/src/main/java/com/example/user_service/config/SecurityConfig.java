@@ -21,6 +21,7 @@ public class SecurityConfig{
     private final RestAuthEntryPoint restAuthEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
+
     public SecurityConfig(HeaderAuthFilter headerAuthFilter, RestAuthEntryPoint restAuthEntryPoint,
                           RestAccessDeniedHandler restAccessDeniedHandler) {
         this.headerAuthFilter = headerAuthFilter;
@@ -47,14 +48,16 @@ public class SecurityConfig{
             reg.requestMatchers("/auth/**").permitAll();
             reg.requestMatchers("/internal/**").permitAll();  // 내부 시스템 호출용 API 인증 제외
 
-            reg.requestMatchers("/users/**").permitAll();
-            reg.requestMatchers("/groups/**").permitAll();
+//            reg.requestMatchers("/users/**").permitAll();
+//            reg.requestMatchers("/groups/**").permitAll();
             reg.requestMatchers("/swagger-ui/**").permitAll();
             reg.requestMatchers("/v3/api-docs/**").permitAll();
             reg.requestMatchers("/swagger-ui.html").permitAll();
             reg.anyRequest().authenticated();
         });
         http.addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        
         return http.build();
     }
+
 }

@@ -15,10 +15,13 @@ import java.util.UUID;
 @Table(name = "pay_accounts",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_group_pay_account_one",
-                        columnNames = {"group_id"})
+                        columnNames = {"group_id"}),
+                @UniqueConstraint(name = "uk_pay_account_number",
+                        columnNames = {"account_number"})
         },
         indexes = {
-                @Index(name = "idx_pay_accounts_owner", columnList = "owner_user_id")
+                @Index(name = "idx_pay_accounts_owner", columnList = "owner_user_id"),
+                @Index(name = "idx_pay_accounts_number", columnList = "account_number")
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -44,6 +47,9 @@ public class PayAccount {
     @Column(name = "group_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID groupId;
 
+    @Column(name = "account_number", nullable = false, unique = true, length = 20)
+    private String accountNumber;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -53,7 +59,7 @@ public class PayAccount {
     private LocalDateTime updatedAt;
 
     @Builder
-    public PayAccount(UUID id, UUID ownerUserId, long balance, String nickname, Boolean isActive, UUID groupId, long version) {
+    public PayAccount(UUID id, UUID ownerUserId, long balance, String nickname, Boolean isActive, UUID groupId, String accountNumber, long version) {
         this.id = id != null ? id : UUID.randomUUID();
         this.ownerUserId = ownerUserId;
         this.balance = balance;
@@ -61,6 +67,7 @@ public class PayAccount {
         this.isActive = isActive;
         this.groupId = groupId;
         this.version = version;
+        this.accountNumber = accountNumber;
     }
 
     public boolean hasSufficientBalance(long amount) {

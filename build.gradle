@@ -87,6 +87,8 @@ project(":api-gateway") {
 			exclude group: "org.springframework.boot", module: "spring-boot-starter-web"
 		}
 		implementation "org.springframework.boot:spring-boot-starter-data-redis-reactive"
+        implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.0.2'
+        implementation 'org.springdoc:springdoc-openapi-starter-webflux-api:2.0.2'
 
 		// Kubernetes 클라이언트
 		implementation 'org.springframework.cloud:spring-cloud-starter-kubernetes-client'
@@ -95,6 +97,7 @@ project(":api-gateway") {
 		implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
 		runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
 		runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
 
 		// Lombok
 		compileOnly 'org.projectlombok:lombok'
@@ -122,6 +125,9 @@ project(":user-service") {
 		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 		runtimeOnly 'com.mysql:mysql-connector-j'
 		implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+		// Spring Security OAuth2 JWT
+		implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
 		testImplementation 'org.testcontainers:testcontainers'
 		testImplementation 'org.testcontainers:mysql'
@@ -168,6 +174,7 @@ project(":trading-service") {
 		implementation 'org.springframework.boot:spring-boot-starter-web'
 		implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 		implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+		implementation 'org.springframework.boot:spring-boot-starter-websocket'
 		runtimeOnly 'com.mysql:mysql-connector-j'
 		testImplementation 'com.h2database:h2'
 		

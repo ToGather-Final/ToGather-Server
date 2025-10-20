@@ -1,8 +1,14 @@
 package com.example.user_service.controller;
 
+import com.example.module_common.dto.InvestmentAccountDto;
+import com.example.user_service.client.TradingServiceClient;
+import com.example.user_service.domain.User;
 import com.example.user_service.dto.*;
 import com.example.user_service.domain.Group;
 import com.example.user_service.domain.GroupMember;
+import com.example.user_service.repository.GroupMemberRepository;
+import com.example.user_service.repository.GroupRepository;
+import com.example.user_service.repository.UserRepository;
 import com.example.user_service.service.GroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -10,6 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -32,9 +40,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class GroupController {
 
     private final GroupService groupService;
+    private final UserRepository userRepository;
+    private final TradingServiceClient tradingServiceClient;
+    private final GroupMemberRepository groupMemberRepository;
 
-    public GroupController(GroupService groupService) {
+    public GroupController(GroupService groupService,
+                           UserRepository userRepository,
+                           TradingServiceClient tradingServiceClient, GroupMemberRepository groupMemberRepository) {
         this.groupService = groupService;
+        this.userRepository = userRepository;
+        this.tradingServiceClient = tradingServiceClient;
+        this.groupMemberRepository = groupMemberRepository;
     }
 
     @Operation(summary = "그룹 상세 정보 조회", description = "특정 그룹의 상세 정보를 조회합니다.")
@@ -54,13 +70,16 @@ public class GroupController {
         List<GroupMember> members = groupService.members(groupId, userId);
         int currentMembers = members.size();
 
+        String invitationCode = groupService.getCurrentInvitationCode(groupId, userId);
+
         GroupSummaryResponse body = new GroupSummaryResponse(
                 group.getGroupId(),
                 group.getGroupName(),
                 group.getMaxMembers(),
                 currentMembers,
                 group.getGoalAmount(),
-                group.getInitialAmount()
+                group.getInitialAmount(),
+                invitationCode
         );
 
         return ResponseEntity.ok(body);
@@ -94,8 +113,19 @@ public class GroupController {
         UUID userId = (UUID) authentication.getPrincipal();
         List<GroupMember> members = groupService.members(groupId, userId);
         UUID ownerId = groupService.getOwnerId(groupId);
+
         List<GroupMemberSimple> body = members.stream()
-                .map(m -> new GroupMemberSimple(m.getUserId(), resolveRole(m.getUserId(), ownerId))).toList();
+                .map(m -> {
+                    User user = userRepository.findById(m.getUserId())
+                            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+                    return new GroupMemberSimple(
+                            m.getUserId(),
+                            user.getNickname(),
+                            resolveRole(m.getUserId(), ownerId)
+                    );
+                })
+                .toList();
         return ResponseEntity.ok(body);
     }
 
@@ -195,12 +225,12 @@ public class GroupController {
         @ApiResponse(responseCode = "404", description = "초대 코드를 찾을 수 없음")
     })
     @PostMapping("/invites/{code}/accept")
-    public ResponseEntity<Void> acceptInvite(
+    public ResponseEntity<InviteAcceptResponse> acceptInvite(
             @Parameter(description = "초대 코드", required = true) @PathVariable String code,
             Authentication authentication) {
         UUID userId = (UUID) authentication.getPrincipal();
-        groupService.acceptInvite(code, userId);
-        return ResponseEntity.noContent().build();
+        InviteAcceptResponse response = groupService.acceptInvite(code, userId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "그룹 상태 확인", description = "그룹의 현재 상태(대기중/활성화), 현재 멤버 수, 최대 멤버 수를 확인합니다. 클라이언트에서 대기중 화면 표시 여부를 결정할 때 사용합니다.")
@@ -243,5 +273,23 @@ public class GroupController {
             return "OWNER";
         }
         return "MEMBER";
+    }
+
+    @GetMapping("/internal/groups/{groupId}/members/accounts")
+    public List<InvestmentAccountDto> getGroupMemberAccounts(@PathVariable UUID groupId) {
+        List<GroupMember> groupMembers = groupMemberRepository.findByIdGroupId(groupId);
+
+        List<InvestmentAccountDto> accounts = new ArrayList<>();
+        for (GroupMember gm : groupMembers) {
+            try{
+                InvestmentAccountDto account = tradingServiceClient.getAccountByUserId(gm.getUserId());
+                if (account != null) {
+                    accounts.add(account);
+                }
+            } catch (Exception e){
+                log.warn("멤버의 투자 계좌 조회 실패 - userId: {}, error: {}",gm.getUserId(), e.getMessage());
+            }
+        }
+        return accounts;
     }
 }

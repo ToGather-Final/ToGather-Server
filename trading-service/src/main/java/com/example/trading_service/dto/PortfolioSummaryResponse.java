@@ -14,4 +14,5 @@ public class PortfolioSummaryResponse {
     private float totalProfitRate; // 총 수익률
     private int totalHoldings; // 보유 종목 수
     private List<HoldingResponse> topHoldings; // 상위 보유 종목 (5개)
+    private float totalCashBalance; // 그룹 전체 예수금
 }

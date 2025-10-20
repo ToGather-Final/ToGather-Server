@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 @Setter
 public class StockPriceResponse {
     
+    private String stockCode;               // 종목 코드
     private BigDecimal currentPrice;        // 현재가
     private BigDecimal changePrice;         // 전일 대비 변동가격
     private Float changeRate;          // 전일 대비 변동률

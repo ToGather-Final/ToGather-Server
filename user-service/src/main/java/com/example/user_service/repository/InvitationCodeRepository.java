@@ -7,4 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface InvitationCodeRepository extends JpaRepository<InvitationCode, String> {
     Optional<InvitationCode> findByCode(String code);
+
+    Optional<InvitationCode> findByGroupIdAndIsExpiredFalse(UUID groupId);
+
+    boolean existsByCode(String code);
 }
