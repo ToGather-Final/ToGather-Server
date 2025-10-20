@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/transfers")
+@RequestMapping("/pay/transfers")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "이체 관리", description = "페이머니 충전, 이체 내역 조회 관련 API")
