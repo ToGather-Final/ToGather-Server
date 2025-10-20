@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2  # 🚀 HPA minReplicas와 일치 (고가용성)s
+  replicas: 2  # 🚀 HPA minReplicas와 일치 (고가용성)ss
   strategy:
     type: RollingUpdate
     rollingUpdate:
