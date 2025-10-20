@@ -227,7 +227,7 @@ public class ProposalService {
                     proposal.getGroupId(),
                     UUID.fromString((String) payloadMap.get("stockId")),
                     TradingAction.valueOf(proposal.getAction().name()),
-                    (Integer) payloadMap.get("quantity"),
+                    (Float) payloadMap.get("quantity"),
                     new BigDecimal(payloadMap.get("price").toString()),
                     proposal.getPayload(),
                     null, null, null, null, null, null, null
