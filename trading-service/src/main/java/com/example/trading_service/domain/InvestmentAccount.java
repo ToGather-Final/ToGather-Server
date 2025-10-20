@@ -3,6 +3,8 @@ package com.example.trading_service.domain;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,6 +20,7 @@ public class InvestmentAccount {
     private UUID investmentAccountId;
 
     @Column(name = "user_id", nullable = false, columnDefinition = "BINARY(16)")
+    @JdbcTypeCode(SqlTypes.BINARY)
     private UUID userId;
 
     @Column(name = "account_no", nullable = false, unique = true)

@@ -244,7 +244,7 @@ public class HistoryService {
      */
     private HistoryDTO convertToHistoryDTO(History history) {
         try {
-            Object payload = parsePayload(history.getPayload(), history.getHistoryType());
+            Object payload = parsePayload(history);
             
             return new HistoryDTO(
                     history.getHistoryId(),
@@ -270,9 +270,12 @@ public class HistoryService {
     }
 
     /**
-     * JSON 페이로드를 타입에 맞는 DTO로 파싱
+     * JSON 페이로드를 타입에 맞는 DTO로 파싱 (History 엔티티에서 직접 컬럼 값도 사용)
      */
-    private Object parsePayload(String payloadJson, HistoryType historyType) {
+    private Object parsePayload(History history) {
+        String payloadJson = history.getPayload();
+        HistoryType historyType = history.getHistoryType();
+        
         if (payloadJson == null || payloadJson.trim().isEmpty()) {
             return Map.of();
         }
@@ -312,8 +315,8 @@ public class HistoryService {
                     return new TradeExecutedPayloadDTO(
                             (String) payloadMap.get("side"),
                             (String) payloadMap.get("stockName"),
-                            (Integer) payloadMap.get("shares"),
-                            (Integer) payloadMap.get("unitPrice"),
+                            history.getQuantity(), // DB의 quantity 컬럼에서 가져옴
+                            history.getPrice(), // DB의 price 컬럼에서 가져옴
                             (Integer) payloadMap.get("accountBalance")
                     );
                     

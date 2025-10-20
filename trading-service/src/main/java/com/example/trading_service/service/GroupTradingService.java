@@ -109,6 +109,8 @@ public class GroupTradingService {
                 Order createdOrder = orderService.buyStock(memberAccount.getUserId(), buyRequest);
                 executedOrders.add(createdOrder);
 
+                orderService.buyStock(memberAccount.getUserId(), buyRequest);
+                
                 // 주문 실행은 OrderService 내부에서 처리됨
                 // TODO: 실제 주문 객체를 가져와서 executedOrders에 추가
                 processedCount++;
@@ -204,6 +206,8 @@ public class GroupTradingService {
                 Order createdOrder = orderService.sellStock(memberAccount.getUserId(), sellRequest);
                 executedOrders.add(createdOrder);
 
+                orderService.sellStock(memberAccount.getUserId(), sellRequest);
+                
                 // 주문 실행은 OrderService 내부에서 처리됨
                 // TODO: 실제 주문 객체를 가져와서 executedOrders에 추가
                 processedCount++;

@@ -55,6 +55,7 @@ public class TradingService {
 
         // 계좌 생성
         InvestmentAccount account = new InvestmentAccount();
+        log.info("🔍 투자 계좌 생성 - userId: {}, 타입: {}", userId, userId.getClass().getName());
         account.setUserId(userId);
         account.setAccountNo(generateAccountNumber());
         
@@ -709,7 +710,7 @@ public class TradingService {
             return new AccountInfoResponse(
                     account.getInvestmentAccountId(),
                     account.getAccountNo(),
-                    account.getUserId(),
+                    account.getUserId().toString(),
                     account.getCreatedAt(),
                     true
             );
