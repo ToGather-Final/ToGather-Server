@@ -109,6 +109,9 @@ spring:
 server:
   port: 8082 # main과 다른 포트 사용
 
+trading-service:
+  url: ${TRADING_SERVICE_URL:http://localhost:8081}
+
 ---
 # ===============================================
 # 🚀 main 프로파일 (운영 환경)
