@@ -11,7 +11,7 @@ public record VoteApprovedPayloadDTO(
         String historyType,       // "TRADE" | "PAY"
         String side,              // "BUY" | "SELL" | "PAY"
         String stockName,
-        Integer shares,
+        Float shares,             // 소수점 거래 지원을 위해 Float으로 변경
         Integer unitPrice,
         String currency           // "KRW" | "USD"
 ) {

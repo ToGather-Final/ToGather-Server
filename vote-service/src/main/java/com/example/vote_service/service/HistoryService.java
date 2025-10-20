@@ -45,9 +45,10 @@ public class HistoryService {
 
     /**
      * 투표 생성 히스토리 생성 (사용자 ID 기반)
+     * @param quantity 수량 (Float으로 소수점 거래 지원)
      */
     @Transactional
-    public void createVoteCreatedHistory(UUID userId, UUID proposalId, String proposalName, String proposerName, Integer price, Integer quantity, HistoryType historyType) {
+    public void createVoteCreatedHistory(UUID userId, UUID proposalId, String proposalName, String proposerName, Integer price, Float quantity, HistoryType historyType) {
         try {
             // 사용자가 속한 그룹 ID 조회 (단일 그룹)
             Optional<UUID> groupIdOpt = groupMembersRepository.findFirstGroupIdByUserId(userId);
@@ -96,7 +97,7 @@ public class HistoryService {
      */
     @Transactional
     public void createVoteApprovedHistory(UUID groupId, UUID proposalId, String scheduledAt, 
-                                        String historyType, String side, String stockName, Integer shares, 
+                                        String historyType, String side, String stockName, Float shares, 
                                         Integer unitPrice, String currency, UUID stockId) {
         try {
             Map<String, Object> payload = new HashMap<>();
@@ -294,13 +295,20 @@ public class HistoryService {
                     );
                     
                 case VOTE_APPROVED:
+                    // shares: JSON 정수(Integer) 또는 소수(Double)를 Float으로 변환
+                    Float shares = null;
+                    Object sharesObj = payloadMap.get("shares");
+                    if (sharesObj instanceof Number) {
+                        shares = ((Number) sharesObj).floatValue();
+                    }
+                    
                     return new VoteApprovedPayloadDTO(
                             UUID.fromString((String) payloadMap.get("proposalId")),
                             (String) payloadMap.get("scheduledAt"),
                             (String) payloadMap.get("historyType"),
                             (String) payloadMap.get("side"),
                             (String) payloadMap.get("stockName"),
-                            (Integer) payloadMap.get("shares"),
+                            shares,
                             (Integer) payloadMap.get("unitPrice"),
                             (String) payloadMap.get("currency")
                     );
@@ -385,7 +393,7 @@ public class HistoryService {
                     title,
                     payloadJson,
                     amountPerPerson * memberCount, // 총 충전 금액
-                    memberCount
+                    (float) memberCount // Integer → Float 변환
             );
             
             historyRepository.save(history);

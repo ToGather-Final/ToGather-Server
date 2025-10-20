@@ -73,12 +73,13 @@ public class GroupTradingService {
         BigDecimal totalInvestment = pricePerShare.multiply(new BigDecimal(totalQuantity));
         
         // 4. 멤버당 부담금 계산 (총 투자 금액 ÷ 멤버 수)
-        BigDecimal costPerMember = totalInvestment.divide(new BigDecimal(memberCount), 0, RoundingMode.DOWN);
+        // HALF_UP: 반올림 (0.5 이상이면 올림, 미만이면 내림)
+        BigDecimal costPerMember = totalInvestment.divide(new BigDecimal(memberCount), 2, RoundingMode.HALF_UP);
         
         // 5. 멤버당 수량 계산 (총 수량 ÷ 멤버 수)
-        // 소수점 수량 허용을 위해 BigDecimal 사용
-        BigDecimal quantityPerMember = new BigDecimal(totalQuantity)
-                .divide(new BigDecimal(memberCount), 4, RoundingMode.DOWN);
+        // 소수점 8자리까지 정밀하게 계산 (반올림)
+        BigDecimal quantityPerMember = new BigDecimal(String.valueOf(totalQuantity))
+                .divide(new BigDecimal(memberCount), 8, RoundingMode.HALF_UP);
         
         log.info("👥 그룹 분할 매매 - 멤버수: {}, 총 투자: {}원, 멤버당 부담금: {}원, 멤버당 수량: {}주", 
                 memberCount, totalInvestment, costPerMember, quantityPerMember);
@@ -108,11 +109,6 @@ public class GroupTradingService {
 
                 Order createdOrder = orderService.buyStock(memberAccount.getUserId(), buyRequest);
                 executedOrders.add(createdOrder);
-
-                orderService.buyStock(memberAccount.getUserId(), buyRequest);
-                
-                // 주문 실행은 OrderService 내부에서 처리됨
-                // TODO: 실제 주문 객체를 가져와서 executedOrders에 추가
                 processedCount++;
 
                 log.info("✅ 멤버 {} 매수 주문 생성 - 수량: {}주, 주당가격: {}원, 부담금: {}원", 
@@ -171,11 +167,13 @@ public class GroupTradingService {
         BigDecimal totalRevenue = price.multiply(BigDecimal.valueOf(totalQuantity));
         
         // 5. 멤버당 수령액 계산 (총 매도 금액 ÷ 멤버 수)
-        BigDecimal revenuePerMember = totalRevenue.divide(new BigDecimal(memberCount), 0, RoundingMode.DOWN);
+        // HALF_UP: 반올림 (0.5 이상이면 올림, 미만이면 내림)
+        BigDecimal revenuePerMember = totalRevenue.divide(new BigDecimal(memberCount), 2, RoundingMode.HALF_UP);
         
         // 6. 멤버당 수량 계산 (총 수량 ÷ 멤버 수)
-        BigDecimal quantityPerMember = BigDecimal.valueOf(totalQuantity)
-                .divide(new BigDecimal(memberCount), 4, RoundingMode.DOWN);
+        // 소수점 8자리까지 정밀하게 계산 (반올림)
+        BigDecimal quantityPerMember = new BigDecimal(String.valueOf(totalQuantity))
+                .divide(new BigDecimal(memberCount), 8, RoundingMode.HALF_UP);
         
         log.info("👥 그룹 분할 매도 - 멤버수: {}, 총 매도금액: {}원, 멤버당 수령액: {}원, 멤버당 수량: {}주", 
                 memberCount, totalRevenue, revenuePerMember, quantityPerMember);
@@ -205,11 +203,6 @@ public class GroupTradingService {
 
                 Order createdOrder = orderService.sellStock(memberAccount.getUserId(), sellRequest);
                 executedOrders.add(createdOrder);
-
-                orderService.sellStock(memberAccount.getUserId(), sellRequest);
-                
-                // 주문 실행은 OrderService 내부에서 처리됨
-                // TODO: 실제 주문 객체를 가져와서 executedOrders에 추가
                 processedCount++;
 
                 log.info("✅ 멤버 {} 매도 주문 생성 - 수량: {}주, 주당가격: {}원, 수령액: {}원", 

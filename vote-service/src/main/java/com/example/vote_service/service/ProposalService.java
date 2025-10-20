@@ -222,12 +222,19 @@ public class ProposalService {
         try{
             Map<String, Object> payloadMap = objectMapper.readValue(proposal.getPayload(), Map.class);
 
+            // quantity: JSON 정수(Integer) 또는 소수(Double)를 Float으로 변환
+            Float quantity = null;
+            Object quantityObj = payloadMap.get("quantity");
+            if (quantityObj instanceof Number) {
+                quantity = ((Number) quantityObj).floatValue();
+            }
+
             return new VoteTradingRequest(
                     proposal.getProposalId(),
                     proposal.getGroupId(),
                     UUID.fromString((String) payloadMap.get("stockId")),
                     TradingAction.valueOf(proposal.getAction().name()),
-                    (Float) payloadMap.get("quantity"),
+                    quantity,
                     new BigDecimal(payloadMap.get("price").toString()),
                     proposal.getPayload(),
                     null, null, null, null, null, null, null
@@ -390,7 +397,7 @@ public class ProposalService {
                         request.proposalName(),
                         proposerName,
                         payPayload.amountPerPerson(), // price: 인당 충전 금액
-                        1,  // quantity: 기본값 1 (인당)
+                        1.0f,  // quantity: 기본값 1.0 (Float으로 인당)
                         HistoryType.VOTE_CREATED_PAY
                 );
             } else {
@@ -401,7 +408,7 @@ public class ProposalService {
                         request.proposalName(),
                         proposerName,
                         0, // price 기본값
-                        0,  // quantity 기본값
+                        0.0f,  // quantity 기본값 (Float)
                         HistoryType.VOTE_CREATED_PAY // 기본값으로 PAY 사용
                 );
             }
