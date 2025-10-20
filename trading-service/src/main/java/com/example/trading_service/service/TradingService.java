@@ -45,8 +45,11 @@ public class TradingService {
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
         // 이미 계좌가 있는지 확인
-        if (investmentAccountRepository.existsByUserId(userId.toString())) {
-            throw new IllegalArgumentException("이미 투자 계좌가 존재합니다.");
+        Optional<InvestmentAccount> existingAccount = investmentAccountRepository.findByUserId(userId.toString());
+        if (existingAccount.isPresent()) {
+            log.info("이미 투자 계좌가 존재합니다. 기존 계좌를 반환합니다. 사용자: {}, 계좌번호: {}", 
+                    userId, existingAccount.get().getAccountNo());
+            return existingAccount.get().getInvestmentAccountId();
         }
 
         // 계좌 생성

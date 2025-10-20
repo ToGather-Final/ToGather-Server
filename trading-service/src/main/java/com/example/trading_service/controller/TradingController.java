@@ -178,11 +178,27 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(chartInfo));
     }
 
-    // 대기 중인 주문 조회
+    // 전체 주문 조회 (모든 상태)
+    @GetMapping("/orders")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getAllOrders(Authentication authentication) {
+        UUID userId = getUserIdFromAuthentication(authentication);
+        List<OrderResponse> orders = orderService.getAllOrders(userId);
+        return ResponseEntity.ok(ApiResponse.success(orders));
+    }
+    
+    // 대기 중인 주문 조회 (PENDING)
     @GetMapping("/orders/pending")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getPendingOrders(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
         List<OrderResponse> orders = orderService.getPendingOrders(userId);
+        return ResponseEntity.ok(ApiResponse.success(orders));
+    }
+    
+    // 체결 완료된 주문 조회 (FILLED)
+    @GetMapping("/orders/filled")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getFilledOrders(Authentication authentication) {
+        UUID userId = getUserIdFromAuthentication(authentication);
+        List<OrderResponse> orders = orderService.getFilledOrders(userId);
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
@@ -238,10 +254,16 @@ public class TradingController {
 
     // 헬퍼 메서드: 인증에서 사용자 ID 추출
     private UUID getUserIdFromAuthentication(Authentication authentication) {
-        if (authentication != null && authentication.getName() != null) {
-            return UUID.fromString(authentication.getName());
+        try {
+            if (authentication != null && authentication.getName() != null && !authentication.getName().equals("anonymousUser")) {
+                log.debug("인증된 사용자 ID: {}", authentication.getName());
+                return UUID.fromString(authentication.getName());
+            }
+        } catch (IllegalArgumentException e) {
+            log.warn("사용자 ID를 UUID로 변환할 수 없습니다: {} - 테스트 UUID 사용", authentication.getName());
         }
         // 테스트용 기본 UUID (실제 운영에서는 제거해야 함)
+        log.debug("테스트용 기본 UUID 사용: 550e8400-e29b-41d4-a716-446655440000");
         return UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
     }
 }
