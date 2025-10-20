@@ -31,4 +31,8 @@ public interface PayAccountRepository extends JpaRepository<PayAccount, UUID> {
 
     @Query("SELECT pa FROM PayAccount pa WHERE pa.nickname = :nickname AND pa.ownerUserId = :ownerUserId AND pa.isActive = true")
     Optional<PayAccount> findByNicknameAndOwnerUserIdAndIsActiveTrue(@Param("nickname") String nickname, @Param("ownerUserId") UUID ownerUserId);
+
+    boolean existsByAccountNumber(String accountNumber);
+
+    Optional<PayAccount> findByAccountNumber(String accountNumber);
 }
