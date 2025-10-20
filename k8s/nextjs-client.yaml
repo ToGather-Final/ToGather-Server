@@ -7,9 +7,6 @@ spec:
   replicas: 1  # 🚀 단일 Pod 고정 (Cold Start 완전 제거)
   strategy:
     type: Recreate       # 🚀 단일 Pod이므로 Recreate 사용
-    rollingUpdate:       # 🚀 RollingUpdate 설정 제거 (단일 Pod)
-      maxSurge: 0
-      maxUnavailable: 1
   selector:
     matchLabels:
       app: nextjs-client
