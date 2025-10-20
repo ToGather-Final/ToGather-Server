@@ -59,6 +59,20 @@ spec:
               value: ""
             - name: NODE_NO_WARNINGS
               value: "1"
+            # 🔍 로깅 및 성능 모니터링 설정
+            - name: DEBUG
+              value: "next:*"
+            - name: NEXT_DEBUG
+              value: "1"
+            - name: NEXT_LOG_LEVEL
+              value: "debug"
+            - name: NODE_DEBUG
+              value: "http,net,tls"
+            # 성능 모니터링
+            - name: NEXT_PRIVATE_DEBUG_CACHE
+              value: "1"
+            - name: NEXT_PRIVATE_DEBUG_MEMORY
+              value: "1"
           # 🚀 Health Check 최적화 (빠른 응답)
           livenessProbe:
             httpGet:
