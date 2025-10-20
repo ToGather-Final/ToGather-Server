@@ -8,7 +8,7 @@ public record VoteTradingRequest(
         UUID groupId,
         UUID stockId,
         TradingAction tradingAction,
-        Integer quantity,
+        Float quantity,  // Integer → Float 변경 (소수점 거래 지원)
         BigDecimal price,
         String payload,
         Integer totalVotes,
