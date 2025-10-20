@@ -427,18 +427,35 @@ public class VoteService {
                 proposalId, approveCount, rejectCount, voteQuorum);
 
         // 가결 조건 확인
-        boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+        boolean isApproved = (approveCount >= voteQuorum);
 
-        log.info("가결 여부: {} (찬성 >= 정족수: {}, 찬성 > 반대: {})",
-                isApproved, (approveCount >= voteQuorum), (approveCount > rejectCount));
+        log.info("가결 여부: {} (찬성 >= 정족수: {})",
+                isApproved, (approveCount >= voteQuorum));
 
-        if (isApproved) {
-            proposalService.approveProposal(proposalId);
-            log.info("투표 가결 확인 - 거래 실행 시작: proposalId={}", proposalId);
-        } else {
-            proposalService.rejectProposal(proposalId);
-            log.info("투표 부결: proposalId={}", proposalId);
-        }
+         if (isApproved) {
+             proposalService.approveProposal(proposalId);
+             
+             // 히스토리 생성 (VOTE_APPROVED) - 실제 payload에서 정보 읽어오기 (먼저 생성)
+             createVoteApprovedHistoryFromProposal(proposal);
+             
+             // PAY 카테고리 투표 가결 시 자동 예수금 충전 (투표 가결 히스토리 생성 이후 처리)
+             if (proposal.getCategory().name().equals("PAY")) {
+                 processPayVoteApproval(proposal);
+             }
+             
+             log.info("투표 가결 확인 - 거래 실행 시작: proposalId={}", proposalId);
+         } else {
+             proposalService.rejectProposal(proposalId);
+             
+             // 히스토리 생성 (VOTE_REJECTED)
+             historyService.createVoteRejectedHistory(
+                 proposal.getGroupId(),
+                 proposalId,
+                 proposal.getProposalName()
+             );
+             
+             log.info("투표 부결: proposalId={}", proposalId);
+         }
     }
 
     /**

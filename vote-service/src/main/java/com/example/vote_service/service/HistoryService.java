@@ -390,6 +390,9 @@ public class HistoryService {
             
             historyRepository.save(history);
             
+            // 🔥 히스토리 생성 이벤트 발행 - 자동으로 알림 전송됨
+            eventPublisher.publishEvent(new HistoryCreatedEvent(history));
+            
             log.info("예수금 충전 완료 히스토리 생성 - groupId: {}, amountPerPerson: {}, memberCount: {}, totalBalance: {}", 
                     groupId, amountPerPerson, memberCount, totalGroupBalance);
             
