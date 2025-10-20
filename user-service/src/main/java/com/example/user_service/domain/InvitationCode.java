@@ -39,9 +39,9 @@ public class InvitationCode {
         }
     }
 
-    public static InvitationCode issue(UUID groupId) {
+    public static InvitationCode issue(UUID groupId, String code) {
         InvitationCode invitationCode = new InvitationCode();
-        invitationCode.code = generateCode();
+        invitationCode.code = code;
         invitationCode.groupId = groupId;
         invitationCode.isExpired = false;
         return invitationCode;

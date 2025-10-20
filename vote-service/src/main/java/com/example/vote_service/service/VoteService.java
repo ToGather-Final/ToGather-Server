@@ -1,9 +1,13 @@
 package com.example.vote_service.service;
 
 import com.example.vote_service.client.UserServiceClient;
+import com.example.vote_service.client.TradingServiceClient;
 import com.example.vote_service.dto.VoteRequest;
+import com.example.vote_service.dto.InternalDepositRequest;
 import com.example.vote_service.dto.payload.TradePayload;
+import com.example.vote_service.dto.payload.PayPayload;
 import com.example.vote_service.event.VoteExpirationEvent;
+import com.example.vote_service.model.ProposalStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.vote_service.model.Proposal;
 import com.example.vote_service.model.Vote;
@@ -20,6 +24,9 @@ import java.util.List;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
+import java.math.BigDecimal;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Vote 서비스
@@ -35,6 +42,7 @@ public class VoteService {
     private final GroupMembersRepository groupMembersRepository;
     private final HistoryService historyService;
     private final UserServiceClient userServiceClient;
+    private final TradingServiceClient tradingServiceClient;
     private final ObjectMapper objectMapper;
 
     /**
@@ -75,6 +83,8 @@ public class VoteService {
         // 투표 완료
         // 마감 시간(closeAt)에 스케줄러가 자동으로 가결/부결 판단
         log.info("투표 완료 - proposalId: {}, userId: {}", proposalId, userId);
+
+        checkAndExecuteIfQuorumReached(proposalId, proposal.getGroupId());
         
         return savedVote.getVoteId();
     }
@@ -160,18 +170,22 @@ public class VoteService {
         log.info("투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}", 
                 proposalId, approveCount, rejectCount, voteQuorum);
 
-        // 가결 조건:
-        // 1. 찬성 투표 수가 정족수(voteQuorum) 이상
-        // 2. 찬성이 반대보다 많음 (동점이면 부결)
-        boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+        // 가결 조건: 찬성 투표 수가 정족수(voteQuorum) 이상
+        boolean isApproved = (approveCount >= voteQuorum);
         
-        log.info("가결 여부: {} (찬성 >= 정족수: {}, 찬성 > 반대: {})", 
-                isApproved, (approveCount >= voteQuorum), (approveCount > rejectCount));
+        log.info("가결 여부: {} (찬성 >= 정족수: {})", 
+                isApproved, (approveCount >= voteQuorum));
 
         if (isApproved) {
             proposalService.approveProposal(proposalId);
-            // 히스토리 생성 (VOTE_APPROVED) - 실제 payload에서 정보 읽어오기
+            
+            // 히스토리 생성 (VOTE_APPROVED) - 실제 payload에서 정보 읽어오기 (먼저 생성)
             createVoteApprovedHistoryFromProposal(proposal);
+            
+            // PAY 카테고리 투표 가결 시 자동 예수금 충전 (투표 가결 히스토리 생성 이후 처리)
+            if (proposal.getCategory().name().equals("PAY")) {
+                processPayVoteApproval(proposal);
+            }
         } else {
             proposalService.rejectProposal(proposalId);
             // 히스토리 생성 (VOTE_REJECTED)
@@ -183,6 +197,60 @@ public class VoteService {
         }
     }
 
+    /**
+     * PAY 투표 가결 시 자동 예수금 충전 처리
+     * - 그룹의 모든 멤버들에게 인당 충전 금액을 투자계좌에 자동 충전
+     */
+    private void processPayVoteApproval(Proposal proposal) {
+        try {
+            // PayPayload에서 충전 금액 정보 추출
+            PayPayload payPayload = objectMapper.readValue(proposal.getPayload(), PayPayload.class);
+            BigDecimal amountPerPerson = BigDecimal.valueOf(payPayload.amountPerPerson());
+            
+            // 그룹의 모든 멤버 조회
+            List<UUID> memberIds = groupMembersRepository.findUserIdsByGroupId(proposal.getGroupId());
+            
+            log.info("PAY 투표 가결 - 그룹: {}, 인당 충전 금액: {}, 멤버 수: {}", 
+                    proposal.getGroupId(), amountPerPerson, memberIds.size());
+            
+            // 각 멤버에게 예수금 충전
+            for (UUID memberId : memberIds) {
+                try {
+                    InternalDepositRequest depositRequest = new InternalDepositRequest(
+                            memberId,
+                            amountPerPerson,
+                            proposal.getGroupId(),
+                            "투표 가결에 따른 예수금 충전 - " + proposal.getProposalName()
+                    );
+                    
+                    tradingServiceClient.internalDepositFunds(depositRequest);
+                    
+                    log.info("예수금 충전 완료 - 사용자: {}, 금액: {}", memberId, amountPerPerson);
+                    
+                } catch (Exception e) {
+                    log.error("예수금 충전 실패 - 사용자: {}, 금액: {}, 오류: {}", 
+                            memberId, amountPerPerson, e.getMessage(), e);
+                    // 개별 사용자 충전 실패는 전체 프로세스를 중단하지 않음
+                }
+            }
+            
+            // 예수금 충전 완료 히스토리 생성 (그룹 단위로 하나만)
+            historyService.createCashDepositCompletedHistory(
+                    proposal.getGroupId(),
+                    proposal.getProposalName(),
+                    amountPerPerson.intValue(),
+                    memberIds.size(),
+                    memberIds
+            );
+            
+            log.info("PAY 투표 가결 처리 완료 - 그룹: {}, 총 처리 멤버: {}", 
+                    proposal.getGroupId(), memberIds.size());
+                    
+        } catch (Exception e) {
+            log.error("PAY 투표 가결 처리 중 오류 발생 - proposalId: {}, 오류: {}", 
+                    proposal.getProposalId(), e.getMessage(), e);
+        }
+    }
 
     /**
      * 투표 결과 집계 (간단 버전 - 정족수 정보 없이)
@@ -271,36 +339,157 @@ public class VoteService {
                 historyService.createVoteApprovedHistory(
                     proposal.getGroupId(),
                     proposal.getProposalId(),
-                    LocalDateTime.now().plusHours(1).toString(), // scheduledAt - 1시간 후 실행 예정
+                    LocalDateTime.now().toString(), // scheduledAt - 함수가 실행된 시점
+                    "TRADE", // historyType - TRADE
                     proposal.getAction().name(), // side - BUY/SELL
                     tradePayload.stockName(), // stockName
                     tradePayload.quantity(), // shares
                     tradePayload.price(), // unitPrice
                     "KRW", // currency
-                    tradePayload.stockId() // stockId - DB의 stock_id 컬럼에 저장
+                    tradePayload.stockId() // stockId - UUID 객체로 전달 (BINARY(16) 변환 자동 처리)
                 );
                 
-                log.info("✅ 실제 매매 정보로 히스토리 생성 - stockName: {}, quantity: {}, price: {}", 
+                log.info("✅ TRADE 투표 가결 히스토리 생성 - stockName: {}, quantity: {}, price: {}", 
                         tradePayload.stockName(), tradePayload.quantity(), tradePayload.price());
-            } else {
-                // 다른 카테고리: 기본값 사용
+                        
+            } else if (proposal.getCategory().name().equals("PAY")) {
+                // PAY 카테고리: 예수금 충전 안내 메시지
+                PayPayload payPayload = objectMapper.readValue(proposal.getPayload(), PayPayload.class);
+                
                 historyService.createVoteApprovedHistory(
                     proposal.getGroupId(),
                     proposal.getProposalId(),
-                    LocalDateTime.now().plusHours(1).toString(),
-                    proposal.getAction().name(),
-                    "기본주식",
-                    1,
-                    1000,
-                    "KRW",
-                    null // stockId - PAY 카테고리 등에서는 null
+                    LocalDateTime.now().toString(), // scheduledAt - 함수가 실행된 시점
+                    "PAY", // historyType - PAY
+                    "PAY", // side - PAY로 고정
+                    null, // stockName - PAY에서는 null
+                    null, // shares - PAY에서는 null
+                    payPayload.amountPerPerson(), // unitPrice - 1인당 금액
+                    null, // currency - PAY에서는 null
+                    null // stockId - PAY에서는 null
                 );
+                
+                log.info("✅ PAY 투표 가결 히스토리 생성 - amountPerPerson: {}, message: 예수금 충전이 자동으로 진행됩니다.", 
+                        payPayload.amountPerPerson());
+                        
+            } else {
+                // 다른 카테고리: 히스토리 생성하지 않음
+                log.info("기타 카테고리 투표 가결 - 히스토리 생성 생략: proposalId: {}, category: {}", 
+                        proposal.getProposalId(), proposal.getCategory());
             }
         } catch (Exception e) {
             log.error("❌ VOTE_APPROVED 히스토리 생성 실패 - proposalId: {}, error: {}", 
                     proposal.getProposalId(), e.getMessage(), e);
             // 실패 시 히스토리 생성하지 않음 (에러 로그만 남김)
         }
+    }
+
+    private void checkAndExecuteIfQuorumReached(UUID proposalId, UUID groupId) {
+        try {
+            long approveCount = countApproveVotes(proposalId);
+            long rejectCount = countRejectVotes(proposalId);
+
+            Integer voteQuorum = userServiceClient.getVoteQuorumInternal(groupId);
+
+            log.info("정족수 확인 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}",
+                    proposalId, approveCount, rejectCount, voteQuorum);
+
+            boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+
+            if (isApproved) {
+                log.info("🎉 정족수 도달! 즉시 투표 집계 실행 - proposalId: {}", proposalId);
+
+                tallyVotesImmediately(proposalId, voteQuorum);
+
+                Proposal proposal = proposalService.getProposal(proposalId);
+                if (proposal.getStatus() == ProposalStatus.APPROVED) {
+                    log.info("🚀 즉시 거래 실행 시작 - proposalId: {}", proposalId);
+                    proposalService.executeVoteBasedTrading(proposalId);
+                }
+            }
+        } catch (Exception e) {
+            log.error("정족수 확인 중 오류 발생 - proposalId: {}, error: {}",
+                    proposalId, e.getMessage(), e);
+        }
+    }
+
+    private void tallyVotesImmediately(UUID proposalId, Integer voteQuorum) {
+        Proposal proposal = proposalService.getProposal(proposalId);
+
+        if (!proposal.isOpen()) {
+            throw new IllegalStateException("이미 종료된 제안입니다.");
+        }
+
+        long approveCount = countApproveVotes(proposalId);
+        long rejectCount = countRejectVotes(proposalId);
+
+        log.info("즉시 투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}",
+                proposalId, approveCount, rejectCount, voteQuorum);
+
+        // 가결 조건 확인
+        boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+
+        log.info("가결 여부: {} (찬성 >= 정족수: {}, 찬성 > 반대: {})",
+                isApproved, (approveCount >= voteQuorum), (approveCount > rejectCount));
+
+        if (isApproved) {
+            proposalService.approveProposal(proposalId);
+            log.info("투표 가결 확인 - 거래 실행 시작: proposalId={}", proposalId);
+        } else {
+            proposalService.rejectProposal(proposalId);
+            log.info("투표 부결: proposalId={}", proposalId);
+        }
+    }
+
+    /**
+     * 여러 제안의 찬성 투표 수를 한 번에 조회 (성능 최적화)
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> getApproveVoteCounts(List<UUID> proposalIds) {
+        if (proposalIds.isEmpty()) {
+            return Map.of();
+        }
+        
+        List<Object[]> results = voteRepository.countApprovesByProposalIds(proposalIds);
+        return results.stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],  // proposalId
+                        row -> (Long) row[1]   // count
+                ));
+    }
+
+    /**
+     * 여러 제안의 반대 투표 수를 한 번에 조회 (성능 최적화)
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> getRejectVoteCounts(List<UUID> proposalIds) {
+        if (proposalIds.isEmpty()) {
+            return Map.of();
+        }
+        
+        List<Object[]> results = voteRepository.countRejectsByProposalIds(proposalIds);
+        return results.stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],  // proposalId
+                        row -> (Long) row[1]   // count
+                ));
+    }
+
+    /**
+     * 사용자의 여러 제안에 대한 투표 선택을 한 번에 조회 (성능 최적화)
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, VoteChoice> getUserVoteChoices(UUID userId, List<UUID> proposalIds) {
+        if (proposalIds.isEmpty()) {
+            return Map.of();
+        }
+        
+        List<Vote> votes = voteRepository.findByUserIdAndProposalIdIn(userId, proposalIds);
+        return votes.stream()
+                .collect(Collectors.toMap(
+                        Vote::getProposalId,
+                        Vote::getChoice
+                ));
     }
 }
 

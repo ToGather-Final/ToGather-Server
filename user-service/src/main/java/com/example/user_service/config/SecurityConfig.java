@@ -10,11 +10,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 @EnableWebSecurity
@@ -24,8 +21,6 @@ public class SecurityConfig{
     private final RestAuthEntryPoint restAuthEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
-    @Value("${jwt.secret:}")
-    private String jwtSecret;
 
     public SecurityConfig(HeaderAuthFilter headerAuthFilter, RestAuthEntryPoint restAuthEntryPoint,
                           RestAccessDeniedHandler restAccessDeniedHandler) {
@@ -53,8 +48,8 @@ public class SecurityConfig{
             reg.requestMatchers("/auth/**").permitAll();
             reg.requestMatchers("/internal/**").permitAll();  // 내부 시스템 호출용 API 인증 제외
 
-            reg.requestMatchers("/users/**").permitAll();
-            reg.requestMatchers("/groups/**").permitAll();
+//            reg.requestMatchers("/users/**").permitAll();
+//            reg.requestMatchers("/groups/**").permitAll();
             reg.requestMatchers("/swagger-ui/**").permitAll();
             reg.requestMatchers("/v3/api-docs/**").permitAll();
             reg.requestMatchers("/swagger-ui.html").permitAll();
@@ -62,20 +57,7 @@ public class SecurityConfig{
         });
         http.addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);
         
-        // JWT 리소스 서버 설정 (Swagger 테스트용)
-        if (jwtSecret != null && !jwtSecret.isEmpty()) {
-            http.oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.decoder(jwtDecoder()))
-            );
-        }
-        
         return http.build();
     }
 
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withSecretKey(
-            new javax.crypto.spec.SecretKeySpec(jwtSecret.getBytes(), "HmacSHA256")
-        ).build();
-    }
 }

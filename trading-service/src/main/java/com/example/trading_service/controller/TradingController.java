@@ -1,8 +1,11 @@
 package com.example.trading_service.controller;
 
+import com.example.module_common.dto.InvestmentAccountDto;
 import com.example.trading_service.service.*;
 import com.example.trading_service.dto.*;
 import com.example.trading_service.exception.BusinessException;
+import com.example.module_common.dto.vote.VoteTradingRequest;
+import com.example.module_common.dto.vote.VoteTradingResponse;
 import com.example.trading_service.util.AccountNumberGenerator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -81,6 +84,27 @@ public class TradingController {
         UUID userId = getUserIdFromAuthentication(authentication);
         tradingService.depositFunds(userId, request);
         return ResponseEntity.ok(ApiResponse.success("예수금 충전이 완료되었습니다"));
+    }
+
+    // Internal 예수금 충전 (서비스 간 통신용)
+    @PostMapping("/internal/deposit")
+    public ResponseEntity<ApiResponse<String>> internalDepositFunds(@Valid @RequestBody InternalDepositRequest request) {
+        tradingService.internalDepositFunds(request);
+        return ResponseEntity.ok(ApiResponse.success("Internal 예수금 충전이 완료되었습니다"));
+    }
+
+    // Internal 투표 기반 거래 실행 (서비스 간 통신용)
+    @PostMapping("/internal/vote-trading")
+    public ResponseEntity<VoteTradingResponse> executeVoteBasedTrading(@Valid @RequestBody VoteTradingRequest request) {
+        VoteTradingResponse response = tradingService.executeVoteBasedTrading(request);
+        return ResponseEntity.ok(response);
+    }
+
+    // Internal 그룹 예수금 총합 조회 (서비스 간 통신용)
+    @PostMapping("/internal/group-balance")
+    public ResponseEntity<Integer> getGroupTotalBalance(@RequestBody List<UUID> memberIds) {
+        Integer totalBalance = tradingService.getGroupTotalBalance(memberIds);
+        return ResponseEntity.ok(totalBalance);
     }
 
     @Operation(summary = "보유 종목 조회", description = "사용자가 보유한 모든 종목의 실시간 가격 정보를 조회합니다.")
@@ -250,6 +274,12 @@ public class TradingController {
         UUID userId = getUserIdFromAuthentication(authentication);
         List<TradeHistoryResponse> history = tradingService.getStockTradeHistory(userId, stockCode);
         return ResponseEntity.ok(ApiResponse.success(history));
+    }
+
+    @GetMapping("/internal/accounts/user/{userId}")
+    @Operation(summary = "사용자별 투자 계좌 조회 (Internal)", description = "사용자 ID로 투자 계좌 정보를 조회합니다.")
+    public InvestmentAccountDto getAccountByUserId(@PathVariable UUID userId) {
+        return tradingService.getAccountByUserIdInternal(userId);
     }
 
     // 헬퍼 메서드: 인증에서 사용자 ID 추출

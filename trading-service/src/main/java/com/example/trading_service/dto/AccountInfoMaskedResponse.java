@@ -11,7 +11,7 @@ import java.util.UUID;
 public class AccountInfoMaskedResponse {
     private UUID accountId;
     private String accountNo; // 마스킹된 계좌번호 (예: 352-****-****-99)
-    private String userId;
+    private UUID userId;
     private LocalDateTime createdAt;
     private boolean hasAccount;
 }

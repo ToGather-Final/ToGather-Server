@@ -8,7 +8,8 @@ import java.util.UUID;
 public record VoteApprovedPayloadDTO(
         UUID proposalId,
         String scheduledAt,
-        String side,              // "BUY" | "SELL"
+        String historyType,       // "TRADE" | "PAY"
+        String side,              // "BUY" | "SELL" | "PAY"
         String stockName,
         Integer shares,
         Integer unitPrice,

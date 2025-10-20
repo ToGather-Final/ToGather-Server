@@ -1,5 +1,7 @@
 package com.example.trading_service.service;
 
+import com.example.module_common.dto.InvestmentAccountDto;
+import com.example.trading_service.client.UserServiceClient;
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.BuyRequest;
 import com.example.trading_service.dto.GroupHoldingResponse;
@@ -39,6 +41,8 @@ public class GroupTradingService {
     @Lazy
     private final OrderBookService orderBookService;
     private final PortfolioCalculationService portfolioCalculationService;
+    private final UserServiceClient userServiceClient;
+    private final HistoryRepository historyRepository;
 
     /**
      * 그룹 매수 주문 처리 (그룹 분할 매매)
@@ -101,7 +105,11 @@ public class GroupTradingService {
                     false // 지정가 주문
                 );
 
-                orderService.buyStock(UUID.fromString(memberAccount.getUserId()), buyRequest);
+                Order createdOrder = orderService.buyStock(memberAccount.getUserId(), buyRequest);
+                executedOrders.add(createdOrder);
+
+                // 주문 실행은 OrderService 내부에서 처리됨
+                // TODO: 실제 주문 객체를 가져와서 executedOrders에 추가
                 processedCount++;
 
                 log.info("✅ 멤버 {} 매수 주문 생성 - 수량: {}주, 주당가격: {}원, 부담금: {}원", 
@@ -116,8 +124,10 @@ public class GroupTradingService {
         // 8. 그룹 보유량 업데이트
         updateGroupHolding(groupId, stockId, (int)totalQuantity, pricePerShare, memberCount);
 
-        log.info("🎉 그룹 매수 주문 완료 - 처리된 주문 수: {}/{}, 총 {}주 @ {}원 (총 {}원)", 
-                processedCount, memberCount, totalQuantity, pricePerShare, totalInvestment);
+        // 4. 거래 히스토리 저장 (주석)
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "BUY", executedOrders);
+
+        log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
     }
 
@@ -189,7 +199,11 @@ public class GroupTradingService {
                     false // 지정가 주문
                 );
 
-                orderService.sellStock(UUID.fromString(memberAccount.getUserId()), sellRequest);
+                Order createdOrder = orderService.sellStock(memberAccount.getUserId(), sellRequest);
+                executedOrders.add(createdOrder);
+
+                // 주문 실행은 OrderService 내부에서 처리됨
+                // TODO: 실제 주문 객체를 가져와서 executedOrders에 추가
                 processedCount++;
 
                 log.info("✅ 멤버 {} 매도 주문 생성 - 수량: {}주, 주당가격: {}원, 수령액: {}원", 
@@ -203,8 +217,10 @@ public class GroupTradingService {
         // 9. 그룹 보유량 업데이트
         updateGroupHolding(groupId, stockId, (int)(-totalQuantity), price, memberCount);
 
-        log.info("🎉 그룹 매도 주문 완료 - 처리된 주문 수: {}/{}, 총 {}주 @ {}원 (총 {}원)", 
-                processedCount, memberCount, totalQuantity, price, totalRevenue);
+        // 5. 거래 히스토리 저장 (주석)
+        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerMember, "SELL", executedOrders);
+
+        log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
     }
 
@@ -214,24 +230,22 @@ public class GroupTradingService {
      */
     private List<InvestmentAccount> getGroupMembers(UUID groupId) {
         try {
-            // TODO: 실제 그룹 서비스와 연동하여 그룹 멤버 조회
-            // 현재는 임시로 DB에 있는 모든 계좌를 반환 (그룹 서비스 연동 후 수정 필요)
-            
-            log.warn("⚠️ 그룹 멤버 조회 - 그룹 서비스 연동 필요: {}", groupId);
-            
-            // 임시: DB에 실제로 존재하는 투자 계좌들 전체 조회
-            List<InvestmentAccount> allAccounts = investmentAccountRepository.findAll();
-            
-            if (allAccounts.isEmpty()) {
-                log.error("❌ 사용 가능한 투자 계좌가 없습니다!");
-                throw new BusinessException("투자 계좌를 찾을 수 없습니다.", "NO_INVESTMENT_ACCOUNTS");
+            List<InvestmentAccountDto> memberDtos = userServiceClient.getGroupMemberAccounts(groupId);
+
+            if (memberDtos.isEmpty()) {
+                log.warn("그룹에 실제 멤버가 없습니다 - groupId: {}", groupId);
+                throw new BusinessException("그룹에 멤버가 없습니다.");
             }
-            
-            log.info("✅ 임시 그룹 멤버 조회 완료 - 그룹ID: {}, 멤버 수: {}", groupId, allAccounts.size());
-            log.info("📋 멤버 목록: {}", allAccounts.stream()
-                    .map(m -> String.format("계좌ID=%s, 유저ID=%s", 
-                            m.getInvestmentAccountId(), m.getUserId()))
-                    .collect(Collectors.joining(", ")));
+
+            List<InvestmentAccount> members = new ArrayList<>();
+            for (InvestmentAccountDto dto : memberDtos) {
+                InvestmentAccount account = investmentAccountRepository.findById(dto.getInvestmentAccountId())
+                        .orElseThrow(() -> new BusinessException("투자 계좌를 찾을 수 없습니다."));
+                members.add(account);
+            }
+
+            log.info("실제 그룹 멤버 조회 완료 - 그룹ID: {}, 멤버 수: {}", groupId, members.size());
+            return members;
             
             return allAccounts;
             
@@ -340,7 +354,6 @@ public class GroupTradingService {
     /**
      * 그룹 거래 히스토리 저장 (주석)
      */
-    /*
     private void saveGroupTradingHistory(UUID groupId, UUID stockId, int quantity, 
                                        BigDecimal price, String transactionType, 
                                        List<Order> executedOrders) {
@@ -348,41 +361,27 @@ public class GroupTradingService {
             // 주식 정보 조회
             Stock stock = stockRepository.findById(stockId)
                     .orElseThrow(() -> new BusinessException("주식을 찾을 수 없습니다.", "STOCK_NOT_FOUND"));
-            
-            // 거래 타입에 따른 제목 생성
-            String action = "BUY".equals(transactionType) ? "매수" : "매도";
-            String title = String.format("%s %d주 %d원 %s 체결",
-                    stock.getStockName(),
-                    quantity,
-                    price.intValue(),
-                    action
-            );
-            
-            // 페이로드 생성
-            String payload = String.format(
-                "{\"side\":\"%s\",\"stockName\":\"%s\",\"shares\":%d,\"unitPrice\":%d,\"totalAmount\":%d}",
-                transactionType,
-                stock.getStockName(),
-                quantity,
-                price.intValue(),
-                price.intValue() * quantity
-            );
-            
-            // History 객체 생성 및 저장
-            History history = History.create(
-                    groupId,
-                    HistoryCategory.TRADE,
-                    HistoryType.TRADE_EXECUTED,
-                    title,
-                    payload,
-                    price.intValue(),
-                    quantity
-            );
-            
-            // 주식 ID 설정
-            history.setStockId(stockId);
-            
-            // 히스토리 저장
+
+            History history = new History();
+            history.setInvestmentAccount(null);
+            history.setStock(stock);
+            history.setTransactionType(History.TransactionType.valueOf(transactionType));
+            history.setQuantity(quantity);
+            history.setPrice(price);
+            history.setTotalAmount(price.multiply(BigDecimal.valueOf(quantity)));
+            history.setGroupId(groupId);
+            history.setHistoryCategory("TRADE");
+            history.setHistoryType("TRADE_EXECUTED");
+            history.setTitle(String.format("%s %d주 %d원 %s",
+                    stock.getStockName(), quantity, price.intValue(),
+                    "BUY".equals(transactionType) ? "매수" : "매도"));
+            history.setPayload(String.format("{\"groupTrading\":true,\"stockName\":\"%s\",\"quantity\":%d,\"price\":%d}",
+                    stock.getStockName(), quantity, price.intValue()));
+
+            if(!executedOrders.isEmpty()) {
+                history.setOrderId(executedOrders.get(0).getOrderId());
+            }
+
             historyRepository.save(history);
             
             log.info("그룹 거래 히스토리 저장 완료 - 그룹ID: {}, 종목: {}, 수량: {}, 가격: {}", 
@@ -394,7 +393,6 @@ public class GroupTradingService {
             // 히스토리 저장 실패는 거래 자체를 중단시키지 않음
         }
     }
-    */
 
     /**
      * 그룹 보유종목 조회
@@ -489,7 +487,7 @@ public class GroupTradingService {
             for (InvestmentAccount member : groupMembers) {
                 try {
                     // 각 멤버의 예수금 조회
-                    BigDecimal memberBalance = portfolioCalculationService.getUserBalanceWithCache(UUID.fromString(member.getUserId()));
+                    BigDecimal memberBalance = portfolioCalculationService.getUserBalanceWithCache(member.getUserId());
                     totalCash += memberBalance.floatValue();
                 } catch (Exception e) {
                     log.warn("멤버 예수금 조회 실패 - 사용자ID: {} - {}", member.getUserId(), e.getMessage());

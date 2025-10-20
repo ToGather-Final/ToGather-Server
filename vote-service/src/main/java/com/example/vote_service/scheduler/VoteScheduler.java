@@ -34,7 +34,7 @@ public class VoteScheduler {
      * 매 분마다 실행되어 마감된 투표를 자동 집계
      * TODO: user-service에서 GroupRule과 멤버 수를 가져와서 정확한 집계 수행
      */
-    @Scheduled(cron = "0 * * * * *") // 매 분 0초에 실행
+    // @Scheduled(cron = "0 */10 * * * *") // 개별 마감 처리로 대체되어 비활성화
     public void tallyExpiredVotes() {
         log.info("투표 자동 집계 스케줄러 시작");
 

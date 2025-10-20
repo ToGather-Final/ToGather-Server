@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -61,11 +62,22 @@ public class VoteController {
                     .collect(Collectors.toList());
         }
         
+        // 성능 최적화: 배치 조회로 N+1 쿼리 문제 해결
+        List<UUID> proposalIds = proposals.stream()
+                .map(Proposal::getProposalId)
+                .collect(Collectors.toList());
+        
+        // 한 번에 모든 투표 수 조회
+        Map<UUID, Long> approveCounts = voteService.getApproveVoteCounts(proposalIds);
+        Map<UUID, Long> rejectCounts = voteService.getRejectVoteCounts(proposalIds);
+        Map<UUID, com.example.vote_service.model.VoteChoice> userVotes = voteService.getUserVoteChoices(userId, proposalIds);
+        
         List<ProposalResponse> response = proposals.stream()
                 .map(p -> {
-                    int approveCount = (int) voteService.countApproveVotes(p.getProposalId());
-                    int rejectCount = (int) voteService.countRejectVotes(p.getProposalId());
-                    var myVote = voteService.getUserVoteChoice(p.getProposalId(), userId);
+                    // 배치 조회 결과에서 값 가져오기 (없으면 0)
+                    int approveCount = approveCounts.getOrDefault(p.getProposalId(), 0L).intValue();
+                    int rejectCount = rejectCounts.getOrDefault(p.getProposalId(), 0L).intValue();
+                    var myVote = userVotes.get(p.getProposalId());
                     
                     // 제안자 이름은 Proposal 엔티티에서 가져오기
                     String proposerName = p.getProposerName();

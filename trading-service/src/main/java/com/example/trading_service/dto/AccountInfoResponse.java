@@ -11,7 +11,7 @@ import java.util.UUID;
 public class AccountInfoResponse {
     private UUID accountId;
     private String accountNo;
-    private String userId;
+    private UUID userId;
     private LocalDateTime createdAt;
     private boolean hasAccount;
 }
