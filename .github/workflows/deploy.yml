@@ -96,7 +96,8 @@ jobs:
         echo "Using CDN_URL=$CDN_URL_CLEAN"
         
         pnpm install --frozen-lockfile
-        CDN_URL=$CDN_URL_CLEAN pnpm run build
+        # 🚀 API 엔드포인트 환경변수 설정
+        CDN_URL=$CDN_URL_CLEAN NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store pnpm run build
         
         # 정적 자산 업로드: 반드시 _next/static/* 경로 유지
         # (upload-assets 스크립트가 .next/static을 그대로 S3 루트에 _next/static/ 로 올리게 하세요)
@@ -109,6 +110,7 @@ jobs:
         CDN_URL: ${{ env.CDN_URL }}
         S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
         CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
+        NEXT_PUBLIC_API_BASE_URL: https://xn--o79aq2k062a.store
 
     - name: Upload Next build artifacts
       uses: actions/upload-artifact@v4
@@ -129,6 +131,7 @@ jobs:
     - name: Build and push Next.js runtime image
       run: |
         docker build \
+          --build-arg NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store \
           -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
           -f ./togather-client/Dockerfile ./togather-client
         docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
