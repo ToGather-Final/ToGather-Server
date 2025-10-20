@@ -1,9 +1,11 @@
 package com.example.trading_service.service;
 
+import com.example.trading_service.domain.Order;
 import com.example.trading_service.domain.Stock;
 import com.example.trading_service.dto.OrderBookItem;
 import com.example.trading_service.dto.OrderBookResponse;
 import com.example.trading_service.dto.StockPriceResponse;
+import com.example.trading_service.repository.OrderRepository;
 import com.example.trading_service.repository.StockRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +31,7 @@ public class WebSocketOrderBookService {
     @Lazy
     private final TradeExecutionService tradeExecutionService;
     private final StockRepository stockRepository;
+    private final OrderRepository orderRepository;
 
     // 종목명 캐시 (성능 최적화를 위해)
     private final Map<String, String> stockNameCache = new HashMap<>();
@@ -38,18 +41,18 @@ public class WebSocketOrderBookService {
      */
     public void handleOrderBookMessage(String message) {
         try {
-            log.info("📨 호가 메시지 수신: {}", message);
+            log.debug("📨 호가 메시지 수신");
             
             // 실시간 데이터인지 확인 (|로 구분되는 형식)
             if (message.contains("|")) {
-                log.info("📊 실시간 파이프 구분 데이터 수신");
+                log.debug("실시간 파이프 구분 데이터 수신");
                 handleRealtimeData(message);
                 return;
             }
             
             // ^ 구분자 형식 메시지 처리 (호가 데이터)
             if (message.contains("^")) {
-                log.info("📊 실시간 ^ 구분자 데이터 수신");
+                log.debug("실시간 ^ 구분자 데이터 수신");
                 // | 구분자로 시작하는 메시지에서 종목코드 추출
                 String stockCode = extractStockCodeFromMessage(message);
                 handleOrderBookData(message, stockCode);
@@ -93,11 +96,10 @@ public class WebSocketOrderBookService {
             // 호가 데이터 파싱
             OrderBookResponse orderBook = parseOrderBookData(rootNode);
             if (orderBook != null) {
-                log.info("📊 호가 데이터 파싱 성공: {}", orderBook.getStockCode());
+                log.debug("호가 데이터 파싱 성공: {}", orderBook.getStockCode());
                 
                 // 1. Redis 캐시에 저장 (30초 TTL)
                 redisCacheService.cacheWebSocketOrderBook(orderBook.getStockCode(), orderBook);
-                log.info("💾 Redis에 호가 데이터 캐시 저장: {}", orderBook.getStockCode());
                 
                 // 2. 클라이언트에게 브로드캐스트
                 broadcastOrderBook(orderBook);
@@ -254,12 +256,6 @@ public class WebSocketOrderBookService {
         try {
             // ^로 구분되는 데이터 파싱
             String[] dataParts = responseData.split("\\^");
-            log.info("📈 실시간 호가 데이터: {}개 필드", dataParts.length);
-            
-            // 디버깅을 위해 처음 10개 필드 출력
-            for (int i = 0; i < Math.min(10, dataParts.length); i++) {
-                log.info("📊 필드[{}]: {}", i, dataParts[i]);
-            }
             
             if (dataParts.length < 5) {
                 log.warn("⚠️ 호가 데이터 필드가 부족함: {}", dataParts.length);
@@ -268,7 +264,6 @@ public class WebSocketOrderBookService {
             
             // 첫 번째 필드에서 종목코드 추출 (예: 005930^091217^0^97400^97500...)
             String stockCode = dataParts[0];
-            log.info("📊 종목코드: {} ({}개 필드)", stockCode, dataParts.length);
             
             // 호가 데이터 파싱 (간단한 형태)
             List<OrderBookItem> askPrices = new ArrayList<>();
@@ -278,9 +273,9 @@ public class WebSocketOrderBookService {
             // 형식: 종목코드^시간^현재가^매도호가1^매도호가2^...^매도호가10^매수호가1^매수호가2^...^매수호가10^매도수량1^매도수량2^...^매도수량10^매수수량1^매수수량2^...^매수수량10
             
             // 매도 호가 (ASK) - 10개 (인덱스 3~12)
+            int askCount = 0;
             for (int i = 3; i < 13 && i < dataParts.length; i++) {
                 String priceStr = dataParts[i];
-                log.info("📊 매도 호가 파싱 [{}]: {}", i, priceStr);
                 
                 // 0이 아닌 값만 처리
                 if (priceStr != null && !priceStr.equals("0") && !priceStr.isEmpty() && !priceStr.equals("")) {
@@ -295,27 +290,26 @@ public class WebSocketOrderBookService {
                                     try {
                                         quantity = Long.parseLong(quantityStr);
                                     } catch (NumberFormatException e) {
-                                        log.warn("⚠️ 매도 수량 파싱 실패: {}", quantityStr);
+                                        log.debug("매도 수량 파싱 실패: {}", quantityStr);
                                     }
                                 }
                             }
-                            askPrices.add(new OrderBookItem(price, quantity, "ask"));
-                            log.info("✅ 매도 호가 추가: {}원, 수량: {}", price, quantity);
-                        } else {
-                            log.warn("⚠️ 매도 호가가 0 이하: {}", price);
+                            // 수량이 0보다 큰 경우만 추가 (0주는 제외)
+                            if (quantity > 0) {
+                                askPrices.add(new OrderBookItem(price, quantity, "ask"));
+                                askCount++;
+                            }
                         }
                     } catch (NumberFormatException e) {
-                        log.warn("⚠️ 매도 호가 파싱 실패: {} - {}", priceStr, e.getMessage());
+                        log.debug("매도 호가 파싱 실패: {} - {}", priceStr, e.getMessage());
                     }
-                } else {
-                    log.info("📊 매도 호가 [{}] 스킵: {}", i, priceStr);
                 }
             }
             
             // 매수 호가 (BID) - 10개 (인덱스 13~22)
+            int bidCount = 0;
             for (int i = 13; i < 23 && i < dataParts.length; i++) {
                 String priceStr = dataParts[i];
-                log.info("📊 매수 호가 파싱 [{}]: {}", i, priceStr);
                 
                 // 0이 아닌 값만 처리
                 if (priceStr != null && !priceStr.equals("0") && !priceStr.isEmpty() && !priceStr.equals("")) {
@@ -330,31 +324,108 @@ public class WebSocketOrderBookService {
                                     try {
                                         quantity = Long.parseLong(quantityStr);
                                     } catch (NumberFormatException e) {
-                                        log.warn("⚠️ 매수 수량 파싱 실패: {}", quantityStr);
+                                        log.debug("매수 수량 파싱 실패: {}", quantityStr);
                                     }
                                 }
                             }
-                            bidPrices.add(new OrderBookItem(price, quantity, "bid"));
-                            log.info("✅ 매수 호가 추가: {}원, 수량: {}", price, quantity);
-                        } else {
-                            log.warn("⚠️ 매수 호가가 0 이하: {}", price);
+                            // 수량이 0보다 큰 경우만 추가 (0주는 제외)
+                            if (quantity > 0) {
+                                bidPrices.add(new OrderBookItem(price, quantity, "bid"));
+                                bidCount++;
+                            }
                         }
                     } catch (NumberFormatException e) {
-                        log.warn("⚠️ 매수 호가 파싱 실패: {} - {}", priceStr, e.getMessage());
+                        log.debug("매수 호가 파싱 실패: {} - {}", priceStr, e.getMessage());
                     }
-                } else {
-                    log.info("📊 매수 호가 [{}] 스킵: {}", i, priceStr);
                 }
+            }
+            
+            // 호가 데이터가 비어있으면 이전 캐시 데이터 사용 (불완전한 메시지 방지)
+            if (askPrices.isEmpty() || bidPrices.isEmpty()) {
+                Object cachedData = redisCacheService.getCachedWebSocketOrderBook(stockCode);
+                if (cachedData instanceof OrderBookResponse) {
+                    OrderBookResponse cached = (OrderBookResponse) cachedData;
+                    if (askPrices.isEmpty() && !cached.getAskPrices().isEmpty()) {
+                        askPrices = new ArrayList<>(cached.getAskPrices());
+                        log.debug("이전 캐시 매도 호가 사용: {}건", askPrices.size());
+                    }
+                    if (bidPrices.isEmpty() && !cached.getBidPrices().isEmpty()) {
+                        bidPrices = new ArrayList<>(cached.getBidPrices());
+                        log.debug("이전 캐시 매수 호가 사용: {}건", bidPrices.size());
+                    }
+                }
+            }
+            
+            // 요약 로그만 출력
+            log.info("📊 호가 파싱 완료 - 종목: {}, 매도: {}건, 매수: {}건", stockCode, askCount, bidCount);
+            
+            // 현재가는 호가 데이터(H0STASP0)에 포함되지 않으므로
+            // 매도1호가와 매수1호가의 중간값으로 실시간 추정
+            float currentPrice = 0.0f;
+            
+            if (!askPrices.isEmpty() && !bidPrices.isEmpty()) {
+                // 매도1호가(최저 매도가)와 매수1호가(최고 매수가)의 중간값
+                float askPrice1 = askPrices.get(0).getPrice();
+                float bidPrice1 = bidPrices.get(0).getPrice();
+                currentPrice = (askPrice1 + bidPrice1) / 2.0f;
+                
+                log.debug("💰 현재가 추정: {}원 (매도1: {}, 매수1: {})", 
+                    currentPrice, askPrice1, bidPrice1);
+            } else {
+                // 호가 데이터가 없으면 이전 캐시 값 사용 (fallback)
+                Object cachedData = redisCacheService.getCachedWebSocketOrderBook(stockCode);
+                if (cachedData instanceof OrderBookResponse) {
+                    OrderBookResponse cached = (OrderBookResponse) cachedData;
+                    if (cached.getCurrentPrice() > 0) {
+                        currentPrice = cached.getCurrentPrice();
+                        log.debug("이전 캐시 현재가 사용: {}원", currentPrice);
+                    }
+                }
+            }
+            
+            // 전일 대비 정보 계산 (전일 종가와 현재가 비교)
+            float changeAmount = 0.0f;
+            float changeRate = 0.0f;
+            String changeDirection = "unchanged";
+            
+            try {
+                // Redis에서 전일 종가 조회 (캐시됨)
+                Float prevClosePrice = getPrevClosePrice(stockCode);
+                
+                log.info("🔍 [{}] 전일대비 계산 - 현재가: {}, 전일종가: {}", 
+                    stockCode, currentPrice, prevClosePrice);
+                
+                if (prevClosePrice != null && prevClosePrice > 0 && currentPrice > 0) {
+                    changeAmount = currentPrice - prevClosePrice;
+                    changeRate = (changeAmount / prevClosePrice) * 100.0f;
+                    
+                    // 변동 방향 결정
+                    if (changeAmount > 0) {
+                        changeDirection = "rise";
+                    } else if (changeAmount < 0) {
+                        changeDirection = "fall";
+                    } else {
+                        changeDirection = "unchanged";
+                    }
+                    
+                    log.info("✅ [{}] 전일대비 계산 완료 - 변동: {}원({}%), 방향: {}", 
+                        stockCode, changeAmount, String.format("%.2f", changeRate), changeDirection);
+                } else {
+                    log.warn("⚠️ [{}] 전일대비 계산 실패 - 전일종가 없음 (prevClose: {}, currentPrice: {})", 
+                        stockCode, prevClosePrice, currentPrice);
+                }
+            } catch (Exception e) {
+                log.error("❌ [{}] 전일대비 계산 실패: {}", stockCode, e.getMessage(), e);
             }
             
             // OrderBookResponse 생성
             OrderBookResponse orderBook = new OrderBookResponse(
                 stockCode,
                 getStockName(stockCode),
-                0.0f,  // currentPrice
-                0.0f,  // changeAmount
-                0.0f,  // changeRate
-                "unchanged",  // changeDirection
+                currentPrice,
+                changeAmount,
+                changeRate,
+                changeDirection,
                 askPrices,
                 bidPrices
             );
@@ -593,9 +664,9 @@ public class WebSocketOrderBookService {
         try {
             String destination = "/topic/orderbook/" + orderBook.getStockCode();
             messagingTemplate.convertAndSend(destination, orderBook);
-            log.info("📤 호가 데이터 브로드캐스트 완료: {}", destination);
+            log.debug("호가 데이터 브로드캐스트 완료: {}", destination);
         } catch (Exception e) {
-            log.error("호가 데이터 브로드캐스트 실패: {}", e.getMessage(), e);
+            log.error("❌ 호가 데이터 브로드캐스트 실패: {}", e.getMessage(), e);
         }
     }
 
@@ -766,12 +837,28 @@ public class WebSocketOrderBookService {
 
     /**
      * 대기 중인 지정가 주문 체결 확인
+     * WebSocket 호가 업데이트마다 자동 호출
      */
     private void checkPendingLimitOrders(String stockCode) {
         try {
-            // 해당 종목의 대기 중인 지정가 주문들을 조회하여 체결 가능한지 확인
-            // TODO: OrderRepository에서 PENDING 상태의 지정가 주문들을 조회하는 메서드 필요
-            log.debug("지정가 주문 체결 확인 - 종목코드: {}", stockCode);
+            // 해당 종목의 대기 중인 주문들 조회
+            List<Order> pendingOrders = orderRepository.findByStock_StockCodeAndStatus(stockCode, Order.Status.PENDING);
+            
+            if (pendingOrders.isEmpty()) {
+                return;
+            }
+            
+            log.info("🔍 대기 중인 지정가 주문 {}건 체결 확인 - 종목: {}", pendingOrders.size(), stockCode);
+            
+            // 각 주문에 대해 체결 가능 여부 확인
+            for (Order order : pendingOrders) {
+                try {
+                    tradeExecutionService.checkLimitOrderExecution(order);
+                } catch (Exception e) {
+                    log.error("주문 체결 확인 실패 - 주문ID: {} - {}", order.getOrderId(), e.getMessage());
+                }
+            }
+            
         } catch (Exception e) {
             log.error("지정가 주문 체결 확인 중 오류 발생 - 종목코드: {} - {}", stockCode, e.getMessage());
         }
@@ -799,5 +886,12 @@ public class WebSocketOrderBookService {
             log.error("종목명 조회 실패 - 종목코드: {} - {}", stockCode, e.getMessage());
             return "알 수 없음";
         }
+    }
+    
+    /**
+     * 전일 종가 조회 (Redis 캐시 우선)
+     */
+    private Float getPrevClosePrice(String stockCode) {
+        return redisCacheService.getCachedPrevClosePrice(stockCode);
     }
 }
