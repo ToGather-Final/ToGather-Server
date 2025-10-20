@@ -47,7 +47,7 @@ public class History {
     private Integer price;
 
     @Column(name = "quantity")
-    private Integer quantity;
+    private Float quantity;  // Float으로 변경 - 소수점 거래 지원
 
     @Column(name = "total_amount")
     private Integer totalAmount;
@@ -87,7 +87,7 @@ public class History {
         
         // 모든 필드에 기본값 설정 (필요한 것만, 나머지는 null)
         history.price = 0;
-        history.quantity = 0;
+        history.quantity = 0.0f;  // Float 기본값
         history.totalAmount = 0;
         history.investmentAccountId = null; // 투표 히스토리에는 불필요
         history.orderId = null; // 투표 히스토리에는 불필요
@@ -111,10 +111,10 @@ public class History {
      * 정적 팩토리 메서드 - History 생성 (가격, 수량 포함)
      */
     public static History create(UUID groupId, HistoryCategory category, HistoryType type, 
-                                String title, String payload, Integer price, Integer quantity) {
+                                String title, String payload, Integer price, Float quantity) {
         History history = create(groupId, category, type, title, payload); // 기본값으로 생성
         history.price = price != null ? price : 0; // 가격 덮어쓰기
-        history.quantity = quantity != null ? quantity : 0; // 수량 덮어쓰기
+        history.quantity = quantity != null ? quantity : 0.0f; // 수량 덮어쓰기 (Float)
         return history;
     }
 

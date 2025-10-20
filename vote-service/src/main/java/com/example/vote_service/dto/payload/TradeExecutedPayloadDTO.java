@@ -6,7 +6,7 @@ package com.example.vote_service.dto.payload;
 public record TradeExecutedPayloadDTO(
         String side,              // "BUY" | "SELL"
         String stockName,
-        Integer shares,
+        Float shares,             // 소수점 거래 지원을 위해 Float으로 변경
         Integer unitPrice,
         Integer accountBalance    // 체결 후 모임계좌잔액
 ) {
