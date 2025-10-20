@@ -51,16 +51,16 @@ spec:
           # ✅ 안정적인 Health Check를 위한 Probe 설정
           startupProbe:
             httpGet:
-              path: /healthz
+              path: /api/healthz
               port: 3000
             # Next.js가 완전히 구동될 때까지 최대 5분(30 * 10초) 동안 기다립니다.
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /api/healthz
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -68,7 +68,7 @@ spec:
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /api/healthz
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 20
