@@ -39,7 +39,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Checkout Client Repo # ToGather-Client 접근
+    - name: Checkout Client Repo # ToGather-Client 접근!
       uses: actions/checkout@v4
       with:
         repository: ToGather-Final/ToGather-Client
