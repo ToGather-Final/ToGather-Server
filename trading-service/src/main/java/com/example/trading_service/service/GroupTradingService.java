@@ -141,11 +141,6 @@ public class GroupTradingService {
             return 0;
         }
 
-        // 8. 그룹 보유량 업데이트
-        updateGroupHolding(groupId, stockId, totalQuantity, pricePerShare, memberCount);
-
-        // 9. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerShare, "BUY", executedOrders);
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;
@@ -256,11 +251,6 @@ public class GroupTradingService {
             return 0;
         }
 
-        // 9. 그룹 보유량 업데이트
-        updateGroupHolding(groupId, stockId, -totalQuantity, price, memberCount);
-
-        // 10. 거래 히스토리 저장
-        saveGroupTradingHistory(groupId, stockId, totalQuantity, price, "SELL", executedOrders);
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
         return processedCount;

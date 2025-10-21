@@ -84,23 +84,15 @@ public class HistoryService {
         String description = ledger.getDescription();
 
         // 사용자별 맞춤 변환
-        if (isAccountOwner && isGroupLeader) {
-            // 그룹장인 경우
-            if (ledger.getTransactionType() == TransactionType.TRANSFER_IN) {
-                // 그룹원명 표시
-                String payerName = ledger.getPayerName() != null ? ledger.getPayerName() : "알 수 없는 사용자";
-                description = payerName + "으로부터 송금 수취";
-            } else if (ledger.getTransactionType() == TransactionType.PAYMENT) {
-                // 상점명 표시
-                String recipientName = ledger.getRecipientName() != null ? ledger.getRecipientName() : "알 수 없는 상점";
-                description = recipientName + " 결제";
-            }
-        } else {
-            // 일반 사용자 (그룹원)
-            if (ledger.getTransactionType() == TransactionType.TRANSFER_OUT) {
-                description = "그룹장에게 송금";
-                amount = -amount; // 출금으로 표시
-            }
+        if (ledger.getTransactionType() == TransactionType.TRANSFER_IN) {
+            // 입금: "김철수가 50,000원 입금"
+            String payerName = ledger.getPayerName() != null ? ledger.getPayerName() : "알 수 없는 사용자";
+            description = payerName + String.format("%,d원 입금", amount);
+        } else if (ledger.getTransactionType() == TransactionType.PAYMENT) {
+            // 결제: "김철수가 스타벅스에서 5,000원 결제"
+            String payerName = ledger.getPayerName() != null ? ledger.getPayerName() : "알 수 없는 사용자";
+            String recipientName = ledger.getRecipientName() != null ? ledger.getRecipientName() : "알 수 없는 상점";
+            description = payerName + recipientName + "에서 " + String.format("%,d원 결제", amount);
         }
 
         return new UnifiedHistoryItem(
