@@ -12,6 +12,10 @@ env:
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com
   EKS_CLUSTER_NAME: togather-cluster
   EKS_NAMESPACE: togather
+  # CDN 설정!
+  CDN_URL: https://d36ue99r8i68ow.cloudfront.net
+  S3_BUCKET_NAME: togather-static-assets
+  CLOUDFRONT_DISTRIBUTION_ID: E15ZDIW40YBVEN
 
 jobs:
   build-and-deploy:
@@ -35,12 +39,27 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Checkout Client Repo # ToGather-Client 접근
+    - name: Checkout Client Repo # ToGather-Client 접근!
       uses: actions/checkout@v4
       with:
         repository: ToGather-Final/ToGather-Client
         token: ${{ secrets.GH_PAT }}
         path: togather-client
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: latest
+
+    - name: Cache pnpm dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.pnpm-store
+          togather-client/node_modules
+        key: ${{ runner.os }}-pnpm-${{ hashFiles('togather-client/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -69,13 +88,62 @@ jobs:
 #        docker build -t $ECR_REGISTRY/togather/client:latest -f ./togather-client/Dockerfile ./togather-client
 #        docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
 #        docker push $ECR_REGISTRY/togather/client:latest
-    - name: Build and push Next.js Client image
+
+    - name: Build Next.js Client and upload static assets
+      run: |
+        cd togather-client
+        export CDN_URL_CLEAN=$(echo "${{ env.CDN_URL }}" | sed 's:/*$::')
+        echo "🛰 Using CDN_URL=$CDN_URL_CLEAN"
+
+        pnpm install --frozen-lockfile
+
+        # ✅ Next.js 빌드 (단 1회)
+        SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
+        NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
+        CDN_URL=$CDN_URL_CLEAN pnpm run build
+
+        # ✅ 빌드 산출물 아티팩트로 보관 (Docker와 S3에서 동일 빌드 사용)
+        cd ..
+        tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static .next/server public
+        echo "✅ next-artifacts.tgz 생성 완료"
+
+        # ✅ 정적 자산 업로드 및 CDN 무효화
+        cd togather-client
+        pnpm run upload-assets
+      env:
+        CDN_URL: ${{ env.CDN_URL }}
+        S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
+        CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
+        NEXT_PUBLIC_API_BASE_URL: https://xn--o79aq2k062a.store
+
+      # ✅ next-artifacts.tgz 파일을 업로드 (빌드 결과 백업)
+    - name: Upload Next build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: next-artifacts
+        path: next-artifacts.tgz
+
+      # ✅ 빌드 결과를 Docker 이미지 생성에 재사용
+    - name: Download Next.js build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: next-artifacts
+        path: ./togather-client
+
+    - name: Extract Next.js artifacts
+      run: |
+        tar -xzf ./togather-client/next-artifacts.tgz -C ./togather-client
+        echo "✅ next-artifacts.tgz 압축 해제 완료"
+
+      # ✅ kr 도입을 위해 추가 --build-arg CDN_URL=${{ env.CDN_URL }} \
+    - name: Build and push Next.js runtime image
       run: |
         docker build \
-          --build-arg NEXT_PUBLIC_API_BASE_URL=${{ secrets.PROD_API_BASE_URL }} \
+          --build-arg SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
+          --build-arg NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
+          --build-arg CDN_URL=${{ env.CDN_URL }} \
           -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
           -f ./togather-client/Dockerfile ./togather-client
-
         docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
         docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
         docker push $ECR_REGISTRY/togather/client:latest
@@ -174,14 +242,13 @@ jobs:
         envsubst < k8s/nextjs-client.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         envsubst < k8s/ingress.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
         
-        # 나머지 리소스들 (ConfigMap, Service, Ingress 등) 배포
+        # 나머지 리소스들 (ConfigMap, Service, HPA 등) 배포
         kubectl apply -f k8s/configmap.yaml -n ${{ env.EKS_NAMESPACE }}
         kubectl apply -f k8s/configmap-env.yaml -n ${{ env.EKS_NAMESPACE }}
         kubectl apply -f k8s/redis.yaml -n ${{ env.EKS_NAMESPACE }}
         kubectl apply -f k8s/rabbitmq.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/ingress.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/nextjs-client.yaml -n ${{ env.EKS_NAMESPACE }}
-        kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}    
+        # ingress.yaml과 nextjs-client.yaml은 위에서 envsubst로 이미 배포됨
+        kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}  # 🚀 HPA 재활성화    
 
         # 5. 각 디플로이먼트에 커밋 SHA 이미지 설정 (롤아웃 트리거)
         kubectl set image deployment/api-gateway api-gateway=${{ env.ECR_REGISTRY }}/togather/api-gateway:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
@@ -190,6 +257,16 @@ jobs:
         kubectl set image deployment/pay-service pay-service=${{ env.ECR_REGISTRY }}/togather/pay-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
         kubectl set image deployment/vote-service vote-service=${{ env.ECR_REGISTRY }}/togather/vote-service:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
         kubectl set image deployment/nextjs-client nextjs-client=${{ env.ECR_REGISTRY }}/togather/client:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+
+    - name: Invalidate CloudFront Cache
+      if: github.ref == 'refs/heads/main'
+      uses: chetan/invalidate-cloudfront-action@v2
+      env:
+          DISTRIBUTION: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
+          PATHS: "/*" # 💡 모든 파일(*)을 무효화하여 즉시 변경사항 반영d
+          AWS_REGION: "us-east-1" # 인증서는 us-east-1에 있어야 하므로 명시
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     - name: Wait for deployment to complete
       if: github.ref == 'refs/heads/main'
@@ -213,10 +290,10 @@ jobs:
           kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=100 || true
         fi
         
-        # API Gateway 배포 확인
+        # API Gateway 배포 확인!!
         echo ""
         echo "🚀 API Gateway 배포 상태 확인 중..."
-        if kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=120s; then
+        if kubectl rollout status deployment/api-gateway -n ${{ env.EKS_NAMESPACE }} --timeout=240s; then
           echo "✅ API Gateway 배포 성공"
           SUCCESS_SERVICES="$SUCCESS_SERVICES api-gateway"
         else
@@ -340,7 +417,7 @@ jobs:
       if: github.ref == 'refs/heads/main'
       run: |
         echo "🔥 Next.js 클라이언트 Prewarming 시작..."
-        SITE_URL="https://투게더.store"
+        SITE_URL="https://xn--o79aq2k062a.store"
         
         # 배포 완료 대기 (최대 2분)
         echo "⏳ Next.js 클라이언트 준비 대기 중..."

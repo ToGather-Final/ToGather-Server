@@ -6,7 +6,12 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2  # 🚀 2-Node 환경: 고가용성 보장
+  replicas: 2  # 🚀 전용 노드 고가용성 (API Gateway + Redis)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2         # 일시적으로 +2개 허용 (총 5개)
+      maxUnavailable: 1   # 최소 1개 유지 (가용성 보장)
   selector:
     matchLabels:
       app: api-gateway
@@ -73,26 +78,34 @@ spec:
             - secretRef:
                 name: togather-secrets
           resources:
-            requests:
-              memory: "256Mi"
-              cpu: "150m"
-            limits:
-              memory: "768Mi"
-              cpu: "600m"
-          livenessProbe:
+              requests:
+                memory: "300Mi"  # 🚀 전용 노드 최적화 (실제 사용량 기반)
+                cpu: "150m"      # 🚀 CPU 요청 최적화
+              limits:
+                memory: "1024Mi"  # 🚀 메모리 제한 최적화
+                cpu: "600m"      # 🚀 CPU 제한 최적화
+          startupProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8000
             initialDelaySeconds: 60
-            periodSeconds: 10
+            periodSeconds: 15
             timeoutSeconds: 5
-            failureThreshold: 3
+            failureThreshold: 10
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8000
-            initialDelaySeconds: 45
-            periodSeconds: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8000
+            initialDelaySeconds: 90
+            periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 3
 ---

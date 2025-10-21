@@ -8,34 +8,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: api-gateway
-  minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지
-  maxReplicas: 3  # 🚀 최대 4개까지 확장 가능
+  minReplicas: 2  # 🚀 전용 노드 고가용성 (API Gateway + Redis)
+  maxReplicas: 4  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 120  # 🚀 안정화 시간 증가
       policies:
         - type: Percent
-          value: 100
+          value: 50  # 🚀 50%씩 점진적 확장
           periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 600  # 🚀 축소 안정화 시간 증가
       policies:
         - type: Percent
-          value: 50
-          periodSeconds: 120
+          value: 25  # 🚀 25%씩 점진적 축소
+          periodSeconds: 180
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -47,34 +47,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: user-service
-  minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지
-  maxReplicas: 3  # 🚀 최대 4개까지 확장 가능
+  minReplicas: 1  # 🚀 전용 노드 단일 Pod (Trading + User Service)
+  maxReplicas: 2  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 120
       policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 600
       policies:
-      - type: Percent
-        value: 50
-        periodSeconds: 120
+        - type: Percent
+          value: 25
+          periodSeconds: 180
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -86,34 +86,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: trading-service
-  minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지
-  maxReplicas: 3  # 🚀 최대 4개까지 확장 가능
+  minReplicas: 2  # 🚀 전용 노드 고가용성 (Trading + User Service)
+  maxReplicas: 4  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 120
       policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 600
       policies:
-      - type: Percent
-        value: 50
-        periodSeconds: 120
+        - type: Percent
+          value: 25
+          periodSeconds: 180
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -125,34 +125,34 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: pay-service
-  minReplicas: 1
-  maxReplicas: 1
+  minReplicas: 1  # 🚀 전용 노드 단일 Pod (Pay + Vote + RabbitMQ)
+  maxReplicas: 2  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 120
       policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 600
       policies:
-      - type: Percent
-        value: 50
-        periodSeconds: 120
+        - type: Percent
+          value: 25
+          periodSeconds: 180
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -164,70 +164,45 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: vote-service
-  minReplicas: 1
-  maxReplicas: 1
+  minReplicas: 1  # 🚀 전용 노드 단일 Pod (Pay + Vote + RabbitMQ)
+  maxReplicas: 2  # 🚀 t3.large 4개 노드 최적화
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 80  # 🚀 80%로 설정 (넉넉하게)
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 90
+          averageUtilization: 85  # 🚀 85%로 설정 (넉넉하게)
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 120
       policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
     scaleDown:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 600
       policies:
-      - type: Percent
-        value: 50
-        periodSeconds: 120
+        - type: Percent
+          value: 25
+          periodSeconds: 180
 ---
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: nextjs-client-hpa
-  namespace: togather
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: nextjs-client
-  minReplicas: 2  # 🚀 2-Node 환경: 최소 2개 유지 (Always-On)
-  maxReplicas: 3  # 🚀 최대 4개까지 확장 가능
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 90
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 90
-  behavior:
-    scaleUp:
-      stabilizationWindowSeconds: 60
-      policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 60
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-      - type: Percent
-        value: 50
-        periodSeconds: 120
+# 🚀 Next.js 클라이언트 HPA 비활성화 (단일 Pod 고정)
+# apiVersion: autoscaling/v2
+# kind: HorizontalPodAutoscalerㄴ
+# metadata:
+#   name: nextjs-client-hpa
+#   namespace: togather
+# spec:
+#   scaleTargetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: nextjs-client
+#   minReplicas: 1  # 🚀 단일 Pod 고정
+#   maxReplicas: 1  # 🚀 단일 Pod 고정

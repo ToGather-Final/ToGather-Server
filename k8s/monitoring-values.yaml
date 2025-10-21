@@ -1,0 +1,56 @@
+# ===== Prometheus Operator + Prometheus + Alertmanager + exporters 통합 차트 설정 =====
+# EKS에서는 control-plane 컴포넌트(Etcd/Scheduler/ControllerManager)는 접근 불가하므로 비활성화
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+
+# Prometheus 설정
+prometheus:
+  prometheusSpec:
+    retention: 15d           # 보관 기간 (필요에 맞게 조정)
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1500Mi"
+      limits:
+        cpu: "1500m"
+        memory: "3Gi"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          storageClassName: gp3       # EKS 기본 gp3 (클러스터에 맞게)
+          resources:
+            requests:
+              storage: 50Gi
+
+# Alertmanager(선택) — 기본만
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "200Mi"
+
+# kube-state-metrics / node-exporter는 기본 활성화라 그대로 사용
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "150Mi"
+nodeExporter:
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "50Mi"
+
+# Grafana — kube-prometheus-stack 안에 번들된 Grafana를 같이 쓸 수도 있지만
+# 별도 Grafana 차트를 쓰려면 여기서는 비활성화 가능
+grafana:
+  enabled: false
+

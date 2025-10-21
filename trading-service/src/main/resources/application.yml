@@ -196,4 +196,13 @@ kis:
   appsecret: ${KIS_APPSECRET:}
 
 pay-service:
-  url: ${PAY_SERVICE_URL:http://localhost:8083}
+  url: ${PAY_SERVICE_URL:http://pay-service:8080}
+
+app:
+  services:
+    user-service:
+      url: ${USER_SERVICE_URL:http://user-service:8080}
+
+# 서비스 URL 설정
+vote-service:
+  url: ${VOTE_SERVICE_URL:http://vote-service:8080}

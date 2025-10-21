@@ -6,7 +6,12 @@ metadata:
   labels:
     app: trading-service
 spec:
-  replicas: 2  # 🚀 2-Node 환경: 고가용성 보장
+  replicas: 2  # 🚀 전용 노드 고가용성 (Trading + User Service)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2         # 일시적으로 +2개 허용 (총 5개)
+      maxUnavailable: 1   # 최소 1개 유지 (가용성 보장)
   selector:
     matchLabels:
       app: trading-service
@@ -49,25 +54,33 @@ spec:
               name: togather-secrets
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "150m"
+            memory: "400Mi"  # 🚀 전용 노드 최적화 (실제 사용량 기반)
+            cpu: "200m"      # 🚀 CPU 요청 최적화
           limits:
-            memory: "768Mi"
-            cpu: "600m"
+            memory: "800Mi"  # 🚀 메모리 제한 최적화
+            cpu: "400m"      # 🚀 CPU 제한 최적화
+        startupProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
         livenessProbe:
           httpGet:
-            path: /actuator/health
+            path: /actuator/health/liveness
             port: 8080
           initialDelaySeconds: 90
           periodSeconds: 20
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
 ---

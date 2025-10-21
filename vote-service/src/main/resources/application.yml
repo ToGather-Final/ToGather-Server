@@ -156,3 +156,12 @@ user-service:
   url: ${USER_SERVICE_URL:http://user-service:8080}
 trading-service:
   url: ${TRADING_SERVICE_URL:http://trading-service:8080}
+
+# Feign 클라이언트 설정
+feign:
+  client:
+    config:
+      default:
+        loggerLevel: FULL
+        connectTimeout: 5000
+        readTimeout: 10000

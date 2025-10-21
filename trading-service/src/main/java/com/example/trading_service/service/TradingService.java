@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.trading_service.util.AccountNumberGenerator;
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -298,24 +297,12 @@ public class TradingService {
         
         // 간단한 차트 데이터 조회 (80일)
         List<ChartData> chartData = chartService.getStockChart(stockCode, 80);
-        
-        // 기존 형식으로 변환 (date, volume 필드명)
-        List<SimpleChartData> convertedChartData = chartData.stream()
-                .map(data -> new SimpleChartData(
-                    data.getTime(),           // time → date
-                    data.getOpen(),
-                    data.getHigh(),
-                    data.getLow(),
-                    data.getClose(),
-                    data.getTrading_volume()  // trading_volume → volume
-                ))
-                .collect(Collectors.toList());
 
         return StockInfoResponse.builder()
                 .stockId(stock.getId().toString())
                 .stockCode(stock.getStockCode())
                 .stockName(stock.getStockName())
-                .market(stock.getMarket().name())
+                .market("KOSPI") // TODO: 실제 시장 정보로 변경
                 .currentPrice(priceInfo.getCurrentPrice())
                 .changeAmount(priceInfo.getChangePrice())
                 .changeRate(priceInfo.getChangeRate())
@@ -327,7 +314,7 @@ public class TradingService {
                 .openPrice(priceInfo.getOpenPrice())
                 .prevClosePrice(priceInfo.getPrevClosePrice())
                 .marketCap(null) // TODO: 시가총액 계산 로직 추가
-                .chartData(convertedChartData)
+                .chartData(chartData)
                 .resistanceLine(calculateResistanceLine(chartData))
                 .supportLine(calculateSupportLine(chartData))
                 .build();
@@ -349,7 +336,7 @@ public class TradingService {
                 .stockId(stock.getId().toString())
                 .stockCode(stock.getStockCode())
                 .stockName(stock.getStockName())
-                .market(stock.getMarket().name())
+                .market("KOSPI") // TODO: 실제 시장 정보로 변경
                 .currentPrice(priceInfo.getCurrentPrice())
                 .changeAmount(priceInfo.getChangePrice())
                 .changeRate(priceInfo.getChangeRate())
@@ -360,7 +347,7 @@ public class TradingService {
                 .lowPrice(priceInfo.getLowPrice())
                 .openPrice(priceInfo.getOpenPrice())
                 .prevClosePrice(priceInfo.getPrevClosePrice())
-                .marketCap(null)
+                .marketCap(null) // TODO: 시가총액 계산 로직 추가
                 .chartData(chartData)
                 .resistanceLine(calculateResistanceLine(chartData))
                 .supportLine(calculateSupportLine(chartData))
@@ -666,7 +653,7 @@ public class TradingService {
                     stock.getId(),
                     stock.getStockCode(),
                     stock.getStockName(),
-                    stock.getMarket().name(),
+                    "KOSPI", // 시장 정보
                     currentPrice,
                     changeAmount,
                     changeRate,
@@ -695,7 +682,7 @@ public class TradingService {
                 stock.getId(),
                 stock.getStockCode(),
                 stock.getStockName(),
-                stock.getMarket().name(),
+                "KOSPI",
                 0.0f, 0.0f, 0.0f, "unchanged",
                 0L, 0.0f, 0.0f, 0.0f, 0.0f, null,
                 List.of(), 0.0f, 0.0f

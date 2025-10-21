@@ -6,7 +6,12 @@ metadata:
   labels:
     app: vote-service
 spec:
-  replicas: 1
+  replicas: 1  # 🚀 전용 노드 단일 Pod (Pay + Vote + RabbitMQ)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1         # 일시적으로 +1개 허용 (총 2개)
+      maxUnavailable: 0   # 최소 1개 유지 (가용성 보장)
   selector:
     matchLabels:
       app: vote-service
@@ -45,25 +50,33 @@ spec:
               name: togather-secrets
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "150m"
+            memory: "300Mi"  # 🚀 전용 노드 최적화 (실제 사용량 기반)
+            cpu: "150m"      # 🚀 CPU 요청 최적화
           limits:
-            memory: "768Mi"
-            cpu: "600m"
+            memory: "600Mi"  # 🚀 메모리 제한 최적화
+            cpu: "300m"      # 🚀 CPU 제한 최적화
+        startupProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
         livenessProbe:
           httpGet:
-            path: /actuator/health
+            path: /actuator/health/liveness
             port: 8080
           initialDelaySeconds: 90
           periodSeconds: 20
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
 ---

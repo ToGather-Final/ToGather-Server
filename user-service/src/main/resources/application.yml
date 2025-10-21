@@ -131,9 +131,14 @@ spring:
         format_sql: true
   logging:
     level:
-      com.example.user_service: INFO
+      org.springframework.web.reactive.function.client.ExchangeFunctions: DEBUG
+      reactor.netty.http.client: DEBUG
+#      com.example.user_service: INFO
 
 server:
   port: 8080
+
+trading-service:
+  url: ${TRADING_SERVICE_URL:http://trading-service:8080}
 
 # JWT 설정은 module-common의 app.jwt.* 를 사용
