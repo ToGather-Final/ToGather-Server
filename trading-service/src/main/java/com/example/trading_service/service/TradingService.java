@@ -1,6 +1,7 @@
 package com.example.trading_service.service;
 
 import com.example.module_common.dto.InvestmentAccountDto;
+import com.example.module_common.dto.TransferToPayResponse;
 import com.example.module_common.dto.pay.PayRechargeRequest;
 import com.example.module_common.dto.pay.PayRechargeResponse;
 import com.example.module_common.dto.vote.VoteTradingRequest;
@@ -753,6 +754,41 @@ public class TradingService {
         return trades.stream()
                 .map(this::convertToTradeHistoryResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public TransferToPayResponse transferToPay(UUID userId, Long amount, UUID transferId) {
+        log.info("투자계좌에서 페이계좌로 송금 시작: userId={}, amount={}, transferId={}", userId, amount, transferId);
+
+        try {
+            InvestmentAccount account = investmentAccountRepository.findByUserId(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("투자계좌를 찾을 수 없습니다."));
+
+            BalanceCache balance = balanceCacheRepository.findByAccountId(account.getInvestmentAccountId())
+                    .orElseThrow(() -> new IllegalArgumentException("잔액 정보를 찾을 수 없습니다."));
+
+            if (amount > Integer.MAX_VALUE) {
+                return TransferToPayResponse.failure("송금 금액이 너무 큽니다.");
+            }
+
+            int amountInt = amount.intValue();
+
+            if (balance.getBalance() < amountInt) {
+                return TransferToPayResponse.failure("잔액이 부족합니다.");
+            }
+
+            int newBalance = balance.getBalance() - amountInt;
+            balance.setBalance(newBalance);
+            balanceCacheRepository.save(balance);
+
+            log.info("투자계좌에서 송금 성공: userId={}, amount={}, balanceAfter={}",
+                    userId, amount, balance.getBalance());
+
+            return TransferToPayResponse.success((long) newBalance);
+        } catch (Exception e) {
+            log.error("투자계좌에서 송금 실패: userId={}, amount={}, error={}", userId, amount, e.getMessage());
+            return TransferToPayResponse.failure(e.getMessage());
+        }
     }
 
     // 저항선 계산

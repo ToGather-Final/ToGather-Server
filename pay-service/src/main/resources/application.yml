@@ -113,6 +113,12 @@ spring:
 server:
   port: 8083
 
+app:
+  trading-service:
+    url: http://localhost:8000/api/trading
+  user-service:
+    url: http://localhost:8000/api/users
+
 ---
 # ===============================================
 # 🚀 (3) main 프로파일: 운영 환경 전용 설정

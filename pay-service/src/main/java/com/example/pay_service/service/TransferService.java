@@ -1,8 +1,12 @@
 package com.example.pay_service.service;
 
+import com.example.module_common.dto.InvestmentAccountDto;
+import com.example.module_common.dto.TransferToPayResponse;
 import com.example.module_common.dto.pay.PayRechargeRequest;
 import com.example.module_common.dto.pay.PayRechargeResponse;
+import com.example.pay_service.client.TradingServiceClient;
 import com.example.pay_service.domain.*;
+import com.example.pay_service.exception.InsufficientFundsException;
 import com.example.pay_service.exception.PayServiceException;
 import com.example.pay_service.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +30,7 @@ public class TransferService {
     private final PayAccountRepository payAccountRepository;
     private final PayAccountLedgerRepository payAccountLedgerRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
+    private final TradingServiceClient tradingServiceClient;
 
     @Transactional
     public PayRechargeResponse executeTransfer(PayRechargeRequest request, UUID userId, UUID groupId) {
@@ -39,11 +44,14 @@ public class TransferService {
             }
         }
 
+        InvestmentAccountDto userInvestmentAccount = tradingServiceClient.getAccountByUserId(userId);
+        UUID fromAccountId = userInvestmentAccount.getInvestmentAccountId();
+
         PayAccount toAccount = payAccountRepository.findGroupPayAccountByGroupId(groupId)
                 .orElseThrow(() -> new PayServiceException("GROUP_PAY_ACCOUNT_NOT_FOUND", "그룹 페이 계좌를 찾을 수 없습니다."));
 
         Transfer transfer = Transfer.create(
-                null,
+                fromAccountId,
                 toAccount.getId(),
                 request.amount(),
                 request.clientRequestId()
@@ -51,6 +59,16 @@ public class TransferService {
         transferRepository.save(transfer);
 
         try {
+            TransferToPayResponse tradingResponse = tradingServiceClient.transferToPay(
+                    userId,
+                    request.amount(),
+                    transfer.getId()
+            );
+
+            if (!"SUCCESS".equals(tradingResponse.status())) {
+                throw new PayServiceException("TRADING_TRANSFER_FAILED", tradingResponse.status());
+            }
+
             PayAccount updatedToAccount = PayAccount.builder()
                     .id(toAccount.getId())
                     .ownerUserId(toAccount.getOwnerUserId())
@@ -64,24 +82,18 @@ public class TransferService {
             payAccountRepository.save(updatedToAccount);
             transferRepository.save(transfer);
 
-            PayAccountLedger ledgerEntry = PayAccountLedger.builder()
+            PayAccountLedger toLedger = PayAccountLedger.builder()
                     .payAccountId(toAccount.getId())
                     .transactionType(TransactionType.TRANSFER_IN)
                     .amount(request.amount())
-                    .balanceAfter(updatedToAccount.getBalance())
-                    .description("페이머니 충전")
+                    .balanceAfter(toAccount.getBalance())
+                    .description("투자계좌에서 그룹 페이계좌로 송금")
                     .relatedTransferId(transfer.getId())
                     .build();
 
-            payAccountLedgerRepository.save(ledgerEntry);
+            payAccountLedgerRepository.save(toLedger);
 
-            if (request.clientRequestId() != null) {
-                IdempotencyKey idempotencyKey = IdempotencyKey.create(request.clientRequestId(), toAccount.getId());
-                idempotencyKey.markAsUsed(transfer.getId());
-                idempotencyKeyRepository.save(idempotencyKey);
-            }
-
-            log.info("페이머니 충전 성공: transferId={}, amount={}",transfer.getId(), request.amount());
+            log.info("페이머니 충전 성공: transferId={}, amount={}", transfer.getId(), request.amount());
             return createTransferResponse(transfer, updatedToAccount.getBalance());
 
         } catch (Exception e) {
