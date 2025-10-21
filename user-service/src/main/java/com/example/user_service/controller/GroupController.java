@@ -181,7 +181,7 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new InvitationCodeResponse(code));
     }
 
-    @Operation(summary = "목표 금액 수정", description = "그룹의 목표 금액을 수정합니다. (그룹장만 가능)")
+    @Operation(summary = "목표 금액 수정", description = "그룹의 목표 금액을 수정합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "목표 금액 수정 성공"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
