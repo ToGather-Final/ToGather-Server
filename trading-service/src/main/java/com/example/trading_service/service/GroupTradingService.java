@@ -595,7 +595,21 @@ public class GroupTradingService {
         
         for (GroupHoldingCache holding : groupHoldings) {
             totalInvested += holding.getAvgCost() * holding.getTotalQuantity();
-            totalValue += holding.getEvaluatedPrice() != null ? holding.getEvaluatedPrice() : 0;
+            
+            // evaluatedPrice가 null이거나 0이면 실시간으로 계산
+            Float evaluatedPrice = holding.getEvaluatedPrice();
+            if (evaluatedPrice == null || evaluatedPrice == 0) {
+                try {
+                    OrderBookResponse orderBook = orderBookService.getOrderBook(holding.getStock().getStockCode());
+                    evaluatedPrice = orderBook.getCurrentPrice() * holding.getTotalQuantity();
+                    log.info("💰 실시간 evaluatedPrice 계산: {}원 ({} × {})", 
+                            evaluatedPrice, orderBook.getCurrentPrice(), holding.getTotalQuantity());
+                } catch (Exception e) {
+                    log.warn("⚠️ 실시간 가격 조회 실패, 평균 매입가로 대체: {}", e.getMessage());
+                    evaluatedPrice = holding.getAvgCost() * holding.getTotalQuantity();
+                }
+            }
+            totalValue += evaluatedPrice != null ? evaluatedPrice : 0;
         }
         
         float totalProfit = totalValue - totalInvested;
