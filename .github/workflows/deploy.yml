@@ -104,7 +104,7 @@ jobs:
 
         # ✅ 빌드 산출물 아티팩트로 보관 (Docker와 S3에서 동일 빌드 사용)
         cd ..
-        tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public
+        tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static .next/server public
         echo "✅ next-artifacts.tgz 생성 완료"
 
         # ✅ 정적 자산 업로드 및 CDN 무효화
@@ -135,11 +135,13 @@ jobs:
         tar -xzf ./togather-client/next-artifacts.tgz -C ./togather-client
         echo "✅ next-artifacts.tgz 압축 해제 완료"
 
+      # ✅ kr 도입을 위해 추가 --build-arg CDN_URL=${{ env.CDN_URL }} \
     - name: Build and push Next.js runtime image
       run: |
         docker build \
           --build-arg SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
           --build-arg NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
+          --build-arg CDN_URL=${{ env.CDN_URL }} \
           -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
           -f ./togather-client/Dockerfile ./togather-client
         docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
