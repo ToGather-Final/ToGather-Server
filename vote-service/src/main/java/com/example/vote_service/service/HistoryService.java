@@ -472,8 +472,9 @@ public class HistoryService {
             );
 
             // 제목 생성
-            String title = String.format("%s %.1f주 %d원 %s 실패",
-                request.getStockName(), request.getQuantity(), (int)request.getPrice().floatValue(), 
+            float totalAmount = request.getPrice().floatValue() * request.getQuantity();
+            String title = String.format("%s %.1f주 %.0f원 %s 실패",
+                request.getStockName(), request.getQuantity(), totalAmount,
                 request.getSide().equals("BUY") ? "매수" : "매도"
             );
 
