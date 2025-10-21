@@ -59,6 +59,11 @@ public class NotificationService {
      */
     public void sendHistoryNotification(UUID groupId, String message, String historyType) {
         try {
+            // VOTE_EXPIRED 특별 로그
+            if ("VOTE_EXPIRED".equals(historyType)) {
+                log.info("⏰ VOTE_EXPIRED 알림 전송 시작 - groupId: {}, message: {}", groupId, message);
+            }
+            
             // 그룹 멤버들 조회
             List<UUID> groupMemberIds = groupMembersRepository.findUserIdsByGroupId(groupId);
             
@@ -100,6 +105,12 @@ public class NotificationService {
             
             log.info("📊 히스토리 알림 전송 완료 - groupId: {}, 전송: {}개, 실패: {}개, 그룹멤버: {}명, 온라인: {}명", 
                     groupId, sentCount, failedCount, groupMemberIds.size(), userEmitters.size());
+            
+            // VOTE_EXPIRED 특별 로그
+            if ("VOTE_EXPIRED".equals(historyType)) {
+                log.info("⏰ VOTE_EXPIRED 알림 전송 완료 - groupId: {}, 전송: {}개, 실패: {}개", 
+                        groupId, sentCount, failedCount);
+            }
                     
         } catch (Exception e) {
             log.error("💥 히스토리 알림 전송 중 오류 - groupId: {}, error: {}", groupId, e.getMessage(), e);

@@ -520,7 +520,7 @@ public class HistoryService {
     public void createVoteExpiredHistory(UUID groupId, UUID proposalId, String proposalName) {
         try {
             String title = "투표가 종료되었습니다";
-            String payload = String.format("{\"proposalId\":\"%s\",\"proposalName\":\"%s\",\"reason\":\"마감시간\"}",
+            String payload = String.format("{\"proposalId\":\"%s\",\"proposalName\":\"%s\",\"reason\":\"마감 시간이 되어 투표가 종료되었습니다.\"}",
                     proposalId, proposalName);
 
             History history = History.create(
@@ -532,9 +532,15 @@ public class HistoryService {
             );
 
             historyRepository.save(history);
-            log.info("투표 종료 히스토리 생성 완료 - groupId: {}, proposalId: {}", groupId, proposalId);
+            
+            // 🔥 히스토리 생성 이벤트 발행 - 자동으로 알림 전송됨
+            eventPublisher.publishEvent(new HistoryCreatedEvent(history));
+            
+            log.info("⏰ 투표 종료 히스토리 생성 완료 - groupId: {}, proposalId: {}, historyId: {}", 
+                    groupId, proposalId, history.getHistoryId());
+            log.info("📢 VOTE_EXPIRED 알림 이벤트 발행됨 - groupId: {}", groupId);
         } catch (Exception e) {
-            log.error("투표 종료 히스토리 생성 실패 - groupId: {}, proposalId: {}, error: {}",
+            log.error("❌ 투표 종료 히스토리 생성 실패 - groupId: {}, proposalId: {}, error: {}",
                     groupId, proposalId, e.getMessage(), e);
         }
     }
