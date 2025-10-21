@@ -91,25 +91,45 @@ jobs:
     - name: Build Next.js Client and upload static assets
       run: |
         cd togather-client
-        # 빌드 시 CDN_URL 고정 (슬래시 제거)
         export CDN_URL_CLEAN=$(echo "${{ env.CDN_URL }}" | sed 's:/*$::')
-        echo "Using CDN_URL=$CDN_URL_CLEAN"
+        echo "🛰 Using CDN_URL=$CDN_URL_CLEAN"
         
         pnpm install --frozen-lockfile
-        # 🚀 API 엔드포인트 환경변수 설정
-        CDN_URL=$CDN_URL_CLEAN NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store pnpm run build
         
+        # ✅ Next.js 빌드 (단 1회)
         SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
         NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
         CDN_URL=$CDN_URL_CLEAN pnpm run build
-    
-        # 정적 자산 업로드: 반드시 _next/static/* 경로 유지
-        # (upload-assets 스크립트가 .next/static을 그대로 S3 루트에 _next/static/ 로 올리게 하세요)
-        pnpm run upload-assets
         
-        # 빌드 산출물을 아티팩트로 보관 (Docker 단계에서 사용)
-        cd ..
-        tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public
+        # ✅ 빌드 완료 대기 (파일 flush 보장)
+        echo "⏳ Waiting for build to fully flush..."
+        sleep 3
+        
+        # ✅ 정적 자산 업로드 및 CDN 무효화
+        pnpm run upload-assets
+#    - name: Build Next.js Client and upload static assets
+#      run: |
+#        cd togather-client
+#        # 빌드 시 CDN_URL 고정 (슬래시 제거)
+#        export CDN_URL_CLEAN=$(echo "${{ env.CDN_URL }}" | sed 's:/*$::')
+#        echo "Using CDN_URL=$CDN_URL_CLEAN"
+#
+#        pnpm install --frozen-lockfile
+#        # 🚀 API 엔드포인트 환경변수 설정
+#        CDN_URL=$CDN_URL_CLEAN NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store pnpm run build
+#
+#        SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
+#        NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
+#        CDN_URL=$CDN_URL_CLEAN pnpm run build
+#
+#        # 정적 자산 업로드: 반드시 _next/static/* 경로 유지
+#        # (upload-assets 스크립트가 .next/static을 그대로 S3 루트에 _next/static/ 로 올리게 하세요)
+#        pnpm run upload-assets
+#
+#        # 빌드 산출물을 아티팩트로 보관 (Docker 단계에서 사용)
+#        cd ..
+#        tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public
+
       env:
         CDN_URL: ${{ env.CDN_URL }}
         S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
