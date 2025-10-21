@@ -32,13 +32,13 @@ public class OrderBookService {
 
         // 1. Redis WebSocket 캐시에서 먼저 조회
         Object cachedOrderBook = redisCacheService.getCachedWebSocketOrderBook(stockCode);
-        log.info("🔍 Redis 캐시 조회 결과 - 종목코드: {}, 캐시 존재: {}", 
+        log.debug("🔍 Redis 캐시 조회 결과 - 종목코드: {}, 캐시 존재: {}", 
                 stockCode, cachedOrderBook != null);
         
         if (cachedOrderBook instanceof OrderBookResponse) {
             OrderBookResponse orderBook = (OrderBookResponse) cachedOrderBook;
             if (!orderBook.getAskPrices().isEmpty()) {
-                log.info("🚀 Redis WebSocket 캐시에서 호가 데이터 반환: {} (매도: {}, 매수: {})", 
+                log.debug("🚀 Redis WebSocket 캐시에서 호가 데이터 반환: {} (매도: {}, 매수: {})", 
                         stockCode, orderBook.getAskPrices().size(), orderBook.getBidPrices().size());
                 
                 // 실제 현재가를 Redis 캐시에서 가져와서 새 객체 생성 (호가 중간값 대신 실제 거래가 사용)
