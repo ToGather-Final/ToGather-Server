@@ -22,6 +22,12 @@ public interface TradeRepository extends JpaRepository<Trade, UUID> {
     // 특정 종목의 체결 내역 조회
     @Query("SELECT t FROM Trade t JOIN t.order o WHERE o.investmentAccount.investmentAccountId = :accountId AND o.stock.id = :stockId ORDER BY t.createdAt DESC")
     List<Trade> findByInvestmentAccountIdAndStockId(@Param("accountId") UUID accountId, @Param("stockId") UUID stockId);
+
+    @Query("SELECT t FROM Trade t JOIN FETCH t.order o JOIN FETCH o.stock s WHERE o.investmentAccount.investmentAccountId = :accountId ORDER BY t.createdAt DESC")
+    List<Trade> findByInvestmentAccountIdWithOrderAndStock(@Param("accountId") UUID accountId);
+
+    @Query("SELECT t FROM Trade t JOIN FETCH t.order o JOIN FETCH o.stock s WHERE o.investmentAccount.investmentAccountId = :accountId AND o.stock.id = :stockId ORDER BY t.createdAt DESC")
+    List<Trade> findByInvestmentAccountIdAndStockIdWithOrderAndStock(@Param("accountId") UUID accountId, @Param("stockId") UUID stockId);
 }
 
 

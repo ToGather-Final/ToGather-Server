@@ -33,6 +33,11 @@ public class HistoryEventListener {
         log.info("🔔 히스토리 생성 감지 - historyId: {}, type: {}, groupId: {}", 
                 history.getHistoryId(), history.getHistoryType(), history.getGroupId());
         
+        // VOTE_EXPIRED 특별 로그
+        if (history.getHistoryType() == HistoryType.VOTE_EXPIRED) {
+            log.info("⏰ VOTE_EXPIRED 히스토리 감지됨 - 알림 전송 시작");
+        }
+        
         try {
             // 알림 메시지 생성
             String message = createNotificationMessage(history);
@@ -70,6 +75,9 @@ public class HistoryEventListener {
                 return "✅ 투표가 가결되었습니다.";
             case VOTE_REJECTED:
                 return "❌ 투표가 부결되었습니다.";
+            case VOTE_EXPIRED:
+                log.info("⏰ VOTE_EXPIRED 알림 메시지 생성: '투표가 종료되었습니다.'");
+                return "⏰ 투표가 종료되었습니다.";
             case TRADE_EXECUTED:
                 return "💰 거래가 체결되었습니다.";
             case TRADE_FAILED:

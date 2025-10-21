@@ -467,9 +467,8 @@ public class GroupTradingService {
         log.info("그룹 보유종목 조회 - 그룹ID: {}", groupId);
         
         // 그룹의 보유 수량이 0보다 큰 종목들만 조회
-        List<GroupHoldingCache> groupHoldings = groupHoldingCacheRepository
-                .findByGroupIdAndTotalQuantityGreaterThan(groupId, 0);
-        
+        List<GroupHoldingCache> groupHoldings = groupHoldingCacheRepository.findByGroupIdAndTotalQuantityGreaterThanWithStock(groupId, 0);
+
         List<GroupHoldingResponse> responses = new ArrayList<>();
         
         for (GroupHoldingCache holding : groupHoldings) {
@@ -605,13 +604,12 @@ public class GroupTradingService {
         float totalProfit = totalValue - totalInvested;
         float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
         
-        // 상위 5개 보유 종목
+        // 모든 보유 종목 (평가금액 기준 내림차순 정렬)
         List<HoldingResponse> topHoldings = groupHoldings.stream()
                 .sorted((h1, h2) -> Float.compare(
                     (h2.getEvaluatedPrice() != null ? h2.getEvaluatedPrice() : 0),
                     (h1.getEvaluatedPrice() != null ? h1.getEvaluatedPrice() : 0)
                 ))
-                .limit(5)
                 .map(holding -> convertToHoldingResponse(holding))
                 .collect(Collectors.toList());
         

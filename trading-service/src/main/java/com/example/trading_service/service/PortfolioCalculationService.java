@@ -105,13 +105,12 @@ public class PortfolioCalculationService {
         float totalProfit = totalValue - totalInvested;
         float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
         
-        // 상위 5개 보유 종목
+        // 모든 보유 종목 (평가금액 기준 내림차순 정렬)
         List<HoldingResponse> topHoldings = holdings.stream()
                 .sorted((h1, h2) -> Float.compare(
                     (h2.getEvaluatedPrice() != null ? h2.getEvaluatedPrice() : 0),
                     (h1.getEvaluatedPrice() != null ? h1.getEvaluatedPrice() : 0)
                 ))
-                .limit(5)
                 .map(this::convertToHoldingResponse)
                 .collect(Collectors.toList());
         
