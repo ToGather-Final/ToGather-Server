@@ -68,6 +68,10 @@ spring:
 jwt:
   secret-key: ${JWT_SECRET_KEY}
 
+# 서비스 URL 설정
+vote-service:
+  url: ${VOTE_SERVICE_URL:http://localhost:8084}
+
 springdoc:
   api-docs:
     enabled: true
@@ -93,7 +97,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
-    show-sql: true # SQL 로그 활성화
+    show-sql: false # SQL 로그 비활성화
   logging:
     level:
       com.example.trading_service: DEBUG
@@ -115,6 +119,11 @@ pay-service:
   url: ${PAY_SERVICE_URL:http://localhost:8083}
 user-service:
   url: ${USER_SERVICE_URL:http://localhost:8082}
+
+app:
+  services:
+    user-service:
+      url: ${USER_SERVICE_URL:http://localhost:8082}
 
 ---
 # ===============================================
@@ -151,4 +160,4 @@ kis:
   appsecret: ${KIS_APPSECRET:}
 
 pay-service:
-  url: ${PAY_SERVICE_URL:http://pay-service:8080}
+  url: ${PAY_SERVICE_URL:http://localhost:8083}

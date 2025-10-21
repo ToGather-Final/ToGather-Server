@@ -1,11 +1,13 @@
 package com.example.trading_service.service;
 
+import com.example.trading_service.client.VoteServiceClient;
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.*;
 import com.example.trading_service.exception.*;
 import com.example.trading_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,10 +28,16 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final StockRepository stockRepository;
     private final TradeExecutionService tradeExecutionService;
+    private final VoteServiceClient voteServiceClient;
     // private final HistoryRepository historyRepository; // 히스토리 기능 주석
 
-    // 주식 매수 주문
+    // 주식 매수 주문 (개인 거래)
     public Order buyStock(UUID userId, BuyRequest request) {
+        return buyStock(userId, request, null);
+    }
+
+    // 주식 매수 주문 (그룹 거래 포함)
+    public Order buyStock(UUID userId, BuyRequest request, UUID groupId) {
         // 투자 계좌 조회
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
@@ -47,42 +55,10 @@ public class OrderService {
         BigDecimal totalAmount = request.getPrice().multiply(BigDecimal.valueOf(request.getQuantity()));
         
         if (balance.getBalance() < totalAmount.floatValue()) {
-            // History 테이블에 거래 실패 히스토리 저장 (주석)
-            /*
-            try {
-                // TODO: 그룹 ID를 어떻게 가져올지 결정 필요 (현재는 임시로 null 처리)
-                UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
-
-                if (tempGroupId != null) {
-                    String payload = String.format(
-                        "{\"side\":\"BUY\",\"stockName\":\"%s\",\"reason\":\"잔고부족\"}",
-                        stock.getStockName()
-                    );
-
-                    String title = String.format("%s %d주 %d원 매수 실패",
-                        stock.getStockName(),
-                        request.getQuantity(),
-                        request.getPrice().intValue()
-                    );
-
-                    History history = History.create(
-                        tempGroupId,
-                        HistoryCategory.TRADE,
-                        HistoryType.TRADE_FAILED,
-                        title,
-                        payload
-                    );
-
-                    history.setStockId(stock.getId());
-                    historyRepository.save(history);
-
-                    log.info("거래 실패 히스토리 저장 완료 - 임시그룹ID: {}, 종목: {}, 사유: 잔고부족",
-                            tempGroupId, stock.getStockName());
-                }
-            } catch (Exception e) {
-                log.error("거래 실패 히스토리 저장 실패 - 사용자: {} - {}", userId, e.getMessage());
+            // 그룹 거래가 아닌 경우에만 개별 히스토리 저장
+            if (groupId == null) {
+                saveTradeFailedHistory(account.getUserId(), stock, request, "BUY", "잔고가 부족합니다.", groupId);
             }
-            */
             
             throw new InsufficientBalanceException(totalAmount.floatValue(), balance.getBalance());
         }
@@ -109,8 +85,13 @@ public class OrderService {
         return savedOrder;
     }
 
-    // 주식 매도 주문
+    // 주식 매도 주문 (개인 거래)
     public Order sellStock(UUID userId, SellRequest request) {
+        return sellStock(userId, request, null);
+    }
+
+    // 주식 매도 주문 (그룹 거래 포함)
+    public Order sellStock(UUID userId, SellRequest request, UUID groupId) {
         // 투자 계좌 조회
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
@@ -123,43 +104,10 @@ public class OrderService {
                 .orElseThrow(() -> new BusinessException("보유하지 않은 종목입니다", "HOLDING_NOT_FOUND"));
 
         if (holding.getQuantity() < request.getQuantity()) {
-            
-            // History 테이블에 거래 실패 히스토리 저장 (주석)
-            /*
-            try {
-                // TODO: 그룹 ID를 어떻게 가져올지 결정 필요 (현재는 임시로 null 처리)
-                UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
-                
-                if (tempGroupId != null) {
-                    String payload = String.format(
-                        "{\"side\":\"SELL\",\"stockName\":\"%s\",\"reason\":\"보유수량부족\"}",
-                        stock.getStockName()
-                    );
-                    
-                    String title = String.format("%s %d주 %d원 매도 실패",
-                        stock.getStockName(),
-                        request.getQuantity(),
-                        request.getPrice().intValue()
-                    );
-                    
-                    History history = History.create(
-                        tempGroupId,
-                        HistoryCategory.TRADE,
-                        HistoryType.TRADE_FAILED,
-                        title,
-                        payload
-                    );
-                    
-                    history.setStockId(stock.getId());
-                    historyRepository.save(history);
-                    
-                    log.info("거래 실패 히스토리 저장 완료 - 임시그룹ID: {}, 종목: {}, 사유: 보유수량부족", 
-                            tempGroupId, stock.getStockName());
-                }
-            } catch (Exception e) {
-                log.error("거래 실패 히스토리 저장 실패 - 사용자: {} - {}", userId, e.getMessage());
+            // 그룹 거래가 아닌 경우에만 개별 히스토리 저장
+            if (groupId == null) {
+                saveTradeFailedHistory(account.getUserId(), stock, request, "SELL", "보유수량이 부족합니다.", groupId);
             }
-            */
             
             throw new InsufficientHoldingException(request.getQuantity(), holding.getQuantity());
         }
@@ -299,6 +247,49 @@ public class OrderService {
             }
         } else {
             throw new BusinessException("지원하지 않는 요청 타입입니다", "UNSUPPORTED_REQUEST_TYPE");
+        }
+    }
+
+    /**
+     * 거래 실패 히스토리 저장 (비동기)
+     * 개인 거래와 그룹 거래를 구분하여 처리
+     */
+    @Async
+    public void saveTradeFailedHistory(UUID userId, Stock stock, Object request, String side, String reason, UUID groupId) {
+        try {
+            // 수량과 가격 추출
+            float quantity = 0;
+            float price = 0;
+            
+            if (request instanceof BuyRequest buyRequest) {
+                quantity = buyRequest.getQuantity();
+                price = buyRequest.getPrice().floatValue();
+            } else if (request instanceof SellRequest sellRequest) {
+                quantity = sellRequest.getQuantity();
+                price = sellRequest.getPrice().floatValue();
+            }
+
+            if (groupId != null) {
+                // 그룹 거래 실패 히스토리 저장
+                log.info("그룹 거래 실패 히스토리 저장 - 그룹: {}, 종목: {}, 사유: {}", 
+                        groupId, stock.getStockName(), reason);
+            } else {
+                // 개인 거래 실패 히스토리 저장 (임시 그룹 ID 생성)
+                groupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
+                log.info("개인 거래 실패 히스토리 저장 - 사용자: {}, 종목: {}, 사유: {}", 
+                        userId, stock.getStockName(), reason);
+            }
+
+            // vote-service에 거래 실패 히스토리 저장 요청
+            TradeFailedHistoryRequest historyRequest = new TradeFailedHistoryRequest(
+                userId, groupId, stock.getStockName(), stock.getId(), 
+                side, quantity, price, reason
+            );
+            voteServiceClient.saveTradeFailedHistory(historyRequest);
+            
+        } catch (Exception e) {
+            log.error("거래 실패 히스토리 저장 실패 - 사용자: {}, 종목: {}, 사유: {} - {}", 
+                    userId, stock.getStockName(), reason, e.getMessage());
         }
     }
 }
