@@ -15,6 +15,7 @@ public enum HistoryType {
     VOTE_CREATED_PAY,       // 페이 관련 투표 올라옴 (예수금/페이 충전)
     VOTE_APPROVED,          // 투표 가결
     VOTE_REJECTED,          // 투표 부결
+    VOTE_EXPIRED,
     
     // 매매 관련
     TRADE_EXECUTED,         // 매도/매수 완료

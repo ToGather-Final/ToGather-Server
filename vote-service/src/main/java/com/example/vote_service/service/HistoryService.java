@@ -8,6 +8,7 @@ import com.example.vote_service.repository.GroupMembersRepository;
 import com.example.vote_service.security.JwtUtil;
 import com.example.vote_service.event.HistoryCreatedEvent;
 import com.example.vote_service.client.TradingServiceClient;
+import com.example.vote_service.client.UserServiceClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,6 +43,7 @@ public class HistoryService {
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final TradingServiceClient tradingServiceClient;
+    private final UserServiceClient userServiceClient;
 
     /**
      * 투표 생성 히스토리 생성 (사용자 ID 기반)
@@ -320,12 +322,18 @@ public class HistoryService {
                     );
                     
                 case TRADE_EXECUTED:
+                    // DB의 transaction_type을 side로 사용
+                    String side = history.getTransactionType();
+                    
+                    // 그룹원들의 계좌 잔액 합산
+                    Integer accountBalance = getGroupTotalBalance(history.getGroupId());
+                    
                     return new TradeExecutedPayloadDTO(
-                            (String) payloadMap.get("side"),
+                            side,
                             (String) payloadMap.get("stockName"),
                             history.getQuantity(), // DB의 quantity 컬럼에서 가져옴
                             history.getPrice(), // DB의 price 컬럼에서 가져옴
-                            (Integer) payloadMap.get("accountBalance")
+                            accountBalance
                     );
                     
                 case TRADE_FAILED:
@@ -423,6 +431,110 @@ public class HistoryService {
         } catch (Exception e) {
             log.error("그룹 예수금 총합 조회 실패 - groupId: {}, memberCount: {}, error: {}", groupId, memberIds.size(), e.getMessage(), e);
             return 0; // 실패 시 기본값 반환
+        }
+    }
+
+    /**
+     * 그룹원들의 계좌 잔액 합산 (UserService와 TradingService를 통해)
+     */
+    private Integer getGroupTotalBalance(UUID groupId) {
+        try {
+            // 1. UserService에서 그룹원들의 투자 계좌 정보 조회
+            List<com.example.module_common.dto.InvestmentAccountDto> accounts = userServiceClient.getGroupMemberAccounts(groupId);
+            
+            // 2. 계좌에서 사용자 ID 목록 추출
+            List<UUID> memberIds = accounts.stream()
+                    .map(com.example.module_common.dto.InvestmentAccountDto::getUserId)
+                    .toList();
+            
+            // 3. TradingService에서 그룹 예수금 총합 조회
+            Integer totalBalance = tradingServiceClient.getGroupTotalBalance(memberIds);
+            
+            log.info("그룹 계좌 잔액 합산 완료 - groupId: {}, accountCount: {}, totalBalance: {}", groupId, accounts.size(), totalBalance);
+            return totalBalance;
+        } catch (Exception e) {
+            log.error("그룹 계좌 잔액 조회 실패 - groupId: {}, error: {}", groupId, e.getMessage());
+            return 0; // 조회 실패 시 0 반환
+        }
+    }
+
+    /**
+     * 거래 실패 히스토리 저장
+     * - trading-service에서 호출하기 위한 메서드
+     */
+    @Transactional
+    public void saveTradeFailedHistory(TradeFailedHistoryRequest request) {
+        try {
+            // payload JSON 생성
+            String payload = String.format(
+                "{\"side\":\"%s\",\"stockName\":\"%s\",\"reason\":\"%s\"}",
+                request.getSide(), request.getStockName(), request.getReason()
+            );
+
+            // 제목 생성
+            String title = String.format("%s %.1f주 %d원 %s 실패",
+                request.getStockName(), request.getQuantity(), (int)request.getPrice().floatValue(), 
+                request.getSide().equals("BUY") ? "매수" : "매도"
+            );
+
+            // 히스토리 생성
+            History history = History.create(
+                request.getGroupId(),
+                HistoryCategory.TRADE,
+                HistoryType.TRADE_FAILED,
+                title,
+                payload
+            );
+
+            // 추가 정보 설정 (정적 팩토리 메서드 사용)
+            History historyWithDetails = History.create(
+                request.getGroupId(),
+                HistoryCategory.TRADE,
+                HistoryType.TRADE_FAILED,
+                title,
+                payload,
+                (int)request.getPrice().floatValue(),
+                request.getQuantity()
+            );
+            
+            // 추가 필드 설정
+            historyWithDetails.setStockId(request.getStockId());
+            historyWithDetails.setTransactionType(request.getSide());
+            history = historyWithDetails;
+
+            // 히스토리 저장
+            History savedHistory = historyRepository.save(history);
+
+            log.info("거래 실패 히스토리 저장 완료 - historyId: {}, 그룹: {}, 종목: {}", 
+                    savedHistory.getHistoryId(), request.getGroupId(), request.getStockName());
+
+        } catch (Exception e) {
+            log.error("거래 실패 히스토리 저장 실패 - 사용자: {}, 종목: {}, 사유: {} - {}", 
+                    request.getUserId(), request.getStockName(), request.getReason(), e.getMessage(), e);
+            throw e; // 예외를 다시 던져서 호출자에게 알림
+        }
+    }
+
+    @Transactional
+    public void createVoteExpiredHistory(UUID groupId, UUID proposalId, String proposalName) {
+        try {
+            String title = "투표가 종료되었습니다";
+            String payload = String.format("{\"proposalId\":\"%s\",\"proposalName\":\"%s\",\"reason\":\"마감시간\"}",
+                    proposalId, proposalName);
+
+            History history = History.create(
+                    groupId,
+                    HistoryCategory.VOTE,
+                    HistoryType.VOTE_EXPIRED,  // 🔧 새로운 타입 사용
+                    title,
+                    payload
+            );
+
+            historyRepository.save(history);
+            log.info("투표 종료 히스토리 생성 완료 - groupId: {}, proposalId: {}", groupId, proposalId);
+        } catch (Exception e) {
+            log.error("투표 종료 히스토리 생성 실패 - groupId: {}, proposalId: {}, error: {}",
+                    groupId, proposalId, e.getMessage(), e);
         }
     }
 

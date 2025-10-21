@@ -115,9 +115,9 @@ server:
 
 app:
   trading-service:
-    url: http://localhost:8000/api/trading
+    url: ${TRADING_SERVICE_URL:http://localhost:8081}
   user-service:
-    url: http://localhost:8000/api/users
+    url: ${USER_SERVICE_URL:http://localhost:8082}
 
 ---
 # ===============================================
@@ -149,6 +149,12 @@ spring:
 
 server:
   port: 8080
+
+app:
+  trading-service:
+    url: ${TRADING_SERVICE_URL:http://trading-service:8080}
+  user-service:
+    url: ${USER_SERVICE_URL:http://user-service:8080}
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}

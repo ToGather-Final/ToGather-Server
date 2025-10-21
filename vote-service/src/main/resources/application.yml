@@ -90,7 +90,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
-    show-sql: true # SQL 쿼리 로그 활성화
+    show-sql: false # SQL 쿼리 로그 비활성화
   # Redis와 RabbitMQ 설정은 module-common에서 상속받음
   logging:
     level:
@@ -102,7 +102,7 @@ jwt:
   refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 user-service:
-  url: ${USER_SERVICE_URL:http://localhost:8080}
+  url: ${USER_SERVICE_URL:http://localhost:8082}
 trading-service:
   url: ${TRADING_SERVICE_URL:http://localhost:8081}
 
@@ -156,3 +156,12 @@ user-service:
   url: ${USER_SERVICE_URL:http://user-service:8080}
 trading-service:
   url: ${TRADING_SERVICE_URL:http://trading-service:8080}
+
+# Feign 클라이언트 설정
+feign:
+  client:
+    config:
+      default:
+        loggerLevel: FULL
+        connectTimeout: 5000
+        readTimeout: 10000

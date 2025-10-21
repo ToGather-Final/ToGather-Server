@@ -55,6 +55,11 @@ public class TradeExecutionService {
                 if (order.getPrice() >= lowestAskPrice) {
                     canExecute = true;
                     executionPrice = lowestAskPrice; // 매도가로 체결
+                    log.info("💰 지정가 주문 체결 가능 - 주문ID: {}, 지정가: {}원, 최저매도가: {}원, 체결가: {}원", 
+                            order.getOrderId(), order.getPrice(), lowestAskPrice, executionPrice);
+                } else {
+                    log.debug("⏳ 지정가 매수 대기 - 주문ID: {}, 지정가: {}원 < 최저매도가: {}원", 
+                            order.getOrderId(), order.getPrice(), lowestAskPrice);
                 }
             } else {
                 // 매도 주문: 지정가 <= 최고 매수가
@@ -62,16 +67,16 @@ public class TradeExecutionService {
                 if (order.getPrice() <= highestBidPrice) {
                     canExecute = true;
                     executionPrice = highestBidPrice; // 매수가로 체결
+                    log.info("💰 지정가 주문 체결 가능 - 주문ID: {}, 지정가: {}원, 최고매수가: {}원, 체결가: {}원", 
+                            order.getOrderId(), order.getPrice(), highestBidPrice, executionPrice);
+                } else {
+                    log.debug("⏳ 지정가 매도 대기 - 주문ID: {}, 지정가: {}원 > 최고매수가: {}원", 
+                            order.getOrderId(), order.getPrice(), highestBidPrice);
                 }
             }
 
             if (canExecute) {
-                log.info("지정가 주문 체결 조건 만족 - 주문ID: {}, 지정가: {}, 체결가: {}", 
-                        order.getOrderId(), order.getPrice(), executionPrice);
                 executeTrade(order, executionPrice);
-            } else {
-                log.debug("지정가 주문 체결 조건 미만족 - 주문ID: {}, 지정가: {}", 
-                        order.getOrderId(), order.getPrice());
             }
 
         } catch (Exception e) {

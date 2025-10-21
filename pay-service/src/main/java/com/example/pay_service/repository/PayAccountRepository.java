@@ -35,4 +35,9 @@ public interface PayAccountRepository extends JpaRepository<PayAccount, UUID> {
     boolean existsByAccountNumber(String accountNumber);
 
     Optional<PayAccount> findByAccountNumber(String accountNumber);
+
+    @Query("SELECT COUNT(pa) > 0 FROM PayAccount pa " +
+            "WHERE pa.groupId = :groupId AND pa.ownerUserId = :userId AND pa.isActive = true")
+    boolean existsByGroupIdAndOwnerUserIdAndIsActiveTrue(@Param("groupId") UUID groupId,
+                                                         @Param("userId") UUID userId);
 }

@@ -35,8 +35,8 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse executePayment(PaymentRequest request, UUID userId) {
-        log.info("결제 실행 시작: sessionId={}, payerAccountId={}, amount={}, userId={}",
-                request.paymentSessionId(), request.payerAccountId(), request.amount(), userId);
+        log.info("결제 실행 시작: payerAccountId={}, amount={}, recipientName={}, userId={}",
+                request.payerAccountId(), request.amount(), request.recipientName(), userId);
 
         if (request.clientRequestId() != null) {
             Optional<Payment> existingPayment = paymentRepository.findByClientRequestId(request.clientRequestId());
@@ -44,11 +44,6 @@ public class PaymentService {
                 log.info("멱등성 재시도: clientRequestId={}", request.clientRequestId());
                 return createPaymentResponse(existingPayment.get());
             }
-        }
-
-        PaymentSession session = paymentSessionService.getSessionOrThrow(request.paymentSessionId());
-        if (session.isUsed()) {
-            throw new PayServiceException("SESSION_USED", "Payment session already used");
         }
 
         UUID payerAccountId = UUID.fromString(request.payerAccountId());
@@ -59,40 +54,31 @@ public class PaymentService {
             throw new InsufficientFundsException("Insufficient balance");
         }
 
-        Payment payment = Payment.createFromSession(
-                request.paymentSessionId(),
+        Payment payment = Payment.createDirectPayment(
                 payerAccountId,
-                session,
+                request.amount(),
+                request.recipientName(),
+                request.recipientBankName(),
+                request.recipientAccountNumber(),
                 request.clientRequestId()
         );
 
         try {
-            // PayAccount는 불변 객체이므로 새로운 객체 생성
-            PayAccount updatedPayerAccount = PayAccount.builder()
-                    .id(payerAccount.getId())
-                    .ownerUserId(payerAccount.getOwnerUserId())
-                    .balance(payerAccount.getBalance() - request.amount()) // 잔액 차감
-                    .nickname(payerAccount.getNickname())
-                    .isActive(payerAccount.getIsActive())
-                    .groupId(payerAccount.getGroupId())
-                    .build();
+            payerAccount.debit(request.amount());
 
             payment.markAsSucceeded();
 
             paymentRepository.save(payment);
-            payAccountRepository.save(updatedPayerAccount);
+            payAccountRepository.save(payerAccount);
 
-            paymentSessionService.markAsUsed(request.paymentSessionId());
-
-            // PayAccountLedger 생성 (Builder 패턴 사용)
-            PayAccountLedger ledgerEntry = PayAccountLedger.builder()
-                    .payAccountId(payerAccountId)
-                    .transactionType(TransactionType.PAYMENT)
-                    .amount(request.amount())
-                    .balanceAfter(updatedPayerAccount.getBalance())
-                    .description("결제: " + payment.getRecipientDisplayName())
-                    .relatedPaymentId(payment.getId())
-                    .build();
+            PayAccountLedger ledgerEntry = PayAccountLedger.createWithRecipient(
+                    payerAccountId,
+                    TransactionType.PAYMENT,
+                    request.amount(),
+                    payerAccount.getBalance(),
+                    "QR 결제",
+                    request.recipientName() // 상점명
+            );
 
             payAccountLedgerRepository.save(ledgerEntry);
 
@@ -104,8 +90,9 @@ public class PaymentService {
             }
 
             log.info("결제 성공: {}", payment.getPaymentSummary());
-            return createPaymentResponse(payment, updatedPayerAccount.getBalance());
-
+            return createPaymentResponse(payment, payerAccount.getBalance());
+        } catch (IllegalArgumentException e) {
+            throw new InsufficientFundsException("Insufficient balance");
         } catch (Exception e) {
             log.error("결제 실패: {}", e.getMessage());
             payment.markAsFailed(e.getMessage());

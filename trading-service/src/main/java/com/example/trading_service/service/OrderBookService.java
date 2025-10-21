@@ -2,6 +2,7 @@ package com.example.trading_service.service;
 
 import com.example.trading_service.dto.OrderBookItem;
 import com.example.trading_service.dto.OrderBookResponse;
+import com.example.trading_service.dto.StockPriceResponse;
 import com.example.trading_service.domain.Stock;
 import com.example.trading_service.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +40,36 @@ public class OrderBookService {
             if (!orderBook.getAskPrices().isEmpty()) {
                 log.info("🚀 Redis WebSocket 캐시에서 호가 데이터 반환: {} (매도: {}, 매수: {})", 
                         stockCode, orderBook.getAskPrices().size(), orderBook.getBidPrices().size());
-                return orderBook;
+                
+                // 실제 현재가를 Redis 캐시에서 가져와서 새 객체 생성 (호가 중간값 대신 실제 거래가 사용)
+                try {
+                    StockPriceResponse priceInfo = stockPriceService.getCachedStockPrice(stock.getId(), stockCode, stock.getPrdtTypeCd());
+                    
+                    // 변동 방향 계산
+                    String changeDirection = "unchanged";
+                    if (priceInfo.getChangePrice().floatValue() > 0) {
+                        changeDirection = "rise";
+                    } else if (priceInfo.getChangePrice().floatValue() < 0) {
+                        changeDirection = "fall";
+                    }
+                    
+                    log.debug("💰 실제 현재가로 업데이트: {}원 (호가는 실시간 유지)", priceInfo.getCurrentPrice());
+                    
+                    // 새 객체 반환 (불변성 유지)
+                    return new OrderBookResponse(
+                            orderBook.getStockCode(),
+                            orderBook.getStockName(),
+                            priceInfo.getCurrentPrice().floatValue(),
+                            priceInfo.getChangePrice().floatValue(),
+                            priceInfo.getChangeRate(),
+                            changeDirection,
+                            orderBook.getAskPrices(),
+                            orderBook.getBidPrices()
+                    );
+                } catch (Exception e) {
+                    log.warn("⚠️ 실제 현재가 조회 실패, 호가 기반 추정값 사용: {}", e.getMessage());
+                    return orderBook;
+                }
             }
         }
         
