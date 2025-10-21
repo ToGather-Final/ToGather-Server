@@ -32,15 +32,63 @@ public class QrService {
     @Value("${app.pay.qr.secret-key}")
     private String qrSecretKey;
 
+    // QrService.java 수정
     @Transactional(readOnly = true)
     public QrResolveResponse resolve(String sessionToken, Long amount, UUID userId) {
         log.info("QR 해석 시작: sessionToken={}, amount={}, userId={}", sessionToken, amount, userId);
 
-        PaymentSession session = verifySessionToken(sessionToken);
+        // Base64 디코딩 시도
+        try {
+            PaymentSession session = verifySessionToken(sessionToken);
+            return createResponseFromSession(session, amount, userId);
+        } catch (Exception e) {
+            // Base64 실패 시 단순 텍스트 파싱 시도
+            log.info("Base64 토큰이 아님, 단순 텍스트 파싱 시도: {}", sessionToken);
+            return parseSimpleTextToken(sessionToken, amount, userId);
+        }
+    }
+
+    private QrResolveResponse parseSimpleTextToken(String textToken, Long amount, UUID userId) {
+        // "성수가마솥구이|성수가마솥구이|국민은행|123456-78-901234" 파싱
+        String[] parts = textToken.split("\\|");
+
+        if (parts.length < 4) {
+            throw new TokenInvalidException("Invalid QR format");
+        }
+
+        String storeName = parts[0];
+        String ownerName = parts[1];
+        String bankName = parts[2];
+        String accountNumber = parts[3];
 
         List<PayAccount> payerAccounts = payAccountRepository.findByOwnerUserIdAndIsActiveTrue(userId);
 
-        QrResolveResponse response = new QrResolveResponse(
+        return new QrResolveResponse(
+                "direct-payment-" + System.currentTimeMillis(), // 임시 sessionId
+                new QrResolveResponse.RecipientInfo(
+                        storeName,
+                        bankName,
+                        maskAccountNumber(accountNumber),
+                        null
+                ),
+                amount,
+                payerAccounts.stream()
+                        .map(account -> new QrResolveResponse.PayerAccount(
+                                account.getId().toString(),
+                                "GROUP_PAY",
+                                account.getNickname() != null ? account.getNickname() : getDefaultDisplayName(account),
+                                account.getBalance()
+                        ))
+                        .collect(Collectors.toList()),
+                null // expiresAt 없음
+        );
+    }
+
+    private QrResolveResponse createResponseFromSession(PaymentSession session, Long amount, UUID userId) {
+        // 기존 로직
+        List<PayAccount> payerAccounts = payAccountRepository.findByOwnerUserIdAndIsActiveTrue(userId);
+
+        return new QrResolveResponse(
                 session.getId(),
                 new QrResolveResponse.RecipientInfo(
                         session.getRecipientName(),
@@ -59,9 +107,6 @@ public class QrService {
                         .collect(Collectors.toList()),
                 session.getExpiresAt()
         );
-
-        log.info("QR 해석 완료: sessionId={}, recipientName={}", session.getId(), session.getRecipientName());
-        return response;
     }
 
     private PaymentSession verifySessionToken(String sessionToken) {
