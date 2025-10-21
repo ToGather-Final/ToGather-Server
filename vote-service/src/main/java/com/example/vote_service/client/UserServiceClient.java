@@ -48,4 +48,12 @@ public interface UserServiceClient {
      */
     @GetMapping("/internal/groups/{groupId}/members/accounts")
     List<InvestmentAccountDto> getGroupMemberAccounts(@PathVariable UUID groupId);
+
+    /**
+     * 시스템용 그룹 멤버 수 조회
+     * GET /internal/{groupId}/member-count
+     * - 인증 없이 조회 (시스템 내부용)
+     */
+    @GetMapping("/internal/{groupId}/member-count")
+    Integer getGroupMemberCountInternal(@PathVariable UUID groupId);
 }

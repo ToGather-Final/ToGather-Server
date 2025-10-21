@@ -119,4 +119,17 @@ public class InternalController {
             return ResponseEntity.ok(false); // 실패 시 false 반환
         }
     }
+
+    @GetMapping("/{groupId}/member-count")
+    public ResponseEntity<Integer> getGroupMemberCountInternal(@PathVariable UUID groupId) {
+        log.info("🔍 내부 API 호출 - /internal/{}/member-count", groupId);
+        try {
+            Integer memberCount = Math.toIntExact(groupMemberRepository.countByIdGroupId(groupId));
+            log.info("✅ 그룹 멤버 수 조회 성공 - groupId: {}, memberCount: {}", groupId, memberCount);
+            return ResponseEntity.ok(memberCount);
+        } catch (Exception e) {
+            log.error("❌ 그룹 멤버 수 조회 실패 - groupId: {}, error: {}", groupId, e.getMessage(), e);
+            throw new RuntimeException("그룹 멤버 수 조회 실패", e);
+        }
+    }
 }

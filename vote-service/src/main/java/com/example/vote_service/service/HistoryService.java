@@ -515,4 +515,27 @@ public class HistoryService {
         }
     }
 
+    @Transactional
+    public void createVoteExpiredHistory(UUID groupId, UUID proposalId, String proposalName) {
+        try {
+            String title = "투표가 종료되었습니다";
+            String payload = String.format("{\"proposalId\":\"%s\",\"proposalName\":\"%s\",\"reason\":\"마감시간\"}",
+                    proposalId, proposalName);
+
+            History history = History.create(
+                    groupId,
+                    HistoryCategory.VOTE,
+                    HistoryType.VOTE_EXPIRED,  // 🔧 새로운 타입 사용
+                    title,
+                    payload
+            );
+
+            historyRepository.save(history);
+            log.info("투표 종료 히스토리 생성 완료 - groupId: {}, proposalId: {}", groupId, proposalId);
+        } catch (Exception e) {
+            log.error("투표 종료 히스토리 생성 실패 - groupId: {}, proposalId: {}, error: {}",
+                    groupId, proposalId, e.getMessage(), e);
+        }
+    }
+
 }
