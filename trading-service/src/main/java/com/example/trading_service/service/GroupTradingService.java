@@ -467,9 +467,8 @@ public class GroupTradingService {
         log.info("그룹 보유종목 조회 - 그룹ID: {}", groupId);
         
         // 그룹의 보유 수량이 0보다 큰 종목들만 조회
-        List<GroupHoldingCache> groupHoldings = groupHoldingCacheRepository
-                .findByGroupIdAndTotalQuantityGreaterThan(groupId, 0);
-        
+        List<GroupHoldingCache> groupHoldings = groupHoldingCacheRepository.findByGroupIdAndTotalQuantityGreaterThanWithStock(groupId, 0);
+
         List<GroupHoldingResponse> responses = new ArrayList<>();
         
         for (GroupHoldingCache holding : groupHoldings) {
