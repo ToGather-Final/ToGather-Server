@@ -64,16 +64,6 @@ public class PaymentService {
         );
 
         try {
-            // PayAccount는 불변 객체이므로 새로운 객체 생성
-            PayAccount updatedPayerAccount = PayAccount.builder()
-                    .id(payerAccount.getId())
-                    .ownerUserId(payerAccount.getOwnerUserId())
-                    .balance(payerAccount.getBalance() - request.amount()) // 잔액 차감
-                    .nickname(payerAccount.getNickname())
-                    .isActive(payerAccount.getIsActive())
-                    .groupId(payerAccount.getGroupId())
-                    .build();
-
             payerAccount.debit(request.amount());
 
             payment.markAsSucceeded();
@@ -85,7 +75,7 @@ public class PaymentService {
                     payerAccountId,
                     TransactionType.PAYMENT,
                     request.amount(),
-                    updatedPayerAccount.getBalance(),
+                    payerAccount.getBalance(),
                     "QR 결제",
                     request.recipientName() // 상점명
             );
@@ -100,8 +90,9 @@ public class PaymentService {
             }
 
             log.info("결제 성공: {}", payment.getPaymentSummary());
-            return createPaymentResponse(payment, updatedPayerAccount.getBalance());
-
+            return createPaymentResponse(payment, payerAccount.getBalance());
+        } catch (IllegalArgumentException e) {
+            throw new InsufficientFundsException("Insufficient balance");
         } catch (Exception e) {
             log.error("결제 실패: {}", e.getMessage());
             payment.markAsFailed(e.getMessage());
