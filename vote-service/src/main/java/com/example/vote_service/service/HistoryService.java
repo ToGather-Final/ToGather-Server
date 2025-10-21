@@ -14,6 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -188,10 +189,8 @@ public class HistoryService {
             Pageable pageable = PageRequest.of(page, size);
             Page<History> historyPage = historyRepository.findByGroupIdOrderByCreatedAtDesc(groupId, pageable);
             
-            // DTO 변환
-            List<HistoryDTO> historyDTOs = historyPage.getContent().stream()
-                    .map(this::convertToHistoryDTO)
-                    .collect(Collectors.toList());
+            // DTO 변환 (배치 최적화)
+            List<HistoryDTO> historyDTOs = convertToHistoryDTOsBatch(historyPage.getContent(), groupId);
             
             // 다음 커서 생성 (마지막 히스토리 ID)
             String nextCursor = null;
@@ -228,10 +227,8 @@ public class HistoryService {
             // 전체 히스토리 조회 (페이징 없음)
             List<History> histories = historyRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
             
-            // DTO 변환
-            List<HistoryDTO> historyDTOs = histories.stream()
-                    .map(this::convertToHistoryDTO)
-                    .collect(Collectors.toList());
+            // DTO 변환 (배치 최적화)
+            List<HistoryDTO> historyDTOs = convertToHistoryDTOsBatch(histories, groupId);
             
             log.info("히스토리 전체 조회 완료 - userId: {}, 총 {}개", userId, historyDTOs.size());
             return new GetHistoryResponse(historyDTOs, null); // 전체 조회이므로 nextCursor는 null
@@ -269,6 +266,163 @@ public class HistoryService {
                     history.getDate(),
                     Map.of("error", "페이로드 파싱 실패")
             );
+        }
+    }
+
+    /**
+     * 배치 히스토리 DTO 변환 (성능 최적화)
+     * - 그룹 잔액을 한 번만 조회하여 모든 TRADE_EXECUTED 히스토리에 적용
+     */
+    private List<HistoryDTO> convertToHistoryDTOsBatch(List<History> histories, UUID groupId) {
+        try {
+            // TRADE_EXECUTED 히스토리가 있는지 확인
+            boolean hasTradeExecuted = histories.stream()
+                    .anyMatch(h -> h.getHistoryType() == HistoryType.TRADE_EXECUTED);
+            
+            // 그룹 잔액을 한 번만 조회 (TRADE_EXECUTED가 있을 때만)
+            Integer groupBalance = null;
+            if (hasTradeExecuted) {
+                groupBalance = getGroupTotalBalance(groupId);
+                log.info("💰 배치 히스토리 변환 - 그룹 잔액 조회 완료: {}", groupBalance);
+            }
+            
+            final Integer finalGroupBalance = groupBalance;
+            
+            return histories.stream()
+                    .map(history -> {
+                        try {
+                            Object payload = parsePayloadWithBalance(history, finalGroupBalance);
+                            
+                            return new HistoryDTO(
+                                    history.getHistoryId(),
+                                    history.getHistoryCategory(),
+                                    history.getHistoryType(),
+                                    history.getTitle(),
+                                    history.getDate(),
+                                    payload
+                            );
+                        } catch (Exception e) {
+                            log.error("History DTO 변환 중 오류 - historyId: {}, error: {}", 
+                                    history.getHistoryId(), e.getMessage(), e);
+                            return new HistoryDTO(
+                                    history.getHistoryId(),
+                                    history.getHistoryCategory(),
+                                    history.getHistoryType(),
+                                    history.getTitle(),
+                                    history.getDate(),
+                                    Map.of("error", "페이로드 파싱 실패")
+                            );
+                        }
+                    })
+                    .collect(Collectors.toList());
+                    
+        } catch (Exception e) {
+            log.error("배치 히스토리 변환 중 오류 - groupId: {}, error: {}", groupId, e.getMessage(), e);
+            // 오류 발생 시 기본 변환 방식 사용
+            return histories.stream()
+                    .map(this::convertToHistoryDTO)
+                    .collect(Collectors.toList());
+        }
+    }
+
+    /**
+     * JSON 페이로드를 타입에 맞는 DTO로 파싱 (배치 최적화 버전)
+     * - 그룹 잔액을 미리 조회하여 전달받음
+     */
+    private Object parsePayloadWithBalance(History history, Integer groupBalance) {
+        String payloadJson = history.getPayload();
+        HistoryType historyType = history.getHistoryType();
+        
+        if (payloadJson == null || payloadJson.trim().isEmpty()) {
+            return Map.of();
+        }
+        
+        try {
+            Map<String, Object> payloadMap = objectMapper.readValue(payloadJson, new TypeReference<Map<String, Object>>() {});
+            
+            switch (historyType) {
+                case VOTE_CREATED_BUY:
+                case VOTE_CREATED_SELL:
+                case VOTE_CREATED_PAY:
+                    return new VoteCreatedPayloadDTO(
+                            UUID.fromString((String) payloadMap.get("proposalId")),
+                            (String) payloadMap.get("proposalName"),
+                            (String) payloadMap.get("proposerName")
+                    );
+                    
+                case VOTE_APPROVED:
+                    // shares: JSON 정수(Integer) 또는 소수(Double)를 Float으로 변환
+                    Float shares = null;
+                    Object sharesObj = payloadMap.get("shares");
+                    if (sharesObj instanceof Number) {
+                        shares = ((Number) sharesObj).floatValue();
+                    }
+                    
+                    return new VoteApprovedPayloadDTO(
+                            UUID.fromString((String) payloadMap.get("proposalId")),
+                            (String) payloadMap.get("scheduledAt"),
+                            (String) payloadMap.get("historyType"),
+                            (String) payloadMap.get("side"),
+                            (String) payloadMap.get("stockName"),
+                            shares,
+                            (Integer) payloadMap.get("unitPrice"),
+                            (String) payloadMap.get("currency")
+                    );
+                    
+                case VOTE_REJECTED:
+                    return new VoteRejectedPayloadDTO(
+                            UUID.fromString((String) payloadMap.get("proposalId")),
+                            (String) payloadMap.get("proposalName")
+                    );
+                    
+                case TRADE_EXECUTED:
+                    // DB의 transaction_type을 side로 사용
+                    String side = history.getTransactionType();
+                    
+                    // 전달받은 그룹 잔액 사용 (API 호출 없음)
+                    Integer accountBalance = groupBalance != null ? groupBalance : 0;
+                    
+                    return new TradeExecutedPayloadDTO(
+                            side,
+                            (String) payloadMap.get("stockName"),
+                            history.getQuantity(), // DB의 quantity 컬럼에서 가져옴
+                            history.getPrice(), // DB의 price 컬럼에서 가져옴
+                            accountBalance
+                    );
+                    
+                case TRADE_FAILED:
+                    return new TradeFailedPayloadDTO(
+                            (String) payloadMap.get("side"),
+                            (String) payloadMap.get("stockName"),
+                            (String) payloadMap.get("reason")
+                    );
+                    
+                case CASH_DEPOSIT_COMPLETED:
+                    return new CashDepositCompletedPayloadDTO(
+                            (String) payloadMap.get("depositorName"),
+                            (Integer) payloadMap.get("amount"),
+                            (Integer) payloadMap.get("accountBalance")
+                    );
+                    
+                case PAY_CHARGE_COMPLETED:
+                    return new PayChargeCompletedPayloadDTO(
+                            (Integer) payloadMap.get("amount"),
+                            (Integer) payloadMap.get("accountBalance")
+                    );
+                    
+                case GOAL_ACHIEVED:
+                    return new GoalAchievedPayloadDTO(
+                            (Integer) payloadMap.get("targetAmount")
+                    );
+                    
+                default:
+                    log.warn("알 수 없는 히스토리 타입: {}", historyType);
+                    return payloadMap; // 기본 Map 반환
+            }
+        } catch (Exception e) {
+            log.error("페이로드 파싱 중 오류 - payloadJson: {}, historyType: {}, error: {}", 
+                    payloadJson, historyType, e.getMessage(), e);
+            return Map.of("error", "페이로드 파싱 실패");
         }
     }
 
@@ -436,9 +590,13 @@ public class HistoryService {
 
     /**
      * 그룹원들의 계좌 잔액 합산 (UserService와 TradingService를 통해)
+     * 🔥 캐싱 적용: 5분간 캐시 유지
      */
+    @Cacheable(value = "groupBalance", key = "#groupId", unless = "#result == null")
     private Integer getGroupTotalBalance(UUID groupId) {
         try {
+            log.info("💰 그룹 잔액 조회 시작 (캐시 미스) - groupId: {}", groupId);
+            
             // 1. UserService에서 그룹원들의 투자 계좌 정보 조회
             List<com.example.module_common.dto.InvestmentAccountDto> accounts = userServiceClient.getGroupMemberAccounts(groupId);
             
@@ -450,10 +608,11 @@ public class HistoryService {
             // 3. TradingService에서 그룹 예수금 총합 조회
             Integer totalBalance = tradingServiceClient.getGroupTotalBalance(memberIds);
             
-            log.info("그룹 계좌 잔액 합산 완료 - groupId: {}, accountCount: {}, totalBalance: {}", groupId, accounts.size(), totalBalance);
+            log.info("💰 그룹 계좌 잔액 합산 완료 - groupId: {}, accountCount: {}, totalBalance: {} (캐시 저장됨)", 
+                    groupId, accounts.size(), totalBalance);
             return totalBalance;
         } catch (Exception e) {
-            log.error("그룹 계좌 잔액 조회 실패 - groupId: {}, error: {}", groupId, e.getMessage());
+            log.error("❌ 그룹 계좌 잔액 조회 실패 - groupId: {}, error: {}", groupId, e.getMessage());
             return 0; // 조회 실패 시 0 반환
         }
     }
