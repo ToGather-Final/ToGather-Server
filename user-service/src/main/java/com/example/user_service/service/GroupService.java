@@ -75,7 +75,7 @@ public class GroupService {
 
     @Transactional
     public void updateGoalAmount(UUID groupId, Integer goalAmount, UUID operatorId) {
-        assertOperatorIsOwner(groupId, operatorId);
+        assertMember(groupId, operatorId);
 
         if (goalAmount == null || goalAmount <= 0) {
             throw new IllegalArgumentException("목표 금액은 0원보다 커야 합니다.");
