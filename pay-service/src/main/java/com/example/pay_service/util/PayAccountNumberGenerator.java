@@ -8,15 +8,18 @@ public class PayAccountNumberGenerator {
     private static final Random random = new SecureRandom();
 
     public static String generatePayAccountNumber() {
-        StringBuilder accountNumber = new StringBuilder("PAY-");
+        StringBuilder accountNumber = new StringBuilder();
 
-        accountNumber.append(String.format("%04d", random.nextInt(9000) + 1000));
+        // 첫 번째 3자리 (100-999)
+        accountNumber.append(String.format("%03d", random.nextInt(900) + 100));
         accountNumber.append("-");
 
-        accountNumber.append(String.format("%04d", random.nextInt(9000) + 1000));
+        // 두 번째 3자리 (100-999)
+        accountNumber.append(String.format("%03d", random.nextInt(900) + 100));
         accountNumber.append("-");
 
-        accountNumber.append(String.format("%04d", random.nextInt(9000) + 1000));
+        // 세 번째 6자리 (100000-999999)
+        accountNumber.append(String.format("%06d", random.nextInt(900000) + 100000));
 
         return accountNumber.toString();
     }
