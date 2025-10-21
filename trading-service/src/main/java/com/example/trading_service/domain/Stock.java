@@ -29,6 +29,10 @@ public class Stock {
     @Enumerated(EnumType.STRING)
     private Country country; // 국가
 
+    @Column(name = "market", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Market market; // 시장 (KOSPI, KOSDAQ)
+
     @Column(name = "enabled", nullable = false)
     private boolean enabled; // 사용 가능 여부
 
@@ -38,5 +42,9 @@ public class Stock {
     public enum Country {
         KR, US
         // 필요시 추가
+    }
+
+    public enum Market {
+        KOSPI, KOSDAQ
     }
 }
