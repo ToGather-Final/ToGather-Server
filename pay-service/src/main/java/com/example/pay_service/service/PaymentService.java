@@ -47,6 +47,7 @@ public class PaymentService {
         }
 
         PaymentSession session = paymentSessionService.getSessionOrThrow(request.paymentSessionId());
+
         if (session.isUsed()) {
             throw new PayServiceException("SESSION_USED", "Payment session already used");
         }
@@ -85,14 +86,14 @@ public class PaymentService {
             paymentSessionService.markAsUsed(request.paymentSessionId());
 
             // PayAccountLedger 생성 (Builder 패턴 사용)
-            PayAccountLedger ledgerEntry = PayAccountLedger.builder()
-                    .payAccountId(payerAccountId)
-                    .transactionType(TransactionType.PAYMENT)
-                    .amount(request.amount())
-                    .balanceAfter(updatedPayerAccount.getBalance())
-                    .description("결제: " + payment.getRecipientDisplayName())
-                    .relatedPaymentId(payment.getId())
-                    .build();
+            PayAccountLedger ledgerEntry = PayAccountLedger.createWithRecipient(
+                    payerAccountId,
+                    TransactionType.PAYMENT,
+                    request.amount(),
+                    updatedPayerAccount.getBalance(),
+                    "QR 결제",
+                    payment.getRecipientDisplayName() // 상점명
+            );
 
             payAccountLedgerRepository.save(ledgerEntry);
 

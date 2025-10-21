@@ -16,8 +16,8 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "idx_ledger_pay_account", columnList = "pay_account_id"),
                 @Index(name = "idx_ledger_transaction_type", columnList = "transaction_type"),
-                @Index(name = "idx_ledger_created_at", columnList = "created_at")
-
+                @Index(name = "idx_ledger_created_at", columnList = "created_at"),
+                @Index(name = "idx_ledger_payer_user", columnList = "payer_user_id") // 추가
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -49,12 +49,23 @@ public class PayAccountLedger {
     @Column(name = "related_transfer_id", columnDefinition = "BINARY(16)")
     private UUID relatedTransferId;
 
+    @Column(name = "payer_user_id",columnDefinition = "BINARY(16)")
+    private UUID payerUserId;
+
+    @Column(name = "recipient_name", length = 100)
+    private String recipientName;
+
+    @Column(name = "payer_name", length = 100)
+    private String payerName;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
-    public PayAccountLedger(Long id, UUID payAccountId, TransactionType transactionType, long amount, long balanceAfter, String description, UUID relatedPaymentId, UUID relatedTransferId, LocalDateTime createdAt) {
+    public PayAccountLedger(Long id, UUID payAccountId, TransactionType transactionType, long amount,
+                            long balanceAfter, String description, UUID relatedPaymentId, UUID relatedTransferId,
+                            UUID payerUserId, String recipientName, String payerName, LocalDateTime createdAt) {
         this.id = id;
         this.payAccountId = payAccountId;
         this.transactionType = transactionType;
@@ -63,16 +74,47 @@ public class PayAccountLedger {
         this.description = description;
         this.relatedPaymentId = relatedPaymentId;
         this.relatedTransferId = relatedTransferId;
+        this.payerUserId = payerUserId;
+        this.recipientName = recipientName;
+        this.payerName = payerName;
         this.createdAt = createdAt;
     }
 
-    public static PayAccountLedger create(UUID payAccountId, TransactionType transactionType, long amount, long balanceAfter, String description) {
+    public static PayAccountLedger create(UUID payAccountId, TransactionType transactionType, long amount,
+                                          long balanceAfter, String description) {
         return PayAccountLedger.builder()
                 .payAccountId(payAccountId)
                 .transactionType(transactionType)
                 .amount(amount)
                 .balanceAfter(balanceAfter)
                 .description(description)
+                .build();
+    }
+
+    public static PayAccountLedger createWithPayer(UUID payAccountId, TransactionType transactionType,
+                                                   long amount, long balanceAfter, String description,
+                                                   UUID payerUserId, String payerName) {
+        return PayAccountLedger.builder()
+                .payAccountId(payAccountId)
+                .transactionType(transactionType)
+                .amount(amount)
+                .balanceAfter(balanceAfter)
+                .description(description)
+                .payerUserId(payerUserId)
+                .payerName(payerName)
+                .build();
+    }
+
+    public static PayAccountLedger createWithRecipient(UUID payAccountId, TransactionType transactionType,
+                                                       long amount, long balanceAfter, String description,
+                                                       String recipientName) {
+        return PayAccountLedger.builder()
+                .payAccountId(payAccountId)
+                .transactionType(transactionType)
+                .amount(amount)
+                .balanceAfter(balanceAfter)
+                .description(description)
+                .recipientName(recipientName)
                 .build();
     }
 }

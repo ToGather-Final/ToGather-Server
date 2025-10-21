@@ -2,9 +2,11 @@ package com.example.pay_service.service;
 
 import com.example.module_common.dto.InvestmentAccountDto;
 import com.example.module_common.dto.TransferToPayResponse;
+import com.example.module_common.dto.UserInfo;
 import com.example.module_common.dto.pay.PayRechargeRequest;
 import com.example.module_common.dto.pay.PayRechargeResponse;
 import com.example.pay_service.client.TradingServiceClient;
+import com.example.pay_service.client.UserServiceClient;
 import com.example.pay_service.domain.*;
 import com.example.pay_service.exception.InsufficientFundsException;
 import com.example.pay_service.exception.PayServiceException;
@@ -31,6 +33,7 @@ public class TransferService {
     private final PayAccountLedgerRepository payAccountLedgerRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final TradingServiceClient tradingServiceClient;
+    private final UserServiceClient userServiceClient;
 
     @Transactional
     public PayRechargeResponse executeTransfer(PayRechargeRequest request, UUID userId, UUID groupId) {
@@ -69,32 +72,30 @@ public class TransferService {
                 throw new PayServiceException("TRADING_TRANSFER_FAILED", tradingResponse.status());
             }
 
-            PayAccount updatedToAccount = PayAccount.builder()
-                    .id(toAccount.getId())
-                    .ownerUserId(toAccount.getOwnerUserId())
-                    .balance(toAccount.getBalance() + request.amount())
-                    .nickname(toAccount.getNickname())
-                    .isActive(toAccount.getIsActive())
-                    .groupId(toAccount.getGroupId())
-                    .build();
+            toAccount.credit(request.amount());
 
             transfer.markAsSucceeded();
-            payAccountRepository.save(updatedToAccount);
+            payAccountRepository.save(toAccount);
             transferRepository.save(transfer);
 
-            PayAccountLedger toLedger = PayAccountLedger.builder()
-                    .payAccountId(toAccount.getId())
-                    .transactionType(TransactionType.TRANSFER_IN)
-                    .amount(request.amount())
-                    .balanceAfter(toAccount.getBalance())
-                    .description("투자계좌에서 그룹 페이계좌로 송금")
-                    .relatedTransferId(transfer.getId())
-                    .build();
+// 사용자 정보 조회
+            String payerName = getUserName(userId);
+            boolean isGroupLeader = payAccountRepository.existsByGroupIdAndOwnerUserIdAndIsActiveTrue(groupId, userId);
+
+            PayAccountLedger toLedger = PayAccountLedger.createWithPayer(
+                    toAccount.getId(),
+                    TransactionType.TRANSFER_IN,
+                    request.amount(),
+                    toAccount.getBalance(),
+                    isGroupLeader ? "그룹원으로부터 송금 수취" : "투자계좌에서 그룹 페이계좌로 송금",
+                    userId,
+                    payerName
+            );
 
             payAccountLedgerRepository.save(toLedger);
 
             log.info("페이머니 충전 성공: transferId={}, amount={}", transfer.getId(), request.amount());
-            return createTransferResponse(transfer, updatedToAccount.getBalance());
+            return createTransferResponse(transfer, toAccount.getBalance());
 
         } catch (Exception e) {
             log.error("페이머니 충전 실패: {}", e.getMessage());
@@ -134,5 +135,15 @@ public class TransferService {
                 transfer.getCreatedAt(),
                 balanceAfter
         );
+    }
+
+    private String getUserName(UUID userId) {
+        try{
+            UserInfo userInfo = userServiceClient.getUserInfo(userId);
+            return userInfo.name();
+        } catch (Exception e) {
+            log.warn("사용자 정보 조회 실패: userId={}, error={}", userId, e.getMessage());
+            return "알 수 없는 사용자";
+        }
     }
 }

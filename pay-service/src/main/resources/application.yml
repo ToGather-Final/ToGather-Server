@@ -115,9 +115,9 @@ server:
 
 app:
   trading-service:
-    url: http://localhost:8000/api/trading
+    url: ${TRADING_SERVICE_URL:http://localhost:8081}
   user-service:
-    url: http://localhost:8000/api/users
+    url: ${USER_SERVICE_URL:http://localhost:8082}
 
 ---
 # ===============================================

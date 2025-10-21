@@ -1,5 +1,6 @@
 package com.example.pay_service.service;
 
+import com.example.pay_service.client.UserServiceClient;
 import com.example.pay_service.domain.PayAccount;
 import com.example.pay_service.dto.GroupPayAccountCreateRequest;
 import com.example.pay_service.exception.AccountNotOwnedException;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class PayAccountService {
 
     private final PayAccountRepository payAccountRepository;
+    private final UserServiceClient userServiceClient;
 
     @Transactional(readOnly = true)
     public List<PayAccount> getUserAccounts(UUID userId) {
@@ -102,10 +104,12 @@ public class PayAccountService {
 
         String accountNumber = generateUniqueAccountNumber();
 
+        String groupNickname = "그룹 페이 계좌";
+
         PayAccount payAccount = PayAccount.builder()
                 .ownerUserId(userId)
                 .balance(0L)
-                .nickname(request.name())
+                .nickname(groupNickname)
                 .isActive(true)
                 .groupId(groupId)
                 .accountNumber(accountNumber)
@@ -121,5 +125,21 @@ public class PayAccountService {
         } while (payAccountRepository.existsByAccountNumber(accountNumber));
 
         return accountNumber;
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isGroupLeader(UUID groupId, UUID userId) {
+        return payAccountRepository.existsByGroupIdAndOwnerUserIdAndIsActiveTrue(groupId, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isGroupMember(UUID groupId, UUID userId) {
+        try {
+            Boolean isMember = userServiceClient.isGroupMember(groupId, userId);
+            return isMember != null && isMember;
+        } catch (Exception e) {
+            log.warn("그룹원 확인 실패: groupId={}, userId={}, error={}", groupId, userId, e.getMessage());
+            return false; // 실패 시 false 반환
+        }
     }
 }

@@ -4,6 +4,7 @@ import com.example.user_service.dto.MeResponse;
 import com.example.user_service.dto.NicknameUpdateRequest;
 import com.example.user_service.domain.User;
 import com.example.user_service.repository.UserRepository;
+import com.example.user_service.service.GroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -23,9 +24,11 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final GroupService groupService;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, GroupService groupService) {
         this.userRepository = userRepository;
+        this.groupService = groupService;
     }
 
     @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다.")
@@ -93,6 +96,20 @@ public class UserController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         return ResponseEntity.ok(Map.of("nickname", user.getNickname()));
+    }
+
+    @GetMapping("/groups/{groupId}/members/{userId}")
+    public ResponseEntity<Boolean> isGroupMember(@PathVariable UUID groupId, @PathVariable UUID userId) {
+        log.info("🔍 내부 API 호출 - /internal/groups/{}/members/{}", groupId, userId);
+
+        try {
+            boolean isMember = groupService.isGroupMember(groupId, userId);
+            log.info("✅ 그룹원 확인 완료 - groupId: {}, userId: {}, isMember: {}", groupId, userId, isMember);
+            return ResponseEntity.ok(isMember);
+        } catch (Exception e) {
+            log.error("❌ 그룹원 확인 실패 - groupId: {}, userId: {}, error: {}", groupId, userId, e.getMessage(), e);
+            return ResponseEntity.ok(false); // 실패 시 false 반환
+        }
     }
 
     private void validateNickname(String nickname) {

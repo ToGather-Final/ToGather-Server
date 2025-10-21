@@ -8,6 +8,8 @@ import com.example.user_service.repository.InvitationCodeRepository;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+
+import com.example.user_service.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,6 +27,7 @@ public class GroupService {
     private final GroupMemberRepository groupMemberRepository;
     private final InvitationCodeRepository invitationCodeRepository;
     private final com.example.user_service.client.TradingServiceClient tradingServiceClient;
+    private final UserRepository userRepository;
 
     @Transactional
     public UUID createGroup(UUID ownerId, GroupCreateRequest request) {
@@ -468,5 +471,16 @@ public class GroupService {
             log.error("❌ 예수금 일괄 지급 중 오류 발생 - groupId: {}, error: {}", 
                     groupId, e.getMessage());
         }
+    }
+
+    @Transactional(readOnly = true)
+    public User getUserById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isGroupMember(UUID groupId, UUID userId) {
+        return groupMemberRepository.existsByIdGroupIdAndIdUserId(groupId, userId);
     }
 }
