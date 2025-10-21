@@ -21,7 +21,7 @@ import java.util.UUID;
 
 /**
  * API Gateway의 JWT 인증 필터
- * - JWT 토큰을 검증하고 X-User-Id 헤더를 추가하여 하위 서비스로 전달
+ * - JWT 토큰을 검증하고 X-User-Id 헤더를 추가하여 하위 서비스로 전달!
  */
 @Slf4j
 @Component
