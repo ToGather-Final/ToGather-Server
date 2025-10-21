@@ -82,8 +82,8 @@ spec:
                 memory: "256Mi"  # 🚀 전용 노드 최적화 (실제 사용량 기반)
                 cpu: "100m"      # 🚀 CPU 요청 최적화
               limits:
-                memory: "512Mi"  # 🚀 메모리 제한 최적화
-                cpu: "300m"      # 🚀 CPU 제한 최적화
+                memory: "1024Mi"  # 🚀 메모리 제한 최적화
+                cpu: "600m"      # 🚀 CPU 제한 최적화
           livenessProbe:
             httpGet:
               path: /api/health

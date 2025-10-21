@@ -4,38 +4,46 @@ metadata:
   name: togather-ingress
   namespace: togather
   annotations:
+    # ✅ ALB 설정
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/load-balancer-name: togather-alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
 
-    # ACM (서울 리전) 인증서 ARN
+    # ✅ HTTPS 설정 (ACM 인증서)
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:340623336075:certificate/66b08f32-5582-4357-b5b7-c2a796b4d49d
 
-    # SSL 리디렉션
+    # ✅ HTTP → HTTPS 리다이렉션
     alb.ingress.kubernetes.io/actions.ssl-redirect: >
       {"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}
 
-    # 새 보안그룹
+    # ✅ 보안그룹
     alb.ingress.kubernetes.io/security-groups: sg-0b3aee7dddb4c0aea
 
-    # Inbound CIDR (CloudFront Origin Access)
+    # ✅ CloudFront Origin 접근 IP 허용
     alb.ingress.kubernetes.io/inbound-cidrs: 13.35.0.0/16,13.249.0.0/16,18.64.0.0/16,18.160.0.0/16,18.172.0.0/16,18.232.0.0/16,18.244.0.0/16,43.250.248.0/24,43.250.249.0/24,43.250.250.0/24,43.250.251.0/24,52.82.128.0/19,52.222.128.0/17,54.182.0.0/16,54.230.0.0/16,204.246.164.0/22,204.246.168.0/22,204.246.174.0/23,204.246.176.0/20
 
-    # 🚀 ALB 타임아웃 설정 (Cold Start 방지)
+    # ✅ 타임아웃 / HTTP2 설정 (🔥 가장 중요)
+    alb.ingress.kubernetes.io/load-balancer-attributes: |
+      idle_timeout.timeout_seconds=300,
+      routing.http2.enabled=true,
+      routing.http.drop_invalid_header_fields.enabled=true
+
+    # ✅ Target Group (Health Check / Sticky 등)
     alb.ingress.kubernetes.io/target-group-attributes: |
       deregistration_delay.timeout_seconds=30,
       stickiness.enabled=false,
-      load_balancing.algorithm.type=round_robin,
-      health_check.interval_seconds=10,
-      health_check.timeout_seconds=5,
-      health_check.healthy_threshold_count=2,
-      health_check.unhealthy_threshold_count=3,
-      health_check.protocol=HTTP,
-      health_check.path=/healthz,
-      health_check.port=traffic-port,
-      health_check.matcher.http_code=200
+      load_balancing.algorithm.type=round_robin
+
+    # ✅ 공통 Health Check
+    alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
 
 spec:
   ingressClassName: alb
@@ -82,59 +90,44 @@ spec:
 #  name: togather-ingress
 #  namespace: togather
 #  annotations:
-#
-#    # ✅ ALB 기본 설정
+#    kubernetes.io/ingress.class: alb
+#    alb.ingress.kubernetes.io/load-balancer-name: togather-alb
 #    alb.ingress.kubernetes.io/scheme: internet-facing
 #    alb.ingress.kubernetes.io/target-type: ip
-#    alb.ingress.kubernetes.io/load-balancer-name: togather-alb
+#    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
 #
-#    # ✅ SSL/TLS 설정
-##    alb.ingress.kubernetes.io/ssl-redirect: '443'
-##    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-##    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:340623336075:certificate/66b08f32-5582-4357-b5b7-c2a796b4d49d
-#
-#    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+#    # ACM (서울 리전) 인증서 ARN
 #    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:340623336075:certificate/66b08f32-5582-4357-b5b7-c2a796b4d49d
 #
-#    # ✅ HTTP → HTTPS 리다이렉션 액션 정의
+#    # SSL 리디렉션
 #    alb.ingress.kubernetes.io/actions.ssl-redirect: >
 #      {"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}
 #
-#    # ✅ Health Check 설정 (SSR 대응)
-#    alb.ingress.kubernetes.io/healthcheck-path: /
-#    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
-#    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '20'
-#    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
-#    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+#    # 새 보안그룹
+#    alb.ingress.kubernetes.io/security-groups: sg-0b3aee7dddb4c0aea
 #
-#    # 🚀 성능 최적화 (SSR 렌더링 대응)
-#    alb.ingress.kubernetes.io/load-balancer-attributes: >
+#    # Inbound CIDR (CloudFront Origin Access)
+#    alb.ingress.kubernetes.io/inbound-cidrs: 13.35.0.0/16,13.249.0.0/16,18.64.0.0/16,18.160.0.0/16,18.172.0.0/16,18.232.0.0/16,18.244.0.0/16,43.250.248.0/24,43.250.249.0/24,43.250.250.0/24,43.250.251.0/24,52.82.128.0/19,52.222.128.0/17,54.182.0.0/16,54.230.0.0/16,204.246.164.0/22,204.246.168.0/22,204.246.174.0/23,204.246.176.0/20
+#
+#    # 🚀 ALB 타임아웃 설정 (Cold Start 방지)
+#    alb.ingress.kubernetes.io/target-group-attributes: |
 #      idle_timeout.timeout_seconds=300,
-#      routing.http.drop_invalid_header_fields.enabled=true,
 #      routing.http2.enabled=true
-#
-#    # 🚀 타임아웃 설정 (SSR 렌더링 대응)
-#    alb.ingress.kubernetes.io/backend-protocol: HTTP
-#    alb.ingress.kubernetes.io/target-group-attributes: >
 #      deregistration_delay.timeout_seconds=30,
-#      stickiness.enabled=true,
-#      stickiness.lb_cookie.duration_seconds=86400,
-#      load_balancing.cross_zone.enabled=true,
-#      target_health_check.timeout_seconds=30,
-#      target_health_check.interval_seconds=10,
-#      target_health_check.healthy_threshold_count=2,
-#      target_health_check.unhealthy_threshold_count=3
-#
-#    # 🚀 연결 최적화 (SSR 렌더링 대응)
-#    alb.ingress.kubernetes.io/connection-idle-timeout: "120"  # 🚀 타임아웃 증가
-#    alb.ingress.kubernetes.io/success-codes: "200,301,302"
+#      stickiness.enabled=false,
+#      load_balancing.algorithm.type=round_robin,
+#      health_check.interval_seconds=10,
+#      health_check.timeout_seconds=5,
+#      health_check.healthy_threshold_count=2,
+#      health_check.unhealthy_threshold_count=3,
+#      health_check.protocol=HTTP,
+#      health_check.path=/healthz,
+#      health_check.port=traffic-port,
+#      health_check.matcher.http_code=200
 #
 #spec:
 #  ingressClassName: alb
 #  rules:
-#    # ===============================================
-#    # 🌐 메인 도메인 (xn--o79aq2k062a.store)
-#    # ===============================================
 #    - host: xn--o79aq2k062a.store
 #      http:
 #        paths:
@@ -152,10 +145,6 @@ spec:
 #                name: nextjs-client
 #                port:
 #                  number: 3000
-#
-#    # ===============================================
-#    # 🌐 서브 도메인 (www.xn--o79aq2k062a.store)
-#    # ===============================================
 #    - host: www.xn--o79aq2k062a.store
 #      http:
 #        paths:
@@ -173,8 +162,3 @@ spec:
 #                name: nextjs-client
 #                port:
 #                  number: 3000
-#
-#    # ===============================================
-#    # 🔒 HTTP 요청 → HTTPS로 리다이렉션 (제거)
-#    # ===============================================
-#    # HTTP 리다이렉션은 ALB annotation으로 처리됨

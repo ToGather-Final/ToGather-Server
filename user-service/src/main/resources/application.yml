@@ -131,7 +131,9 @@ spring:
         format_sql: true
   logging:
     level:
-      com.example.user_service: INFO
+      org.springframework.web.reactive.function.client.ExchangeFunctions: DEBUG
+      reactor.netty.http.client: DEBUG
+#      com.example.user_service: INFO
 
 server:
   port: 8080

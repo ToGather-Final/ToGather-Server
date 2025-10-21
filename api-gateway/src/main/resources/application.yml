@@ -363,3 +363,7 @@ spring:
         interval: 1s
     compatibility-verifier:
       enabled: false
+  logging:
+    level:
+      org.springframework.web.reactive.function.client.ExchangeFunctions: DEBUG
+      reactor.netty.http.client: DEBUG
