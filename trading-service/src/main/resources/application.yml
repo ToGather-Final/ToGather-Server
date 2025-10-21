@@ -93,10 +93,28 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
-    show-sql: true # SQL 로그 활성화
-  logging:
-    level:
-      com.example.trading_service: DEBUG
+    show-sql: false # SQL 로그는 logging.level로 제어
+
+# 🔧 dev 프로파일 로깅 설정 (최상위 레벨에 위치해야 함!)
+logging:
+  level:
+    com.example.trading_service: DEBUG
+    # WebSocket 관련 로그 간소화
+    com.example.trading_service.service.RedisCacheService: WARN
+    com.example.trading_service.service.OrderBookService: INFO
+    com.example.trading_service.service.GroupTradingService: INFO
+    com.example.trading_service.service.WebSocketOrderBookService: WARN
+    com.example.trading_service.service.KisWebSocketClient: WARN
+    com.example.trading_service.service.StockPriceService: WARN
+    com.example.trading_service.service.KisTokenService: WARN
+    com.example.trading_service.service.ChartService: WARN
+    # WebSocketController는 INFO로 연결 상태 확인
+    com.example.trading_service.controller.WebSocketController: INFO
+    # 체결 관련은 INFO (체결 성공만 보이고, 대기는 DEBUG로 숨김)
+    com.example.trading_service.service.TradeExecutionService: INFO
+    # Hibernate SQL 로그 간소화
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
@@ -133,13 +151,31 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
-  logging:
-    level:
-      com.example.trading_service: INFO
+
+# 🔧 main 프로파일 로깅 설정 (최상위 레벨에 위치해야 함!)
+logging:
+  level:
+    com.example.trading_service: INFO
+    # 운영 환경에서는 WebSocket 로그도 간소화
+    com.example.trading_service.service.RedisCacheService: WARN
+    com.example.trading_service.service.OrderBookService: INFO
+    com.example.trading_service.service.GroupTradingService: INFO
+    com.example.trading_service.service.WebSocketOrderBookService: WARN
+    com.example.trading_service.service.KisWebSocketClient: WARN
+    com.example.trading_service.service.StockPriceService: WARN
+    com.example.trading_service.service.KisTokenService: WARN
+    com.example.trading_service.service.ChartService: WARN
+    # WebSocketController는 INFO로 연결 상태 확인
+    com.example.trading_service.controller.WebSocketController: INFO
+    # 체결 관련은 INFO (체결 성공만 보이고, 대기는 DEBUG로 숨김)
+    com.example.trading_service.service.TradeExecutionService: INFO
+    # Hibernate SQL 로그 간소화
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
 
 server:
   port: 8080
-
+  
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
   access-exp-seconds: ${JWT_ACCESS_EXP:1800}
