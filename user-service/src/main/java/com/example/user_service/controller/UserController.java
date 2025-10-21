@@ -17,8 +17,10 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
+@Slf4j
 @RequestMapping("/users")
 @Tag(name = "사용자 관리", description = "사용자 정보 조회, 수정, 중복 확인 관련 API")
 public class UserController {
