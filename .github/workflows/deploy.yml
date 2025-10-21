@@ -12,7 +12,7 @@ env:
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com
   EKS_CLUSTER_NAME: togather-cluster
   EKS_NAMESPACE: togather
-  # CDN 설정d
+  # CDN 설정!
   CDN_URL: https://d36ue99r8i68ow.cloudfront.net
   S3_BUCKET_NAME: togather-static-assets
   CLOUDFRONT_DISTRIBUTION_ID: E15ZDIW40YBVEN
