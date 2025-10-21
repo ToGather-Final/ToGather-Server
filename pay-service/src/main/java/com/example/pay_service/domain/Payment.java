@@ -14,7 +14,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "payments",
         indexes = {
-                @Index(name = "idx_payments_session", columnList = "session_id"),
                 @Index(name = "idx_payments_payer", columnList = "payer_account_id"),
                 @Index(name = "idx_payments_recipient", columnList = "recipient_bank_code"),
                 @Index(name = "idx_payments_created_at", columnList = "created_at")
@@ -25,9 +24,6 @@ public class Payment {
     @Id
     @Column(name = "id", columnDefinition = "BINARY(16)")
     private UUID id;
-
-    @Column(name = "session_id", length = 64, nullable = false)
-    private String sessionId;
 
     @Column(name = "payer_account_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID payerAccountId;
@@ -70,13 +66,12 @@ public class Payment {
     private String failureReason;
 
     @Builder
-    public Payment(UUID id, String sessionId, UUID payerAccountId, long amount,
+    public Payment(UUID id, UUID payerAccountId, long amount,
                    PaymentStatus status, String currency, String clientRequestId,
                    String recipientBankCode, String recipientAccountNumber,
                    String recipientName, String recipientBankName,
                    LocalDateTime createdAt, LocalDateTime postedAt, String failureReason) {
         this.id = id != null ? id : UUID.randomUUID();
-        this.sessionId = sessionId;
         this.payerAccountId = payerAccountId;
         this.amount = amount;
         this.status = status;
@@ -90,32 +85,13 @@ public class Payment {
         this.failureReason = failureReason;
     }
 
-    // PaymentSession에서 Payment 생성
-    public static Payment createFromSession(String sessionId, UUID payerAccountId,
-                                            PaymentSession session, String clientRequestId) {
-        Payment payment = new Payment();
-        payment.id = UUID.randomUUID();
-        payment.sessionId = sessionId;
-        payment.payerAccountId = payerAccountId;
-        payment.amount = session.getAmount();
-        payment.clientRequestId = clientRequestId;
-        payment.recipientBankCode = session.getRecipientBankCode();
-        payment.recipientAccountNumber = session.getRecipientAccountNumber();
-        payment.recipientName = session.getRecipientName();
-        payment.recipientBankName = session.getRecipientBankName();
-        payment.status = PaymentStatus.PENDING;
-        payment.currency = "KRW";
-        return payment;
-    }
-
     // 기존 방식 (직접 생성)
-    public static Payment create(String sessionId, UUID payerAccountId, long amount,
+    public static Payment create(UUID payerAccountId, long amount,
                                  String clientRequestId, String recipientBankCode,
                                  String recipientAccountNumber, String recipientName,
                                  String recipientBankName) {
         Payment payment = new Payment();
         payment.id = UUID.randomUUID();
-        payment.sessionId = sessionId;
         payment.payerAccountId = payerAccountId;
         payment.amount = amount;
         payment.clientRequestId = clientRequestId;
