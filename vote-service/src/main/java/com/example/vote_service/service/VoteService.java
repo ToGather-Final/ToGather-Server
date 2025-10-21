@@ -170,6 +170,20 @@ public class VoteService {
         log.info("투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}", 
                 proposalId, approveCount, rejectCount, voteQuorum);
 
+        int rejectQuorum = totalMembers - voteQuorum + 1;
+
+        if (rejectCount >= rejectQuorum) {
+            proposalService.rejectProposal(proposalId);
+            historyService.createVoteRejectedHistory(
+                    proposal.getGroupId(),
+                    proposalId,
+                    proposal.getProposalName()
+            );
+
+            log.info("투표 부결 (반대정족수 도달): proposalId={}", proposalId);
+            return;
+        }
+
         // 가결 조건: 찬성 투표 수가 정족수(voteQuorum) 이상
         boolean isApproved = (approveCount >= voteQuorum);
         
@@ -189,11 +203,12 @@ public class VoteService {
         } else {
             proposalService.rejectProposal(proposalId);
             // 히스토리 생성 (VOTE_REJECTED)
-            historyService.createVoteRejectedHistory(
+            historyService.createVoteExpiredHistory(
                 proposal.getGroupId(),
                 proposalId,
                 proposal.getProposalName()
             );
+            log.info("투표 종료 (마감시간): proposalId={}", proposalId);
         }
     }
 
@@ -300,7 +315,8 @@ public class VoteService {
             log.info("그룹 정족수 조회 완료 - groupId: {}, 정족수: {}", 
                     groupId, voteQuorum);
 
-            tallyVotes(proposalId, 0, voteQuorum); // totalMembers는 사용하지 않으므로 0으로 설정
+            Integer totalMembers = userServiceClient.getGroupMemberCountInternal(groupId);
+            tallyVotes(proposalId, totalMembers, voteQuorum); // totalMembers는 사용하지 않으므로 0으로 설정
             
             log.info("투표 마감 집계 완료 - proposalId: {}", proposalId);
         } catch (Exception e) {
@@ -391,15 +407,23 @@ public class VoteService {
 
             Integer voteQuorum = userServiceClient.getVoteQuorumInternal(groupId);
 
-            log.info("정족수 확인 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}",
-                    proposalId, approveCount, rejectCount, voteQuorum);
+            Integer totalMembers = userServiceClient.getGroupMemberCountInternal(groupId);
+            int rejectQuorum = totalMembers - voteQuorum + 1;
 
-            boolean isApproved = (approveCount >= voteQuorum) && (approveCount > rejectCount);
+            log.info("정족수 확인 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}, 그룹원수: {}, 반대정족수: {}",
+                    proposalId, approveCount, rejectCount, voteQuorum, totalMembers, rejectQuorum);
+
+            if (rejectCount >= rejectQuorum) {
+                log.info("🚫 반대정족수 도달! 즉시 투표 부결 - proposalId: {}", proposalId);
+                tallyVotesImmediately(proposalId, voteQuorum, totalMembers);
+                return;
+            }
+
+            boolean isApproved = (approveCount >= voteQuorum);
 
             if (isApproved) {
-                log.info("🎉 정족수 도달! 즉시 투표 집계 실행 - proposalId: {}", proposalId);
-
-                tallyVotesImmediately(proposalId, voteQuorum);
+                log.info("🎉 찬성 정족수 도달! 즉시 투표 가결 - proposalId: {}", proposalId);
+                tallyVotesImmediately(proposalId, voteQuorum, totalMembers);
 
                 Proposal proposal = proposalService.getProposal(proposalId);
                 if (proposal.getStatus() == ProposalStatus.APPROVED) {
@@ -413,7 +437,7 @@ public class VoteService {
         }
     }
 
-    private void tallyVotesImmediately(UUID proposalId, Integer voteQuorum) {
+    private void tallyVotesImmediately(UUID proposalId, Integer voteQuorum, Integer totalMembers) {
         Proposal proposal = proposalService.getProposal(proposalId);
 
         if (!proposal.isOpen()) {
@@ -422,9 +446,24 @@ public class VoteService {
 
         long approveCount = countApproveVotes(proposalId);
         long rejectCount = countRejectVotes(proposalId);
+        int rejectQuorum = totalMembers - voteQuorum + 1;
 
-        log.info("즉시 투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}",
-                proposalId, approveCount, rejectCount, voteQuorum);
+        log.info("즉시 투표 집계 결과 - proposalId: {}, 찬성: {}, 반대: {}, 정족수: {}, 그룹원수: {}, 반대정족수: {}",
+                proposalId, approveCount, rejectCount, voteQuorum, totalMembers, rejectQuorum);
+
+        if (rejectCount >= rejectQuorum) {
+            proposalService.rejectProposal(proposalId);
+
+            // 히스토리 생성 (VOTE_REJECTED)
+            historyService.createVoteRejectedHistory(
+                    proposal.getGroupId(),
+                    proposalId,
+                    proposal.getProposalName()
+            );
+
+            log.info("투표 부결 (반대정족수 도달): proposalId={}", proposalId);
+            return;
+        }
 
         // 가결 조건 확인
         boolean isApproved = (approveCount >= voteQuorum);
