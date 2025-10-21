@@ -94,6 +94,7 @@ public class GroupTradingService {
 
         // 7. 각 멤버별로 개인 주문 생성 및 실행
         List<Order> executedOrders = new ArrayList<>();
+        List<Exception> failedOrders = new ArrayList<>();
         int processedCount = 0;
 
         for (InvestmentAccount memberAccount : groupMembers) {
@@ -107,7 +108,7 @@ public class GroupTradingService {
                     false // 지정가 주문
                 );
 
-                Order createdOrder = orderService.buyStock(memberAccount.getUserId(), buyRequest);
+                Order createdOrder = orderService.buyStock(memberAccount.getUserId(), buyRequest, groupId);
                 executedOrders.add(createdOrder);
                 processedCount++;
 
@@ -116,8 +117,28 @@ public class GroupTradingService {
 
             } catch (Exception e) {
                 log.error("❌ 멤버 {} 매수 실패: {}", memberAccount.getInvestmentAccountId(), e.getMessage());
-                // 개별 멤버 실패는 로그만 남기고 계속 진행
+                failedOrders.add(e);
             }
+        }
+
+        // 7-1. 그룹 거래 실패 시 하나의 히스토리만 저장
+        if (processedCount == 0 && !failedOrders.isEmpty()) {
+            // 모든 멤버의 거래가 실패한 경우
+            Exception firstError = failedOrders.get(0);
+            String reason = firstError.getMessage();
+            if (reason.contains("잔고")) {
+                reason = "그룹 계좌에 잔액이 부족합니다.";
+            } else if (reason.contains("수량")) {
+                reason = "주식 보유 수량이 부족합니다.";
+            } else {
+                reason = "거래가 실패했습니다.";
+            }
+            
+            log.warn("⚠️ 그룹 매수 거래 실패 - 그룹: {}, 종목: {}, 사유: {}", groupId, stock.getStockName(), reason);
+            orderService.saveTradeFailedHistory(groupMembers.get(0).getUserId(), stock, 
+                new BuyRequest(stockId, null, totalQuantity, pricePerShare, false), 
+                "BUY", reason, groupId);
+            return 0;
         }
 
         // 8. 그룹 보유량 업데이트
@@ -188,6 +209,7 @@ public class GroupTradingService {
 
         // 8. 각 멤버별로 개인 매도 주문 생성 및 실행
         List<Order> executedOrders = new ArrayList<>();
+        List<Exception> failedOrders = new ArrayList<>();
         int processedCount = 0;
 
         for (InvestmentAccount memberAccount : groupMembers) {
@@ -201,7 +223,7 @@ public class GroupTradingService {
                     false // 지정가 주문
                 );
 
-                Order createdOrder = orderService.sellStock(memberAccount.getUserId(), sellRequest);
+                Order createdOrder = orderService.sellStock(memberAccount.getUserId(), sellRequest, groupId);
                 executedOrders.add(createdOrder);
                 processedCount++;
 
@@ -210,7 +232,28 @@ public class GroupTradingService {
 
             } catch (Exception e) {
                 log.error("❌ 멤버 {} 매도 실패: {}", memberAccount.getInvestmentAccountId(), e.getMessage());
+                failedOrders.add(e);
             }
+        }
+
+        // 8-1. 그룹 거래 실패 시 하나의 히스토리만 저장
+        if (processedCount == 0 && !failedOrders.isEmpty()) {
+            // 모든 멤버의 거래가 실패한 경우
+            Exception firstError = failedOrders.get(0);
+            String reason = firstError.getMessage();
+            if (reason.contains("잔고")) {
+                reason = "그룹 계좌에 잔액이 부족합니다.";
+            } else if (reason.contains("수량")) {
+                reason = "주식 보유 수량이 부족합니다.";
+            } else {
+                reason = "거래가 실패했습니다.";
+            }
+            
+            log.warn("⚠️ 그룹 매도 거래 실패 - 그룹: {}, 종목: {}, 사유: {}", groupId, stock.getStockName(), reason);
+            orderService.saveTradeFailedHistory(groupMembers.get(0).getUserId(), stock, 
+                new SellRequest(stockId, null, totalQuantity, price, false), 
+                "SELL", reason, groupId);
+            return 0;
         }
 
         // 9. 그룹 보유량 업데이트

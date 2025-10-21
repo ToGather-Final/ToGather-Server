@@ -98,7 +98,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update # 개발 시에는 스키마 자동 변경
-    show-sql: true # SQL 쿼리 로그 활성화
+    show-sql: false # SQL 쿼리 로그 비활성화
   # Redis와 RabbitMQ 설정은 module-common에서 상속받음
   logging:
     level:

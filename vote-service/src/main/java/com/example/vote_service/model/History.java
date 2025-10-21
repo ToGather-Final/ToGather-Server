@@ -132,4 +132,11 @@ public class History {
     public void setStockId(UUID stockId) {
         this.stockId = stockId;
     }
+    
+    /**
+     * 거래 타입 설정
+     */
+    public void setTransactionType(String transactionType) {
+        this.transactionType = transactionType;
+    }
 }

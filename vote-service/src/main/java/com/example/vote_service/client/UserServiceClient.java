@@ -1,5 +1,6 @@
 package com.example.vote_service.client;
 
+import com.example.module_common.dto.InvestmentAccountDto;
 import com.example.vote_service.config.FeignConfig;
 import com.example.vote_service.dto.GroupRuleResponse;
 import com.example.vote_service.dto.UserMeResponse;
@@ -7,6 +8,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -39,4 +41,11 @@ public interface UserServiceClient {
      */
     @GetMapping("/users/me")
     UserMeResponse getCurrentUser();
+
+    /**
+     * 그룹 멤버들의 투자 계좌 정보 조회
+     * GET /internal/groups/{groupId}/members/accounts
+     */
+    @GetMapping("/internal/groups/{groupId}/members/accounts")
+    List<InvestmentAccountDto> getGroupMemberAccounts(@PathVariable UUID groupId);
 }
