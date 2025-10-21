@@ -109,7 +109,7 @@ public class DataInitializer implements CommandLineRunner {
                 Map.entry("005930", "삼성전자"),
                 Map.entry("000660", "SK하이닉스"),
                 Map.entry("373220", "LG에너지솔루션"),
-                Map.entry("000150", "두산에너빌리티"),
+                Map.entry("000150", "두산"),
                 Map.entry("005380", "현대차"),
                 Map.entry("012450", "한화에어로스페이스"),
                 Map.entry("329180", "HD현대중공업"),
