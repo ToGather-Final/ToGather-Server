@@ -264,7 +264,7 @@ public class TradingService {
     public List<TradeHistoryResponse> getTradeHistory(UUID userId) {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
-        List<Trade> trades = tradeRepository.findByInvestmentAccountId(account.getInvestmentAccountId());
+        List<Trade> trades = tradeRepository.findByInvestmentAccountIdWithOrderAndStock(account.getInvestmentAccountId());
         
         return trades.stream()
                 .map(this::convertToTradeHistoryResponse)
@@ -762,7 +762,7 @@ public class TradingService {
         Stock stock = stockRepository.findByStockCode(stockCode)
                 .orElseThrow(() -> new IllegalArgumentException("주식을 찾을 수 없습니다: " + stockCode));
         
-        List<Trade> trades = tradeRepository.findByInvestmentAccountIdAndStockId(account.getInvestmentAccountId(), stock.getId());
+        List<Trade> trades = tradeRepository.findByInvestmentAccountIdAndStockIdWithOrderAndStock(account.getInvestmentAccountId(), stock.getId());
         
         return trades.stream()
                 .map(this::convertToTradeHistoryResponse)
@@ -856,7 +856,7 @@ public class TradingService {
         InvestmentAccount account = getInvestmentAccountByUserId(userId);
         
         // 보유 종목 조회
-        List<HoldingCache> holdings = holdingCacheRepository.findByAccountId(account.getInvestmentAccountId());
+        List<HoldingCache> holdings = holdingCacheRepository.findByAccountIdWithStock(account.getInvestmentAccountId());
         
         return holdings.stream()
                 .map(holding -> convertHoldingToStockResponse(holding))
