@@ -44,8 +44,8 @@ public class PaymentController {
             @Parameter(description = "결제 요청 데이터", required = true) @RequestBody PaymentRequest request,
             @AuthenticationPrincipal UUID userId
     ) {
-        log.info("결제 요청: sessionId={}, payerAccountId={}, amount={}, userId={}",
-                request.paymentSessionId(), request.payerAccountId(), request.amount(), userId);
+        log.info("결제 요청: payerAccountId={}, amount={}, recipientName={}, userId={}",
+                request.payerAccountId(), request.amount(), request.recipientName(), userId);
 
         PaymentResponse response = paymentService.executePayment(request, userId);
         return ResponseEntity.ok(response);
