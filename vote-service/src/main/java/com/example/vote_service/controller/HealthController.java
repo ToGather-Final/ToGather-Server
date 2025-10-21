@@ -1,46 +1,37 @@
-package com.example.api_gateway.controller;
+package com.example.vote_service.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@Tag(name = "헬스 체크", description = "API Gateway 상태 확인 관련 API")
+@Tag(name = "헬스 체크", description = "Vote Service 상태 확인 관련 API")
 public class HealthController {
+
+    @Autowired
+    private DataSource dataSource;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
 
     @Operation(summary = "ALB 헬스 체크", description = "ALB에서 사용하는 단순 OK 응답")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "API Gateway 정상 동작")
+        @ApiResponse(responseCode = "200", description = "Vote Service 정상 동작")
     })
     @GetMapping("/api/healthz")
-    public Mono<ResponseEntity<String>> healthz() {
-        return Mono.just(ResponseEntity.ok("OK"));
-    }
-
-    @Operation(summary = "API Gateway 헬스 체크", description = "API Gateway의 기본 상태를 확인합니다.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "API Gateway 정상 동작")
-    })
-    @GetMapping("/health")
-    public Mono<ResponseEntity<String>> health() {
-        return Mono.just(ResponseEntity.ok("OK"));
-    }
-
-    @Operation(summary = "API 헬스 체크", description = "API 엔드포인트의 상태를 확인합니다.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "API 엔드포인트 정상 동작")
-    })
-    @GetMapping("/api/health")
-    public Mono<ResponseEntity<String>> apiHealth() {
-        return Mono.just(ResponseEntity.ok("OK"));
+    public ResponseEntity<String> healthz() {
+        return ResponseEntity.ok("OK");
     }
 
     @Operation(summary = "Liveness Probe", description = "JVM 및 스레드 상태 확인")
@@ -49,7 +40,7 @@ public class HealthController {
         @ApiResponse(responseCode = "503", description = "서비스 비정상")
     })
     @GetMapping("/actuator/health/liveness")
-    public Mono<ResponseEntity<Map<String, Object>>> liveness() {
+    public ResponseEntity<Map<String, Object>> liveness() {
         Map<String, Object> health = new HashMap<>();
         
         try {
@@ -70,7 +61,7 @@ public class HealthController {
                     "used_mb", usedMemory / 1024 / 1024,
                     "max_mb", maxMemory / 1024 / 1024
                 ));
-                return Mono.just(ResponseEntity.status(503).body(health));
+                return ResponseEntity.status(503).body(health);
             }
             
             health.put("status", "UP");
@@ -80,30 +71,48 @@ public class HealthController {
                 "max_mb", maxMemory / 1024 / 1024
             ));
             
-            return Mono.just(ResponseEntity.ok(health));
+            return ResponseEntity.ok(health);
             
         } catch (Exception e) {
             health.put("status", "DOWN");
             health.put("error", e.getMessage());
-            return Mono.just(ResponseEntity.status(503).body(health));
+            return ResponseEntity.status(503).body(health);
         }
     }
 
-    @Operation(summary = "Readiness Probe", description = "Redis 연결 상태 확인")
+    @Operation(summary = "Readiness Probe", description = "데이터베이스 및 Redis 연결 상태 확인")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "서비스 준비 완료"),
         @ApiResponse(responseCode = "503", description = "서비스 준비 미완료")
     })
     @GetMapping("/actuator/health/readiness")
-    public Mono<ResponseEntity<Map<String, Object>>> readiness() {
+    public ResponseEntity<Map<String, Object>> readiness() {
         Map<String, Object> health = new HashMap<>();
         Map<String, Object> checks = new HashMap<>();
         boolean allHealthy = true;
         
-        // Redis 연결 확인 (API Gateway는 DB 연결이 없음)
+        // 데이터베이스 연결 확인
+        try (Connection connection = dataSource.getConnection()) {
+            if (connection.isValid(5)) {
+                checks.put("database", Map.of("status", "UP"));
+            } else {
+                checks.put("database", Map.of("status", "DOWN", "error", "Connection invalid"));
+                allHealthy = false;
+            }
+        } catch (Exception e) {
+            checks.put("database", Map.of("status", "DOWN", "error", e.getMessage()));
+            allHealthy = false;
+        }
+        
+        // Redis 연결 확인
         try {
-            // Redis 연결 확인 로직은 WebFlux 환경에 맞게 구현 필요
-            checks.put("redis", Map.of("status", "UP"));
+            String pong = redisTemplate.getConnectionFactory().getConnection().ping();
+            if ("PONG".equals(pong)) {
+                checks.put("redis", Map.of("status", "UP"));
+            } else {
+                checks.put("redis", Map.of("status", "DOWN", "error", "Unexpected ping response"));
+                allHealthy = false;
+            }
         } catch (Exception e) {
             checks.put("redis", Map.of("status", "DOWN", "error", e.getMessage()));
             allHealthy = false;
@@ -112,6 +121,6 @@ public class HealthController {
         health.put("status", allHealthy ? "UP" : "DOWN");
         health.put("checks", checks);
         
-        return allHealthy ? Mono.just(ResponseEntity.ok(health)) : Mono.just(ResponseEntity.status(503).body(health));
+        return allHealthy ? ResponseEntity.ok(health) : ResponseEntity.status(503).body(health);
     }
 }
