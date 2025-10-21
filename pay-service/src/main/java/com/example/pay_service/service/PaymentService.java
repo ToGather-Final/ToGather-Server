@@ -74,10 +74,12 @@ public class PaymentService {
                     .groupId(payerAccount.getGroupId())
                     .build();
 
+            payerAccount.debit(request.amount());
+
             payment.markAsSucceeded();
 
             paymentRepository.save(payment);
-            payAccountRepository.save(updatedPayerAccount);
+            payAccountRepository.save(payerAccount);
 
             PayAccountLedger ledgerEntry = PayAccountLedger.createWithRecipient(
                     payerAccountId,
