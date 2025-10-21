@@ -35,8 +35,8 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse executePayment(PaymentRequest request, UUID userId) {
-        log.info("결제 실행 시작: sessionId={}, payerAccountId={}, amount={}, userId={}",
-                request.paymentSessionId(), request.payerAccountId(), request.amount(), userId);
+        log.info("결제 실행 시작: payerAccountId={}, amount={}, recipientName={}, userId={}",
+                request.payerAccountId(), request.amount(), request.recipientName(), userId);
 
         if (request.clientRequestId() != null) {
             Optional<Payment> existingPayment = paymentRepository.findByClientRequestId(request.clientRequestId());
@@ -44,12 +44,6 @@ public class PaymentService {
                 log.info("멱등성 재시도: clientRequestId={}", request.clientRequestId());
                 return createPaymentResponse(existingPayment.get());
             }
-        }
-
-        PaymentSession session = paymentSessionService.getSessionOrThrow(request.paymentSessionId());
-
-        if (session.isUsed()) {
-            throw new PayServiceException("SESSION_USED", "Payment session already used");
         }
 
         UUID payerAccountId = UUID.fromString(request.payerAccountId());
@@ -60,10 +54,12 @@ public class PaymentService {
             throw new InsufficientFundsException("Insufficient balance");
         }
 
-        Payment payment = Payment.createFromSession(
-                request.paymentSessionId(),
+        Payment payment = Payment.createDirectPayment(
                 payerAccountId,
-                session,
+                request.amount(),
+                request.recipientName(),
+                request.recipientBankName(),
+                request.recipientAccountNumber(),
                 request.clientRequestId()
         );
 
@@ -83,16 +79,13 @@ public class PaymentService {
             paymentRepository.save(payment);
             payAccountRepository.save(updatedPayerAccount);
 
-            paymentSessionService.markAsUsed(request.paymentSessionId());
-
-            // PayAccountLedger 생성 (Builder 패턴 사용)
             PayAccountLedger ledgerEntry = PayAccountLedger.createWithRecipient(
                     payerAccountId,
                     TransactionType.PAYMENT,
                     request.amount(),
                     updatedPayerAccount.getBalance(),
                     "QR 결제",
-                    payment.getRecipientDisplayName() // 상점명
+                    request.recipientName() // 상점명
             );
 
             payAccountLedgerRepository.save(ledgerEntry);

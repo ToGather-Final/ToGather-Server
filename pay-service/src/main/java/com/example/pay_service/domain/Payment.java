@@ -180,4 +180,19 @@ public class Payment {
                 getRecipientDisplayName(),
                 getMaskedRecipientAccountNumber());
     }
+
+    public static Payment createDirectPayment(UUID payerAccountId, Long amount,
+                                              String recipientName, String recipientBankName,
+                                              String recipientAccountNumber, String clientRequestId) {
+        return Payment.builder()
+                .payerAccountId(payerAccountId)
+                .amount(amount)
+                .currency("KRW")
+                .status(PaymentStatus.PENDING)
+                .recipientName(recipientName)
+                .recipientBankName(recipientBankName)
+                .recipientAccountNumber(recipientAccountNumber)
+                .clientRequestId(clientRequestId)
+                .build();
+    }
 }
