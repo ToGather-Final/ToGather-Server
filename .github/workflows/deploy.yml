@@ -112,7 +112,7 @@ jobs:
 
           # ✅ .next/server 제외하고 아티팩트 생성
           cd ..
-          tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public src/app
+          tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public src/app src/components src/contexts src/hooks src/lib src/utils src/constants src/types src/services src/containers
           echo "✅ next-artifacts.tgz 생성 완료"
 
       # --- Next.js 빌드 아티팩트 업로드 (1회만) ---
