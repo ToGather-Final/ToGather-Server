@@ -143,6 +143,16 @@ public class GroupTradingService {
 
 
         log.info("그룹 매수 주문 완료 - 처리된 주문 수: {}", processedCount);
+        
+        // 🔥 그룹 거래 히스토리 저장
+        if (processedCount > 0) {
+            log.info("🔍 그룹 거래 히스토리 저장 호출 시작 - 그룹ID: {}, 주식ID: {}, 수량: {}", groupId, stockId, totalQuantity);
+            saveGroupTradingHistory(groupId, stockId, totalQuantity, pricePerShare, "BUY", executedOrders);
+            log.info("🔍 그룹 거래 히스토리 저장 호출 완료");
+        } else {
+            log.warn("⚠️ 그룹 거래 히스토리 저장 건너뜀 - 처리된 주문 수: 0");
+        }
+        
         return processedCount;
     }
 
@@ -253,6 +263,12 @@ public class GroupTradingService {
 
 
         log.info("그룹 매도 주문 완료 - 처리된 주문 수: {}", processedCount);
+        
+        // 🔥 그룹 거래 히스토리 저장
+        if (processedCount > 0) {
+            saveGroupTradingHistory(groupId, stockId, totalQuantity, price, "SELL", executedOrders);
+        }
+        
         return processedCount;
     }
 
@@ -420,6 +436,8 @@ public class GroupTradingService {
     private void saveGroupTradingHistory(UUID groupId, UUID stockId, float quantity, 
                                        BigDecimal price, String transactionType, 
                                        List<Order> executedOrders) {
+        log.info("🔍 그룹 거래 히스토리 저장 시작 - 그룹ID: {}, 주식ID: {}, 수량: {}, 가격: {}", 
+                groupId, stockId, quantity, price);
         try {
             // 주식 정보 조회
             Stock stock = stockRepository.findById(stockId)
@@ -438,17 +456,21 @@ public class GroupTradingService {
             history.setTitle(String.format("%s %.2f주 %d원 %s",
                     stock.getStockName(), quantity, price.intValue(),
                     "BUY".equals(transactionType) ? "매수" : "매도"));
-            history.setPayload(String.format("{\"groupTrading\":true,\"stockName\":\"%s\",\"quantity\":%.2f,\"price\":%d}",
-                    stock.getStockName(), quantity, price.intValue()));
+            // 🔥 그룹 총 예수금 잔액 조회 (거래 체결 시점의 잔액)
+            int groupTotalBalance = getGroupTotalBalance(groupId);
+            
+            // 🔥 accountBalance를 payload에 포함
+            history.setPayload(String.format("{\"groupTrading\":true,\"stockName\":\"%s\",\"quantity\":%.2f,\"price\":%d,\"accountBalance\":%d}",
+                    stock.getStockName(), quantity, price.intValue(), groupTotalBalance));
 
             if(!executedOrders.isEmpty()) {
                 history.setOrderId(executedOrders.get(0).getOrderId());
             }
 
-            historyRepository.save(history);
+            History savedHistory = historyRepository.save(history);
             
-            log.info("그룹 거래 히스토리 저장 완료 - 그룹ID: {}, 종목: {}, 수량: {}, 가격: {}", 
-                    groupId, stock.getStockName(), quantity, price);
+            log.info("💰 그룹 거래 체결 히스토리 저장 완료 - historyId: {}, 그룹ID: {}, 종목: {}, 수량: {}, 가격: {}, 그룹잔액: {}", 
+                    savedHistory.getHistoryId(), groupId, stock.getStockName(), quantity, price, groupTotalBalance);
                     
         } catch (Exception e) {
             log.error("그룹 거래 히스토리 저장 실패 - 그룹ID: {}, 주식ID: {} - {}", 
@@ -738,5 +760,44 @@ public class GroupTradingService {
                 holding.getMemberCount(),
                 avgQuantityPerMember
         );
+    }
+
+    /**
+     * 그룹 총 예수금 잔액 조회
+     * - 투표를 통해 체결된 거래의 경우 그룹 전체 잔액을 히스토리에 포함
+     */
+    private int getGroupTotalBalance(UUID groupId) {
+        try {
+            // 1. 그룹 멤버들의 투자 계좌 정보 조회
+            List<InvestmentAccountDto> accounts = userServiceClient.getGroupMemberAccounts(groupId);
+            
+            if (accounts.isEmpty()) {
+                log.warn("그룹 멤버 계좌가 없음 - groupId: {}", groupId);
+                return 0;
+            }
+            
+            // 2. 각 계좌의 예수금 잔액 조회 및 합산
+            int totalBalance = 0;
+            for (InvestmentAccountDto account : accounts) {
+                try {
+                    Optional<BalanceCache> balanceOpt = balanceCacheRepository
+                            .findByAccountId(account.getInvestmentAccountId());
+                    if (balanceOpt.isPresent()) {
+                        totalBalance += balanceOpt.get().getBalance();
+                    }
+                } catch (Exception e) {
+                    log.warn("계좌 잔액 조회 실패 - accountId: {} - {}", 
+                            account.getInvestmentAccountId(), e.getMessage());
+                }
+            }
+            
+            log.info("💰 그룹 총 예수금 잔액 조회 완료 - groupId: {}, 멤버수: {}, 총잔액: {}", 
+                    groupId, accounts.size(), totalBalance);
+            return totalBalance;
+            
+        } catch (Exception e) {
+            log.error("그룹 총 잔액 조회 실패 - groupId: {} - {}", groupId, e.getMessage());
+            return 0;
+        }
     }
 }
