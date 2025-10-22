@@ -31,7 +31,6 @@ public class PaymentService {
     private final PayAccountRepository payAccountRepository;
     private final PayAccountLedgerRepository payAccountLedgerRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
-    private final PaymentSessionService paymentSessionService;
 
     @Transactional
     public PaymentResponse executePayment(PaymentRequest request, UUID userId) {
