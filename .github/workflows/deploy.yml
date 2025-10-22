@@ -82,6 +82,42 @@ jobs:
           chmod +x gradlew
           ./gradlew build -x test
 
+      # --- Spring Services Docker Build ---
+      - name: Build and Push API Gateway image
+        run: |
+          docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:${{ github.sha }} .
+          docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:latest .
+          docker push $ECR_REGISTRY/togather/api-gateway:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/api-gateway:latest
+
+      - name: Build and Push User Service image
+        run: |
+          docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:${{ github.sha }} .
+          docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:latest .
+          docker push $ECR_REGISTRY/togather/user-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/user-service:latest
+
+      - name: Build and Push Trading Service image
+        run: |
+          docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:${{ github.sha }} .
+          docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:latest .
+          docker push $ECR_REGISTRY/togather/trading-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/trading-service:latest
+
+      - name: Build and Push Pay Service image
+        run: |
+          docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:${{ github.sha }} .
+          docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:latest .
+          docker push $ECR_REGISTRY/togather/pay-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/pay-service:latest
+
+      - name: Build and Push Vote Service image
+        run: |
+          docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:${{ github.sha }} .
+          docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:latest .
+          docker push $ECR_REGISTRY/togather/vote-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/togather/vote-service:latest
+
         # --- Next.js 클라이언트 빌드 & 업로드 ---
       - name: Build Next.js Client and Upload Assets
         run: |
