@@ -45,6 +45,9 @@ spec:
             # 🚀 CDN 설정 (정적 자산용)
             - name: CDN_URL
               value: "https://d36ue99r8i68ow.cloudfront.net"
+            # 🚀 WebSocket 설정
+            - name: NEXT_PUBLIC_WS_URL
+              value: "wss://xn--o79aq2k062a.store/ws"
             # 💡 아래 환경 변수들이 Next.js의 상세 로그를 활성화합니다.
             - name: DEBUG
               value: "next:*"

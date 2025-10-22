@@ -153,9 +153,9 @@ jwt:
   refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 user-service:
-  url: ${USER_SERVICE_URL:http://user-service:8080}
+  url: ${USER_SERVICE_URL:http://user-service.togather.svc.cluster.local:8080}
 trading-service:
-  url: ${TRADING_SERVICE_URL:http://trading-service:8080}
+  url: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
 
 # Feign 클라이언트 설정
 feign:

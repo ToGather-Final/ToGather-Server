@@ -89,6 +89,7 @@ jobs:
           # ✅ Next.js 단일 빌드 (Node runtime)
           SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
           NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
+          NEXT_PUBLIC_WS_URL=wss://xn--o79aq2k062a.store/ws \
           CDN_URL=$CDN_URL_CLEAN pnpm run build
 
           # ✅ 빌드 결과 검증 (server.js 또는 next-server.js 중 하나라도 있으면 성공)
@@ -141,6 +142,7 @@ jobs:
           if docker build \
             --build-arg SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
             --build-arg NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
+            --build-arg NEXT_PUBLIC_WS_URL=wss://xn--o79aq2k062a.store/ws \
             --build-arg CDN_URL=${{ env.CDN_URL }} \
             -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
             -t $ECR_REGISTRY/togather/client:latest \

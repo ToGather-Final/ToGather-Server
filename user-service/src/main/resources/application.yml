@@ -139,6 +139,6 @@ server:
   port: 8080
 
 trading-service:
-  url: ${TRADING_SERVICE_URL:http://trading-service:8080}
+  url: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
 
 # JWT 설정은 module-common의 app.jwt.* 를 사용
