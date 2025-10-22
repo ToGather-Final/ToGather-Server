@@ -166,27 +166,6 @@ jobs:
             --policy file://scripts/s3-bucket-policy.json
           echo "✅ S3 bucket policy configured successfully!"
 
-      # --- CloudFront 설정 확인 ---
-      - name: Check CloudFront Configuration
-        run: |
-          echo "🔍 Checking CloudFront configuration..."
-          chmod +x scripts/check-cloudfront-config.sh
-          ./scripts/check-cloudfront-config.sh
-
-      # --- 빌드 파일 구조 확인 ---
-      - name: Debug Build Files Structure
-        run: |
-          echo "🔍 Analyzing build files structure..."
-          cd togather-client
-          node scripts/debug-build-files.js
-
-      # --- CloudFront Behavior 설정 확인 ---
-      - name: Check CloudFront Behaviors
-        run: |
-          echo "🔍 Checking CloudFront behaviors..."
-          cd togather-client
-          node scripts/setup-cloudfront-behaviors.js
-
       # --- S3 정적 자산 업로드 (Docker 빌드 완료 후) ---
       - name: Upload Static Assets to S3 (Priority)
         run: |
@@ -468,80 +447,22 @@ jobs:
           done
           echo "✅ Prewarm completed!"
 
-      # --- 성능 테스트 ---
-      - name: Performance Test
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "🚀 Running performance test..."
-          cd togather-client
-          SITE_URL="https://xn--o79aq2k062a.store" node scripts/debug-response-times.js
 
-      # --- 전체 배포 상태 진단 ---!
-      - name: Deployment Health Check
+      # --- 간단한 배포 상태 확인 ---
+      - name: Quick Deployment Check
         if: always()
         run: |
-          echo "🔍 Final Deployment Health Check"
-          echo "================================="
-          
-          # EKS 클러스터 상태 확인
-          echo "📊 EKS Cluster Status:"
-          kubectl get nodes -o wide || echo "❌ Failed to get nodes"
-          
-          # 네임스페이스 상태 확인
-          echo "📊 Namespace Status:"
-          kubectl get ns ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get namespace"
-          
-          # 모든 Pod 상태 확인
-          echo "📊 Pod Status:"
-          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -o wide || echo "❌ Failed to get pods"
-          
-          # 서비스 상태 확인
-          echo "📊 Service Status:"
-          kubectl get svc -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get services"
-          
-          # 실패한 Pod 상세 정보
-          echo "📊 Failed Pods Details:"
-          kubectl get pods -n ${{ env.EKS_NAMESPACE }} --field-selector=status.phase!=Running -o wide || echo "No failed pods"
-          
-          # 이벤트 확인
-          echo "📊 Recent Events:"
-          kubectl get events -n ${{ env.EKS_NAMESPACE }} --sort-by='.lastTimestamp' | tail -20 || echo "❌ Failed to get events"
+          echo "🔍 Quick Deployment Check"
+          echo "========================"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get pods"
 
-      # --- 에러 발생 시 상세 진단 ---
-      - name: Detailed Error Diagnostics
+      # --- 에러 발생 시 간단한 진단 ---
+      - name: Quick Error Diagnostics
         if: failure()
         run: |
-          echo "🚨 DEPLOYMENT FAILED - Running detailed diagnostics..."
-          echo "====================================================="
-          
-          # 실패한 디플로이먼트 상세 정보
-          echo "🔍 Failed Deployments:"
-          kubectl get deploy -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get deployments"
-          
-          # 각 서비스별 상세 로그
-          for svc in api-gateway user-service trading-service pay-service vote-service nextjs-client; do
-            echo "📋 $svc Logs:"
-            POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=$svc -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-            if [ -n "$POD" ]; then
-              kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to describe pod $POD"
-              kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=50 || echo "❌ Failed to get logs for $POD"
-            else
-              echo "❌ No pod found for $svc"
-            fi
-            echo "---"
-          done
-          
-          # Ingress 상태
-          echo "🔍 Ingress Status:"
-          kubectl get ingress -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get ingress"
-          
-          # ConfigMap 상태
-          echo "🔍 ConfigMap Status:"
-          kubectl get configmap -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get configmaps"
-          
-          # Secret 상태 (민감 정보 제외)
-          echo "🔍 Secret Status:"
-          kubectl get secret -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get secrets"
+          echo "🚨 DEPLOYMENT FAILED - Quick diagnostics..."
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get pods"
+          kubectl get events -n ${{ env.EKS_NAMESPACE }} --sort-by='.lastTimestamp' | tail -10 || echo "❌ Failed to get events"
 
 
 #name: Deploy ToGather Microservices to AWS EKS
