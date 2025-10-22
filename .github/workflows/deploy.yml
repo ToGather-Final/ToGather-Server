@@ -82,7 +82,7 @@ jobs:
           chmod +x gradlew
           ./gradlew build -x test
 
-      # --- Next.js 클라이언트 빌드 & 업로드 ---
+        # --- Next.js 클라이언트 빌드 & 업로드 ---
       - name: Build Next.js Client and Upload Assets
         run: |
           cd togather-client
@@ -104,7 +104,7 @@ jobs:
           fi
   
 
-  # ✅ .next/server 제외하고 아티팩트 생성
+          # ✅ .next/server 제외하고 아티팩트 생성
           cd ..
           tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public
           echo "✅ next-artifacts.tgz 생성 완료"
