@@ -2,8 +2,10 @@ package com.example.trading_service.dto;
 
 import lombok.Getter;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @Getter
+@NoArgsConstructor
 @AllArgsConstructor
 public class OrderBookItem {
     private Float price; // 호가

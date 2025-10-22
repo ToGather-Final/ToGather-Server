@@ -271,27 +271,16 @@ public class HistoryService {
 
     /**
      * 배치 히스토리 DTO 변환 (성능 최적화)
-     * - 그룹 잔액을 한 번만 조회하여 모든 TRADE_EXECUTED 히스토리에 적용
+     * - 각 히스토리의 payload에 저장된 데이터를 사용 (API 호출 없음)
      */
     private List<HistoryDTO> convertToHistoryDTOsBatch(List<History> histories, UUID groupId) {
         try {
-            // TRADE_EXECUTED 히스토리가 있는지 확인
-            boolean hasTradeExecuted = histories.stream()
-                    .anyMatch(h -> h.getHistoryType() == HistoryType.TRADE_EXECUTED);
-            
-            // 그룹 잔액을 한 번만 조회 (TRADE_EXECUTED가 있을 때만)
-            Integer groupBalance = null;
-            if (hasTradeExecuted) {
-                groupBalance = getGroupTotalBalance(groupId);
-                log.info("💰 배치 히스토리 변환 - 그룹 잔액 조회 완료: {}", groupBalance);
-            }
-            
-            final Integer finalGroupBalance = groupBalance;
+            log.info("🚀 배치 히스토리 변환 시작 - 히스토리 {}개", histories.size());
             
             return histories.stream()
                     .map(history -> {
                         try {
-                            Object payload = parsePayloadWithBalance(history, finalGroupBalance);
+                            Object payload = parsePayload(history);
                             
                             return new HistoryDTO(
                                     history.getHistoryId(),
@@ -325,106 +314,6 @@ public class HistoryService {
         }
     }
 
-    /**
-     * JSON 페이로드를 타입에 맞는 DTO로 파싱 (배치 최적화 버전)
-     * - 그룹 잔액을 미리 조회하여 전달받음
-     */
-    private Object parsePayloadWithBalance(History history, Integer groupBalance) {
-        String payloadJson = history.getPayload();
-        HistoryType historyType = history.getHistoryType();
-        
-        if (payloadJson == null || payloadJson.trim().isEmpty()) {
-            return Map.of();
-        }
-        
-        try {
-            Map<String, Object> payloadMap = objectMapper.readValue(payloadJson, new TypeReference<Map<String, Object>>() {});
-            
-            switch (historyType) {
-                case VOTE_CREATED_BUY:
-                case VOTE_CREATED_SELL:
-                case VOTE_CREATED_PAY:
-                    return new VoteCreatedPayloadDTO(
-                            UUID.fromString((String) payloadMap.get("proposalId")),
-                            (String) payloadMap.get("proposalName"),
-                            (String) payloadMap.get("proposerName")
-                    );
-                    
-                case VOTE_APPROVED:
-                    // shares: JSON 정수(Integer) 또는 소수(Double)를 Float으로 변환
-                    Float shares = null;
-                    Object sharesObj = payloadMap.get("shares");
-                    if (sharesObj instanceof Number) {
-                        shares = ((Number) sharesObj).floatValue();
-                    }
-                    
-                    return new VoteApprovedPayloadDTO(
-                            UUID.fromString((String) payloadMap.get("proposalId")),
-                            (String) payloadMap.get("scheduledAt"),
-                            (String) payloadMap.get("historyType"),
-                            (String) payloadMap.get("side"),
-                            (String) payloadMap.get("stockName"),
-                            shares,
-                            (Integer) payloadMap.get("unitPrice"),
-                            (String) payloadMap.get("currency")
-                    );
-                    
-                case VOTE_REJECTED:
-                    return new VoteRejectedPayloadDTO(
-                            UUID.fromString((String) payloadMap.get("proposalId")),
-                            (String) payloadMap.get("proposalName")
-                    );
-                    
-                case TRADE_EXECUTED:
-                    // DB의 transaction_type을 side로 사용
-                    String side = history.getTransactionType();
-                    
-                    // 전달받은 그룹 잔액 사용 (API 호출 없음)
-                    Integer accountBalance = groupBalance != null ? groupBalance : 0;
-                    
-                    return new TradeExecutedPayloadDTO(
-                            side,
-                            (String) payloadMap.get("stockName"),
-                            history.getQuantity(), // DB의 quantity 컬럼에서 가져옴
-                            history.getPrice(), // DB의 price 컬럼에서 가져옴
-                            accountBalance
-                    );
-                    
-                case TRADE_FAILED:
-                    return new TradeFailedPayloadDTO(
-                            (String) payloadMap.get("side"),
-                            (String) payloadMap.get("stockName"),
-                            (String) payloadMap.get("reason")
-                    );
-                    
-                case CASH_DEPOSIT_COMPLETED:
-                    return new CashDepositCompletedPayloadDTO(
-                            (String) payloadMap.get("depositorName"),
-                            (Integer) payloadMap.get("amount"),
-                            (Integer) payloadMap.get("accountBalance")
-                    );
-                    
-                case PAY_CHARGE_COMPLETED:
-                    return new PayChargeCompletedPayloadDTO(
-                            (Integer) payloadMap.get("amount"),
-                            (Integer) payloadMap.get("accountBalance")
-                    );
-                    
-                case GOAL_ACHIEVED:
-                    return new GoalAchievedPayloadDTO(
-                            (Integer) payloadMap.get("targetAmount")
-                    );
-                    
-                default:
-                    log.warn("알 수 없는 히스토리 타입: {}", historyType);
-                    return payloadMap; // 기본 Map 반환
-            }
-        } catch (Exception e) {
-            log.error("페이로드 파싱 중 오류 - payloadJson: {}, historyType: {}, error: {}", 
-                    payloadJson, historyType, e.getMessage(), e);
-            return Map.of("error", "페이로드 파싱 실패");
-        }
-    }
 
     /**
      * JSON 페이로드를 타입에 맞는 DTO로 파싱 (History 엔티티에서 직접 컬럼 값도 사용)
@@ -479,8 +368,12 @@ public class HistoryService {
                     // DB의 transaction_type을 side로 사용
                     String side = history.getTransactionType();
                     
-                    // 그룹원들의 계좌 잔액 합산
-                    Integer accountBalance = getGroupTotalBalance(history.getGroupId());
+                    // 🔥 히스토리 생성 시점의 그룹 잔액을 payload에서 가져옴 (실시간 조회 X)
+                    Integer accountBalance = (Integer) payloadMap.get("accountBalance");
+                    if (accountBalance == null) {
+                        accountBalance = 0; // 기본값
+                        log.warn("⚠️ TRADE_EXECUTED 히스토리에 accountBalance가 없음 - historyId: {}", history.getHistoryId());
+                    }
                     
                     return new TradeExecutedPayloadDTO(
                             side,

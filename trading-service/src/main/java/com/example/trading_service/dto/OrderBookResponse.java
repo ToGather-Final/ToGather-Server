@@ -2,10 +2,12 @@ package com.example.trading_service.dto;
 
 import lombok.Getter;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Getter
+@NoArgsConstructor
 @AllArgsConstructor
 public class OrderBookResponse {
     private String stockCode;
