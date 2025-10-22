@@ -2,11 +2,13 @@ package com.example.trading_service.dto;
 
 import lombok.Getter;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
+@NoArgsConstructor
 @AllArgsConstructor
 public class OrderResponse {
     private UUID orderId;
