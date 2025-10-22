@@ -153,6 +153,10 @@ public class StockPriceService {
     }
 
     public Map<String, Object> getCurrentPrice(String stockCode, String prdtTypeCd) {
+        return getCurrentPriceWithRetry(stockCode, prdtTypeCd, 1);
+    }
+    
+    private Map<String, Object> getCurrentPriceWithRetry(String stockCode, String prdtTypeCd, int retryCount) {
         // API 호출 제한 적용
         enforceRateLimit();
         
@@ -182,10 +186,30 @@ public class StockPriceService {
             if (response.getStatusCode().is2xxSuccessful()) {
                 return response.getBody();
             } else {
+                // 토큰 만료 에러 체크
+                if (isTokenExpiredError(response.getBody())) {
+                    log.warn("🔄 토큰 만료 감지, 토큰 갱신 후 재시도: {}", stockCode);
+                    kisTokenService.invalidateToken();
+                    
+                    if (retryCount <= 1) {
+                        return getCurrentPriceWithRetry(stockCode, prdtTypeCd, retryCount + 1);
+                    }
+                }
+                
                 log.error("시세 조회 실패: HTTP {} - {}", response.getStatusCode(), response.getBody());
                 throw new RuntimeException("시세 조회 실패: " + response.getStatusCode());
             }
         } catch (Exception e) {
+            // 토큰 만료 에러 체크
+            if (isTokenExpiredError(e.getMessage())) {
+                log.warn("🔄 토큰 만료 감지, 토큰 갱신 후 재시도: {}", stockCode);
+                kisTokenService.invalidateToken();
+                
+                if (retryCount <= 1) {
+                    return getCurrentPriceWithRetry(stockCode, prdtTypeCd, retryCount + 1);
+                }
+            }
+            
             log.error("시세 조회 중 오류 발생: {}", e.getMessage());
             throw new RuntimeException("시세 조회 실패: " + e.getMessage(), e);
         }
@@ -306,6 +330,10 @@ public class StockPriceService {
 
     // 주식 호가 데이터 조회 (prdtTypeCd 포함)
     public Map<String, Object> getOrderBook(String stockCode, String prdtTypeCd) {
+        return getOrderBookWithRetry(stockCode, prdtTypeCd, 1);
+    }
+    
+    private Map<String, Object> getOrderBookWithRetry(String stockCode, String prdtTypeCd, int retryCount) {
         // API 호출 제한 적용
         enforceRateLimit();
         
@@ -334,10 +362,30 @@ public class StockPriceService {
             if (response.getStatusCode().is2xxSuccessful()) {
                 return response.getBody();
             } else {
+                // 토큰 만료 에러 체크
+                if (isTokenExpiredError(response.getBody())) {
+                    log.warn("🔄 토큰 만료 감지, 토큰 갱신 후 재시도: {}", stockCode);
+                    kisTokenService.invalidateToken();
+                    
+                    if (retryCount <= 1) {
+                        return getOrderBookWithRetry(stockCode, prdtTypeCd, retryCount + 1);
+                    }
+                }
+                
                 log.error("호가 데이터 조회 실패: HTTP {} - {}", response.getStatusCode(), response.getBody());
                 throw new RuntimeException("호가 데이터 조회 실패: " + response.getStatusCode());
             }
         } catch (Exception e) {
+            // 토큰 만료 에러 체크
+            if (isTokenExpiredError(e.getMessage())) {
+                log.warn("🔄 토큰 만료 감지, 토큰 갱신 후 재시도: {}", stockCode);
+                kisTokenService.invalidateToken();
+                
+                if (retryCount <= 1) {
+                    return getOrderBookWithRetry(stockCode, prdtTypeCd, retryCount + 1);
+                }
+            }
+            
             log.error("호가 데이터 조회 중 오류 발생: {}", e.getMessage());
             throw new RuntimeException("호가 데이터 조회 실패: " + e.getMessage(), e);
         }
@@ -383,6 +431,42 @@ public class StockPriceService {
         fallback.setPrevClosePrice(BigDecimal.ZERO);
         
         return fallback;
+    }
+    
+    /**
+     * 토큰 만료 에러인지 확인
+     */
+    private boolean isTokenExpiredError(Object responseBody) {
+        if (responseBody == null) return false;
+        
+        try {
+            if (responseBody instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> body = (Map<String, Object>) responseBody;
+                String rtCd = (String) body.get("rt_cd");
+                String msgCd = (String) body.get("msg_cd");
+                String msg1 = (String) body.get("msg1");
+                
+                return "1".equals(rtCd) && 
+                       ("EGW00123".equals(msgCd) || 
+                        (msg1 != null && msg1.contains("기간이 만료된 token")));
+            }
+        } catch (Exception e) {
+            log.debug("토큰 만료 에러 체크 중 예외: {}", e.getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 토큰 만료 에러인지 확인 (에러 메시지 기반)
+     */
+    private boolean isTokenExpiredError(String errorMessage) {
+        if (errorMessage == null) return false;
+        
+        return errorMessage.contains("EGW00123") || 
+               errorMessage.contains("기간이 만료된 token") ||
+               errorMessage.contains("token 입니다");
     }
     
     /**

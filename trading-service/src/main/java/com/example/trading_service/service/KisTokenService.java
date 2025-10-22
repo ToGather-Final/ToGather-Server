@@ -29,6 +29,7 @@ public class KisTokenService {
 
     private final RestTemplate restTemplate;
     private final StringRedisTemplate redisTemplate;
+    private final RedisCacheService redisCacheService;
 
     private static final String TOKEN_KEY = "kis:access_token";
     private static final String TOKEN_EXPIRY_KEY = "kis:token_expiry";
@@ -42,10 +43,14 @@ public class KisTokenService {
         String expiryTime = redisTemplate.opsForValue().get(TOKEN_EXPIRY_KEY);
 
         if (cachedToken != null && expiryTime != null) {
-            LocalDateTime expiry = LocalDateTime.parse(expiryTime);
-            if (LocalDateTime.now().isBefore(expiry.minusMinutes(5))) { // 5분 여유를 두고 갱신
-                log.debug("캐시된 토큰 사용: {}", cachedToken.substring(0, 20) + "...");
-                return cachedToken;
+            try {
+                LocalDateTime expiry = LocalDateTime.parse(expiryTime);
+                if (LocalDateTime.now().isBefore(expiry.minusMinutes(5))) { // 5분 여유를 두고 갱신
+                    log.debug("캐시된 토큰 사용: {}", cachedToken.substring(0, 20) + "...");
+                    return cachedToken;
+                }
+            } catch (Exception e) {
+                log.warn("토큰 만료 시간 파싱 실패, 새 토큰 발급: {}", e.getMessage());
             }
         }
 
@@ -111,6 +116,10 @@ public class KisTokenService {
     public void invalidateToken() {
         redisTemplate.delete(TOKEN_KEY);
         redisTemplate.delete(TOKEN_EXPIRY_KEY);
+        
+        // 토큰 만료로 인한 관련 캐시도 무효화
+        redisCacheService.invalidateTokenRelatedCache();
+        
         log.info("토큰 캐시가 무효화되었습니다.");
     }
 

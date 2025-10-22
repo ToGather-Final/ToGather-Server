@@ -155,6 +155,13 @@ public class OrderBookService {
             );
 
         } catch (Exception e) {
+            // 토큰 만료 에러인지 확인
+            if (isTokenExpiredError(e.getMessage())) {
+                log.warn("🔄 토큰 만료 감지, 토큰 갱신 후 재시도: {}", stockCode);
+                // 토큰 갱신 후 재시도는 StockPriceService에서 처리됨
+                // 여기서는 샘플 데이터 반환
+            }
+            
             log.error("호가 데이터 조회 중 오류 발생. 종목코드: {}, 오류: {}", stockCode, e.getMessage());
             return createSampleOrderBookResponse(stock);
         }
@@ -352,6 +359,17 @@ public class OrderBookService {
         }
         
         return false;
+    }
+    
+    /**
+     * 토큰 만료 에러인지 확인 (에러 메시지 기반)
+     */
+    private boolean isTokenExpiredError(String errorMessage) {
+        if (errorMessage == null) return false;
+        
+        return errorMessage.contains("EGW00123") || 
+               errorMessage.contains("기간이 만료된 token") ||
+               errorMessage.contains("token 입니다");
     }
     
     /**

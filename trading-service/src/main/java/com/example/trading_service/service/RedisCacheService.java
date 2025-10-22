@@ -356,6 +356,23 @@ public class RedisCacheService {
     }
 
     /**
+     * 토큰 만료 시 관련 캐시 무효화
+     */
+    public void invalidateTokenRelatedCache() {
+        try {
+            // KIS 토큰 캐시 삭제
+            evictKisToken();
+            
+            // WebSocket 호가 데이터 캐시 삭제 (토큰 만료로 인한 재연결 필요)
+            evictAllWebSocketOrderBooks();
+            
+            log.info("🔄 토큰 만료로 인한 관련 캐시 무효화 완료");
+        } catch (Exception e) {
+            log.error("토큰 관련 캐시 무효화 실패", e);
+        }
+    }
+    
+    /**
      * 모든 캐시 삭제 (개발/테스트용)
      */
     public void clearAllCache() {
