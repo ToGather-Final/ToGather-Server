@@ -37,7 +37,7 @@ spec:
               value: "--max-old-space-size=3072"
             - name: NODE_NO_WARNINGS
               value: "1"
-            # 🚀 API 엔드포인트 설정 (배포 환경)
+            # 🚀 API 엔드포인트 설정 (배포 환경)!
             - name: NEXT_PUBLIC_API_BASE_URL
               value: "https://xn--o79aq2k062a.store/api"
             - name: SERVER_API_BASE_URL
