@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -87,69 +88,29 @@ public class TradeExecutionService {
 
     // 체결 처리
     public void executeTrade(Order order, float executionPrice) {
+        log.info("🚀 거래 체결 시작 - 주문ID: {}, 체결가: {}, 수량: {}", 
+                order.getOrderId(), executionPrice, order.getQuantity());
+        
         // 체결 기록 생성
         Trade trade = new Trade();
         trade.setOrder(order);
         trade.setQuantity(order.getQuantity());
         trade.setPrice(executionPrice);
         tradeRepository.save(trade);
+        log.info("✅ Trade 엔티티 저장 완료 - tradeId: {}", trade.getTradeId());
 
         // 주문 상태 업데이트
         order.setStatus(Order.Status.FILLED);
         orderRepository.save(order);
+        log.info("✅ 주문 상태 업데이트 완료 - status: FILLED");
 
         // 잔고 및 보유 종목 업데이트
         updateAccountAfterTrade(order, executionPrice);
+        log.info("✅ 계좌 업데이트 완료");
         
         
-        // History 테이블에 거래 체결 히스토리 저장 (일단 주석 처리)
-        /*
-        try {
-            // 개인 거래의 경우 사용자 ID를 기반으로 임시 그룹 ID 생성
-            UUID userId = order.getInvestmentAccount().getUserId();
-            UUID tempGroupId = UUID.nameUUIDFromBytes(("personal_" + userId.toString()).getBytes());
-            
-            if (tempGroupId != null) {
-                String payload = String.format(
-                    "{\"side\":\"%s\",\"stockName\":\"%s\",\"shares\":%.2f,\"unitPrice\":%d,\"accountBalance\":%d}",
-                    order.getOrderType().toString(),
-                    order.getStock().getStockName(),
-                    trade.getQuantity(),
-                    (int) trade.getPrice(),
-                    getAccountBalance(order.getInvestmentAccount().getInvestmentAccountId())
-                );
-                
-                String title = String.format("%s %.2f주 %d원 %s 체결",
-                    order.getStock().getStockName(),
-                    trade.getQuantity(),
-                    (int) trade.getPrice(),
-                    order.getOrderType() == Order.OrderType.BUY ? "매수" : "매도"
-                );
-                
-                // History 생성 (create 메서드 없으므로 직접 생성)
-                History history = new History();
-                history.setGroupId(tempGroupId);
-                history.setHistoryCategory("TRADE");
-                history.setHistoryType("TRADE_EXECUTED");
-                history.setTitle(title);
-                history.setPayload(payload);
-                history.setPrice(trade.getPrice());
-                history.setQuantity(trade.getQuantity());
-                history.setTransactionType(order.getOrderType() == Order.OrderType.BUY ? 
-                    History.TransactionType.BUY : History.TransactionType.SELL);
-                history.setTotalAmount(trade.getPrice().multiply(java.math.BigDecimal.valueOf(trade.getQuantity())));
-                history.setInvestmentAccount(order.getInvestmentAccount());
-                history.setStock(order.getStock());
-                history.setOrderId(order.getOrderId());
-                historyRepository.save(history);
-                
-                log.info("거래 체결 히스토리 저장 완료 - 임시그룹ID: {}, 종목: {}, 수량: {}", 
-                        tempGroupId, order.getStock().getStockName(), trade.getQuantity());
-            }
-        } catch (Exception e) {
-            log.error("거래 체결 히스토리 저장 실패 - 주문ID: {} - {}", order.getOrderId(), e.getMessage());
-        }
-        */
+        // 🔥 개인 거래 히스토리는 저장하지 않음 (그룹 거래에서만 히스토리 저장)
+        log.info("🔍 개인 거래 체결 완료 - 히스토리는 그룹 거래에서만 저장됨");
         
         log.info("거래가 체결되었습니다. 주문ID: {}, 체결가: {}, 수량: {}", 
                 order.getOrderId(), executionPrice, order.getQuantity());
@@ -230,6 +191,32 @@ public class TradeExecutionService {
                     .orElse(0);
         } catch (Exception e) {
             log.error("계좌 잔액 조회 실패 - 계좌ID: {} - {}", accountId, e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * 그룹 총 예수금 잔액 조회
+     * - 투표를 통해 체결된 거래의 경우 그룹 전체 잔액을 히스토리에 포함
+     */
+    private int getGroupTotalBalance(UUID groupId) {
+        try {
+            // 개인 거래의 경우 해당 사용자의 잔액만 반환
+            // (임시 그룹 ID는 "personal_" + userId 형태)
+            String groupIdStr = groupId.toString();
+            if (groupIdStr.startsWith("personal_")) {
+                // 개인 거래의 경우 해당 계좌의 잔액만 반환
+                // TODO: 실제 사용자 ID를 추출하여 해당 사용자의 잔액 조회
+                log.info("개인 거래 그룹 잔액 조회 - groupId: {} (임시로 0 반환)", groupId);
+                return 0;
+            }
+            
+            // 실제 그룹 거래의 경우 0 반환 (GroupTradingService에서 처리)
+            log.info("실제 그룹 거래 잔액 조회 - groupId: {} (임시로 0 반환)", groupId);
+            return 0;
+            
+        } catch (Exception e) {
+            log.error("그룹 총 잔액 조회 실패 - groupId: {} - {}", groupId, e.getMessage());
             return 0;
         }
     }
