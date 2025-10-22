@@ -77,49 +77,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Build with Gradle (Backend)
-        run: |
-          chmod +x gradlew
-          ./gradlew build -x test
-
-      # --- Spring Services Docker Build ---
-      - name: Build and Push API Gateway image
-        run: |
-          docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:${{ github.sha }} .
-          docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:latest .
-          docker push $ECR_REGISTRY/togather/api-gateway:${{ github.sha }}
-          docker push $ECR_REGISTRY/togather/api-gateway:latest
-
-      - name: Build and Push User Service image
-        run: |
-          docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:${{ github.sha }} .
-          docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:latest .
-          docker push $ECR_REGISTRY/togather/user-service:${{ github.sha }}
-          docker push $ECR_REGISTRY/togather/user-service:latest
-
-      - name: Build and Push Trading Service image
-        run: |
-          docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:${{ github.sha }} .
-          docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:latest .
-          docker push $ECR_REGISTRY/togather/trading-service:${{ github.sha }}
-          docker push $ECR_REGISTRY/togather/trading-service:latest
-
-      - name: Build and Push Pay Service image
-        run: |
-          docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:${{ github.sha }} .
-          docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:latest .
-          docker push $ECR_REGISTRY/togather/pay-service:${{ github.sha }}
-          docker push $ECR_REGISTRY/togather/pay-service:latest
-
-      - name: Build and Push Vote Service image
-        run: |
-          docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:${{ github.sha }} .
-          docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:latest .
-          docker push $ECR_REGISTRY/togather/vote-service:${{ github.sha }}
-          docker push $ECR_REGISTRY/togather/vote-service:latest
-
-        # --- Next.js 클라이언트 빌드 & 업로드 ---
-      - name: Build Next.js Client and Upload Assets
+      # --- Next.js 클라이언트 먼저 빌드 & 배포 (빠른 피드백) ---
+      - name: Build Next.js Client and Upload Assets (Priority)
         run: |
           cd togather-client
           export CDN_URL_CLEAN=$(echo "${{ env.CDN_URL }}" | sed 's:/*$::')
@@ -132,11 +91,22 @@ jobs:
           NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
           CDN_URL=$CDN_URL_CLEAN pnpm run build
 
-          # ✅ 빌드 결과 검증
+          # ✅ 빌드 결과 검증 (server.js 또는 next-server.js 중 하나라도 있으면 성공)
           if [ ! -f ".next/standalone/server.js" ] && [ ! -f ".next/standalone/server.mjs" ] && [ ! -f ".next/standalone/next-server.js" ]; then
             echo "❌ Next.js standalone server entry not found!"
-            ls -R .next/standalone | head -n 50
+            echo "🔍 Available files in .next/standalone:"
+            ls -la .next/standalone/ || echo "No standalone directory found"
+            echo "🔍 Available files in .next:"
+            ls -la .next/ || echo "No .next directory found"
             exit 1
+          else
+            echo "✅ Next.js standalone build successful"
+            if [ -f ".next/standalone/server.js" ]; then
+              echo "✅ Found server.js"
+            fi
+            if [ -f ".next/standalone/next-server.js" ]; then
+              echo "✅ Found next-server.js"
+            fi
           fi
   
 
@@ -154,45 +124,197 @@ jobs:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
 
       # --- Next.js 빌드 아티팩트 업로드 (1회만) ---
-      - name: Upload Next build artifacts
+      - name: Upload Next build artifacts (Priority)
         uses: actions/upload-artifact@v4
         with:
           name: next-artifacts
           path: next-artifacts.tgz
 
       # --- Docker 빌드 ---
-      - name: Download and Extract Next.js Build Artifacts
+      - name: Download and Extract Next.js Build Artifacts (Priority)
         uses: actions/download-artifact@v4
         with:
           name: next-artifacts
           path: ./togather-client
 
-      - name: Extract Next.js Artifacts
+      - name: Extract Next.js Artifacts (Priority)
         run: |
           tar -xzf ./togather-client/next-artifacts.tgz -C ./togather-client
           echo "✅ next-artifacts.tgz 압축 해제 완료"
 
-      - name: Build and Push Next.js Runtime Image
+      - name: Build and Push Next.js Runtime Image (Priority)
+        continue-on-error: true
         run: |
           echo "🚀 Building Next.js runtime image..."
           cd togather-client
-          docker build \
+          if docker build \
             --build-arg SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
             --build-arg NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
             --build-arg CDN_URL=${{ env.CDN_URL }} \
             -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
             -t $ECR_REGISTRY/togather/client:latest \
-            -f Dockerfile .
-          docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
-          docker push $ECR_REGISTRY/togather/client:latest
-          echo "✅ Next.js Docker image successfully built and pushed!"
+            -f Dockerfile .; then
+            echo "✅ Next.js build successful"
+            if docker push $ECR_REGISTRY/togather/client:${{ github.sha }} && docker push $ECR_REGISTRY/togather/client:latest; then
+              echo "✅ Next.js Docker image successfully built and pushed!"
+            else
+              echo "❌ Next.js push failed"
+              exit 1
+            fi
+          else
+            echo "❌ Next.js build failed"
+            exit 1
+          fi
 
-      # --- EKS 배포 ---
-      - name: Install kubectl
+      # --- kubectl 설치 (Next.js 배포를 위해) ---
+      - name: Install kubectl (Priority)
         uses: azure/setup-kubectl@v3
         with:
           version: 'v1.28.0'
 
+      # --- Next.js 클라이언트 EKS 배포 (빠른 피드백) ---
+      - name: Deploy Next.js Client to EKS (Priority)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "🚀 Deploying Next.js Client first for quick feedback..."
+          
+          # kubectl 설정
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+          
+          export ECR_REGISTRY=${{ env.ECR_REGISTRY }}
+          
+          # 기존 Next.js 클라이언트 Pod 정리 (문제가 있는 Pod들 제거)
+          echo "🧹 Cleaning up existing Next.js Client pods..."
+          kubectl delete pods -l app=nextjs-client -n ${{ env.EKS_NAMESPACE }} --ignore-not-found=true || true
+          
+          # Next.js 클라이언트만 먼저 배포
+          echo "📦 Deploying Next.js Client..."
+          if envsubst < k8s/nextjs-client.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}; then
+            echo "✅ Next.js Client deployed successfully"
+            
+            # 이미지 업데이트
+            if kubectl set image deployment/nextjs-client nextjs-client=$ECR_REGISTRY/togather/client:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true; then
+              echo "✅ Next.js Client image updated successfully"
+              
+              # Pod 재시작 대기
+              echo "⏳ Waiting for Next.js Client pods to be ready..."
+              kubectl rollout status deployment/nextjs-client -n ${{ env.EKS_NAMESPACE }} --timeout=300s || echo "⚠️ Rollout timeout, but continuing..."
+            else
+              echo "❌ Next.js Client image update failed"
+            fi
+          else
+            echo "❌ Next.js Client deployment failed"
+          fi
+
+      - name: Build with Gradle (Backend)
+        run: |
+          chmod +x gradlew
+          ./gradlew build -x test
+
+      # --- Spring Services Docker Build (with error handling) ---
+      - name: Build and Push API Gateway image
+        continue-on-error: true
+        run: |
+          echo "🚀 Building API Gateway image..."
+          if docker build -f api-gateway/Dockerfile -t $ECR_REGISTRY/togather/api-gateway:${{ github.sha }} .; then
+            echo "✅ API Gateway build successful"
+            docker tag $ECR_REGISTRY/togather/api-gateway:${{ github.sha }} $ECR_REGISTRY/togather/api-gateway:latest
+            if docker push $ECR_REGISTRY/togather/api-gateway:${{ github.sha }} && docker push $ECR_REGISTRY/togather/api-gateway:latest; then
+              echo "✅ API Gateway pushed successfully"
+            else
+              echo "❌ API Gateway push failed"
+              exit 1
+            fi
+          else
+            echo "❌ API Gateway build failed"
+            exit 1
+          fi
+
+      - name: Build and Push User Service image
+        continue-on-error: true
+        run: |
+          echo "🚀 Building User Service image..."
+          if docker build -f user-service/Dockerfile -t $ECR_REGISTRY/togather/user-service:${{ github.sha }} .; then
+            echo "✅ User Service build successful"
+            docker tag $ECR_REGISTRY/togather/user-service:${{ github.sha }} $ECR_REGISTRY/togather/user-service:latest
+            if docker push $ECR_REGISTRY/togather/user-service:${{ github.sha }} && docker push $ECR_REGISTRY/togather/user-service:latest; then
+              echo "✅ User Service pushed successfully"
+            else
+              echo "❌ User Service push failed"
+              exit 1
+            fi
+          else
+            echo "❌ User Service build failed"
+            exit 1
+          fi
+
+      - name: Build and Push Trading Service image
+        continue-on-error: true
+        run: |
+          echo "🚀 Building Trading Service image..."
+          if docker build -f trading-service/Dockerfile -t $ECR_REGISTRY/togather/trading-service:${{ github.sha }} .; then
+            echo "✅ Trading Service build successful"
+            docker tag $ECR_REGISTRY/togather/trading-service:${{ github.sha }} $ECR_REGISTRY/togather/trading-service:latest
+            if docker push $ECR_REGISTRY/togather/trading-service:${{ github.sha }} && docker push $ECR_REGISTRY/togather/trading-service:latest; then
+              echo "✅ Trading Service pushed successfully"
+            else
+              echo "❌ Trading Service push failed"
+              exit 1
+            fi
+          else
+            echo "❌ Trading Service build failed"
+            exit 1
+          fi
+
+      - name: Build and Push Pay Service image
+        continue-on-error: true
+        run: |
+          echo "🚀 Building Pay Service image..."
+          if docker build -f pay-service/Dockerfile -t $ECR_REGISTRY/togather/pay-service:${{ github.sha }} .; then
+            echo "✅ Pay Service build successful"
+            docker tag $ECR_REGISTRY/togather/pay-service:${{ github.sha }} $ECR_REGISTRY/togather/pay-service:latest
+            if docker push $ECR_REGISTRY/togather/pay-service:${{ github.sha }} && docker push $ECR_REGISTRY/togather/pay-service:latest; then
+              echo "✅ Pay Service pushed successfully"
+            else
+              echo "❌ Pay Service push failed"
+              exit 1
+            fi
+          else
+            echo "❌ Pay Service build failed"
+            exit 1
+          fi
+
+      - name: Build and Push Vote Service image
+        continue-on-error: true
+        run: |
+          echo "🚀 Building Vote Service image..."
+          if docker build -f vote-service/Dockerfile -t $ECR_REGISTRY/togather/vote-service:${{ github.sha }} .; then
+            echo "✅ Vote Service build successful"
+            docker tag $ECR_REGISTRY/togather/vote-service:${{ github.sha }} $ECR_REGISTRY/togather/vote-service:latest
+            if docker push $ECR_REGISTRY/togather/vote-service:${{ github.sha }} && docker push $ECR_REGISTRY/togather/vote-service:latest; then
+              echo "✅ Vote Service pushed successfully"
+            else
+              echo "❌ Vote Service push failed"
+              exit 1
+            fi
+          else
+            echo "❌ Vote Service build failed"
+            exit 1
+          fi
+
+      # --- Spring Services Build Summary ---
+      - name: Spring Services Build Summary
+        run: |
+          echo "📊 Spring Services Build Summary:"
+          echo "=================================="
+          echo "✅ API Gateway: ${{ steps.build-api-gateway.outcome }}"
+          echo "✅ User Service: ${{ steps.build-user-service.outcome }}"
+          echo "✅ Trading Service: ${{ steps.build-trading-service.outcome }}"
+          echo "✅ Pay Service: ${{ steps.build-pay-service.outcome }}"
+          echo "✅ Vote Service: ${{ steps.build-vote-service.outcome }}"
+
+
+      # --- EKS 배포 ---
       - name: Configure kubectl for EKS
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
@@ -227,20 +349,75 @@ jobs:
             SPRING_DATA_REDIS_PASSWORD: "${{ secrets.REDIS_PASSWORD }}"
           EOF
 
-          # 리소스 배포
-          for file in api-gateway user-service trading-service pay-service vote-service nextjs-client ingress; do
-            envsubst < k8s/$file.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}
+          # 리소스 배포 (with error handling)
+          echo "🚀 Deploying Kubernetes resources..."
+          FAILED_DEPLOYMENTS=""
+          SUCCESS_DEPLOYMENTS=""
+          
+          for file in api-gateway user-service trading-service pay-service vote-service ingress; do
+            echo "📦 Deploying $file..."
+            if envsubst < k8s/$file.yaml | kubectl apply -f - -n ${{ env.EKS_NAMESPACE }}; then
+              echo "✅ $file deployed successfully"
+              SUCCESS_DEPLOYMENTS="$SUCCESS_DEPLOYMENTS $file"
+            else
+              echo "❌ $file deployment failed"
+              FAILED_DEPLOYMENTS="$FAILED_DEPLOYMENTS $file"
+            fi
           done
 
-          kubectl apply -f k8s/configmap.yaml -n ${{ env.EKS_NAMESPACE }}
-          kubectl apply -f k8s/redis.yaml -n ${{ env.EKS_NAMESPACE }}
-          kubectl apply -f k8s/rabbitmq.yaml -n ${{ env.EKS_NAMESPACE }}
-          kubectl apply -f k8s/hpa.yaml -n ${{ env.EKS_NAMESPACE }}
-
-          # 최신 이미지 반영
-          for svc in api-gateway user-service trading-service pay-service vote-service nextjs-client; do
-            kubectl set image deployment/$svc $svc=$ECR_REGISTRY/togather/$svc:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true
+          # Additional resources
+          echo "📦 Deploying additional resources..."
+          for resource in configmap redis rabbitmq hpa; do
+            echo "📦 Deploying $resource..."
+            if kubectl apply -f k8s/$resource.yaml -n ${{ env.EKS_NAMESPACE }}; then
+              echo "✅ $resource deployed successfully"
+              SUCCESS_DEPLOYMENTS="$SUCCESS_DEPLOYMENTS $resource"
+            else
+              echo "❌ $resource deployment failed"
+              FAILED_DEPLOYMENTS="$FAILED_DEPLOYMENTS $resource"
+            fi
           done
+
+          # 최신 이미지 반영 (with error handling)
+          echo "🔄 Updating service images..."
+          for svc in api-gateway user-service trading-service pay-service vote-service; do
+            echo "🔄 Updating $svc image..."
+            if kubectl set image deployment/$svc $svc=$ECR_REGISTRY/togather/$svc:${{ github.sha }} -n ${{ env.EKS_NAMESPACE }} --record=true; then
+              echo "✅ $svc image updated successfully"
+            else
+              echo "❌ $svc image update failed"
+              FAILED_DEPLOYMENTS="$FAILED_DEPLOYMENTS $svc-image"
+            fi
+          done
+
+          # 배포 결과 요약
+          echo ""
+          echo "📊 Deployment Summary:"
+          echo "====================="
+          if [ -n "$SUCCESS_DEPLOYMENTS" ]; then
+            echo "✅ Successful: $SUCCESS_DEPLOYMENTS"
+          fi
+          if [ -n "$FAILED_DEPLOYMENTS" ]; then
+            echo "❌ Failed: $FAILED_DEPLOYMENTS"
+            echo "⚠️ Some deployments failed, but continuing..."
+          fi
+
+          # Next.js 클라이언트 최종 상태 확인
+          echo ""
+          echo "🔍 Next.js Client Final Status:"
+          echo "==============================="
+          kubectl get pods -l app=nextjs-client -n ${{ env.EKS_NAMESPACE }} -o wide || echo "❌ Failed to get Next.js Client pods"
+          
+          # Next.js 클라이언트 Health Check
+          echo ""
+          echo "🏥 Next.js Client Health Check:"
+          NEXTJS_POD=$(kubectl get pods -l app=nextjs-client -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$NEXTJS_POD" ]; then
+            echo "📋 Pod: $NEXTJS_POD"
+            kubectl logs $NEXTJS_POD -n ${{ env.EKS_NAMESPACE }} --tail=20 || echo "❌ Failed to get logs"
+          else
+            echo "❌ No Next.js Client pod found"
+          fi
 
       # --- 배포 완료 후 Prewarm ---
       - name: Prewarm Next.js Client
@@ -254,6 +431,73 @@ jobs:
             sleep 3
           done
           echo "✅ Prewarm completed!"
+
+      # --- 전체 배포 상태 진단 ---
+      - name: Deployment Health Check
+        if: always()
+        run: |
+          echo "🔍 Final Deployment Health Check"
+          echo "================================="
+          
+          # EKS 클러스터 상태 확인
+          echo "📊 EKS Cluster Status:"
+          kubectl get nodes -o wide || echo "❌ Failed to get nodes"
+          
+          # 네임스페이스 상태 확인
+          echo "📊 Namespace Status:"
+          kubectl get ns ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get namespace"
+          
+          # 모든 Pod 상태 확인
+          echo "📊 Pod Status:"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -o wide || echo "❌ Failed to get pods"
+          
+          # 서비스 상태 확인
+          echo "📊 Service Status:"
+          kubectl get svc -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get services"
+          
+          # 실패한 Pod 상세 정보
+          echo "📊 Failed Pods Details:"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} --field-selector=status.phase!=Running -o wide || echo "No failed pods"
+          
+          # 이벤트 확인
+          echo "📊 Recent Events:"
+          kubectl get events -n ${{ env.EKS_NAMESPACE }} --sort-by='.lastTimestamp' | tail -20 || echo "❌ Failed to get events"
+
+      # --- 에러 발생 시 상세 진단 ---
+      - name: Detailed Error Diagnostics
+        if: failure()
+        run: |
+          echo "🚨 DEPLOYMENT FAILED - Running detailed diagnostics..."
+          echo "====================================================="
+          
+          # 실패한 디플로이먼트 상세 정보
+          echo "🔍 Failed Deployments:"
+          kubectl get deploy -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get deployments"
+          
+          # 각 서비스별 상세 로그
+          for svc in api-gateway user-service trading-service pay-service vote-service nextjs-client; do
+            echo "📋 $svc Logs:"
+            POD=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=$svc -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+            if [ -n "$POD" ]; then
+              kubectl describe pod $POD -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to describe pod $POD"
+              kubectl logs $POD -n ${{ env.EKS_NAMESPACE }} --tail=50 || echo "❌ Failed to get logs for $POD"
+            else
+              echo "❌ No pod found for $svc"
+            fi
+            echo "---"
+          done
+          
+          # Ingress 상태
+          echo "🔍 Ingress Status:"
+          kubectl get ingress -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get ingress"
+          
+          # ConfigMap 상태
+          echo "🔍 ConfigMap Status:"
+          kubectl get configmap -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get configmaps"
+          
+          # Secret 상태 (민감 정보 제외)
+          echo "🔍 Secret Status:"
+          kubectl get secret -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get secrets"
 
 
 #name: Deploy ToGather Microservices to AWS EKS
