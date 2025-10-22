@@ -157,6 +157,36 @@ jobs:
             exit 1
           fi
 
+      # --- S3 버킷 정책 설정 ---
+      - name: Configure S3 Bucket Policy for CloudFront
+        run: |
+          echo "🔧 Configuring S3 bucket policy for CloudFront access..."
+          aws s3api put-bucket-policy \
+            --bucket ${{ env.S3_BUCKET_NAME }} \
+            --policy file://scripts/s3-bucket-policy.json
+          echo "✅ S3 bucket policy configured successfully!"
+
+      # --- CloudFront 설정 확인 ---
+      - name: Check CloudFront Configuration
+        run: |
+          echo "🔍 Checking CloudFront configuration..."
+          chmod +x scripts/check-cloudfront-config.sh
+          ./scripts/check-cloudfront-config.sh
+
+      # --- 빌드 파일 구조 확인 ---
+      - name: Debug Build Files Structure
+        run: |
+          echo "🔍 Analyzing build files structure..."
+          cd togather-client
+          node scripts/debug-build-files.js
+
+      # --- CloudFront Behavior 설정 확인 ---
+      - name: Check CloudFront Behaviors
+        run: |
+          echo "🔍 Checking CloudFront behaviors..."
+          cd togather-client
+          node scripts/setup-cloudfront-behaviors.js
+
       # --- S3 정적 자산 업로드 (Docker 빌드 완료 후) ---
       - name: Upload Static Assets to S3 (Priority)
         run: |
@@ -437,6 +467,14 @@ jobs:
             sleep 3
           done
           echo "✅ Prewarm completed!"
+
+      # --- 성능 테스트 ---
+      - name: Performance Test
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "🚀 Running performance test..."
+          cd togather-client
+          SITE_URL="https://xn--o79aq2k062a.store" node scripts/debug-response-times.js
 
       # --- 전체 배포 상태 진단 ---!
       - name: Deployment Health Check
