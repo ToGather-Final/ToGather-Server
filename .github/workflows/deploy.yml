@@ -229,7 +229,7 @@ jobs:
           chmod +x gradlew
           ./gradlew build -x test
 
-      # --- Spring Services Docker Build (with error handling) ---
+      # --- Spring Services Docker Build (with error handling) ----
       - name: Build and Push API Gateway image
         continue-on-error: true
         run: |
