@@ -17,7 +17,7 @@ public class Order {
     @Column(name = "order_id", nullable = false, updatable = false)
     private UUID orderId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "investment_account_id", nullable = false)
     private InvestmentAccount investmentAccount;
 
