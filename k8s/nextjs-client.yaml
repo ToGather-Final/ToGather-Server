@@ -42,6 +42,9 @@ spec:
               value: "https://xn--o79aq2k062a.store/api"
             - name: SERVER_API_BASE_URL
               value: "http://api-gateway.togather.svc.cluster.local:8000/api"
+            # 🚀 CDN 설정 (정적 자산용)
+            - name: CDN_URL
+              value: "https://d36ue99r8i68ow.cloudfront.net"
             # 💡 아래 환경 변수들이 Next.js의 상세 로그를 활성화합니다.
             - name: DEBUG
               value: "next:*"

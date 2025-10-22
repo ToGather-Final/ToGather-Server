@@ -157,6 +157,21 @@ jobs:
             exit 1
           fi
 
+      # --- S3 정적 자산 업로드 (동일한 빌드 결과 사용) ---
+      - name: Upload Static Assets to S3 (Priority)
+        run: |
+          echo "🚀 Uploading static assets to S3..."
+          cd togather-client
+          
+          # ✅ 동일한 빌드 결과를 S3에 업로드
+          pnpm run upload-assets
+          
+          echo "✅ Static assets uploaded to S3 successfully!"
+        env:
+          CDN_URL: ${{ env.CDN_URL }}
+          S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
+
       # --- S3 버킷 정책 설정 ---
       - name: Configure S3 Bucket Policy for CloudFront
         run: |
@@ -166,20 +181,6 @@ jobs:
             --policy file://scripts/s3-bucket-policy.json
           echo "✅ S3 bucket policy configured successfully!"
 
-      # --- S3 정적 자산 업로드 (Docker 빌드 완료 후) ---
-      - name: Upload Static Assets to S3 (Priority)
-        run: |
-          echo "🚀 Uploading static assets to S3..."
-          cd togather-client
-          
-          # ✅ 빌드 완료 후 정적 자산 업로드 및 CDN 무효화
-          pnpm run upload-assets
-          
-          echo "✅ Static assets uploaded to S3 successfully!"
-        env:
-          CDN_URL: ${{ env.CDN_URL }}
-          S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
 
       # --- kubectl 설치 (Next.js 배포를 위해) ---
       - name: Install kubectl (Priority)
