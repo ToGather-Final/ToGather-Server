@@ -102,9 +102,19 @@ jobs:
         NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
         CDN_URL=$CDN_URL_CLEAN pnpm run build
 
+        echo "✅ Next.js build completed. Checking output structure..."
+        ls -R .next | head -n 40
+
+        # ✅ server.js 검증
+        if [ ! -f ".next/standalone/server.js" ]; then
+          echo "❌ .next/standalone/server.js not found!"
+          echo "빌드 산출물 누락. 빌드 실패로 간주합니다."
+          exit 1
+        fi
+
         # ✅ 빌드 산출물 아티팩트로 보관 (Docker와 S3에서 동일 빌드 사용)
         cd ..
-        tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static .next/server public
+        tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public
         echo "✅ next-artifacts.tgz 생성 완료"
 
         # ✅ 정적 자산 업로드 및 CDN 무효화
@@ -116,14 +126,12 @@ jobs:
         CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
         NEXT_PUBLIC_API_BASE_URL: https://xn--o79aq2k062a.store
 
-      # ✅ next-artifacts.tgz 파일을 업로드 (빌드 결과 백업)
     - name: Upload Next build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: next-artifacts
         path: next-artifacts.tgz
 
-      # ✅ 빌드 결과를 Docker 이미지 생성에 재사용
     - name: Download Next.js build artifacts
       uses: actions/download-artifact@v4
       with:
@@ -134,17 +142,29 @@ jobs:
       run: |
         tar -xzf ./togather-client/next-artifacts.tgz -C ./togather-client
         echo "✅ next-artifacts.tgz 압축 해제 완료"
+        ls -R ./togather-client/.next/standalone | head -n 20
 
       # ✅ kr 도입을 위해 추가 --build-arg CDN_URL=${{ env.CDN_URL }} \
     - name: Build and push Next.js runtime image
       run: |
+        echo "🚀 Building Next.js runtime image..."
+        cd togather-client
+
+        # 빌드 산출물 검증
+        if [ ! -f ".next/standalone/server.js" ]; then
+          echo "❌ server.js not found in .next/standalone — build failed!"
+          ls -R .next | head -n 40
+          exit 1
+        fi
+
         docker build \
           --build-arg SERVER_API_BASE_URL=http://api-gateway.togather.svc.cluster.local:8000/api \
           --build-arg NEXT_PUBLIC_API_BASE_URL=https://xn--o79aq2k062a.store/api \
           --build-arg CDN_URL=${{ env.CDN_URL }} \
           -t $ECR_REGISTRY/togather/client:${{ github.sha }} \
-          -f ./togather-client/Dockerfile ./togather-client
-        docker tag $ECR_REGISTRY/togather/client:${{ github.sha }} $ECR_REGISTRY/togather/client:latest
+          -t $ECR_REGISTRY/togather/client:latest \
+          -f Dockerfile .
+
         docker push $ECR_REGISTRY/togather/client:${{ github.sha }}
         docker push $ECR_REGISTRY/togather/client:latest
 
