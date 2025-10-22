@@ -451,21 +451,144 @@ jobs:
           echo "✅ Prewarm completed!"
 
 
-      # --- 간단한 배포 상태 확인 ---
-      - name: Quick Deployment Check
+      # --- 상세한 Pod 상태 점검 및 로그 출력 ---
+      - name: Detailed Pod Status Check
         if: always()
         run: |
-          echo "🔍 Quick Deployment Check"
-          echo "========================"
-          kubectl get pods -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get pods"
+          echo "🔍 Detailed Pod Status Check"
+          echo "============================"
+          
+          # 모든 Pod 상태 확인
+          echo "📊 All Pods Status:"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -o wide || echo "❌ Failed to get pods"
+          
+          # Next.js Client Pod 상태 상세 확인
+          echo ""
+          echo "🚀 Next.js Client Pod Status:"
+          NEXTJS_PODS=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$NEXTJS_PODS" ]; then
+            for pod in $NEXTJS_PODS; do
+              echo "📋 Pod: $pod"
+              kubectl get pod $pod -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.status.phase}' 2>/dev/null && echo ""
+              kubectl get pod $pod -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null && echo " (Ready)"
+              kubectl get pod $pod -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null && echo " (Container Ready)"
+            done
+          else
+            echo "❌ No Next.js Client pods found"
+          fi
+          
+          # API Gateway Pod 상태 확인
+          echo ""
+          echo "🌐 API Gateway Pod Status:"
+          API_PODS=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=api-gateway -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$API_PODS" ]; then
+            for pod in $API_PODS; do
+              echo "📋 Pod: $pod"
+              kubectl get pod $pod -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.status.phase}' 2>/dev/null && echo ""
+              kubectl get pod $pod -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null && echo " (Ready)"
+            done
+          else
+            echo "❌ No API Gateway pods found"
+          fi
 
-      # --- 에러 발생 시 간단한 진단 ---
-      - name: Quick Error Diagnostics
+      # --- 비정상 Pod 로그 출력 ---
+      - name: Unhealthy Pod Logs
+        if: always()
+        run: |
+          echo "🚨 Unhealthy Pod Logs Check"
+          echo "=========================="
+          
+          # Next.js Client 비정상 Pod 로그
+          echo "🔍 Next.js Client Pod Logs:"
+          NEXTJS_PODS=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$NEXTJS_PODS" ]; then
+            for pod in $NEXTJS_PODS; do
+              echo "📋 Pod: $pod"
+              READY_STATUS=$(kubectl get pod $pod -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "Unknown")
+              if [ "$READY_STATUS" != "True" ]; then
+                echo "⚠️ Pod $pod is not ready (Status: $READY_STATUS)"
+                echo "📝 Recent logs from $pod:"
+                kubectl logs $pod -n ${{ env.EKS_NAMESPACE }} --tail=50 || echo "❌ Failed to get logs from $pod"
+                echo ""
+                echo "📝 Pod description for $pod:"
+                kubectl describe pod $pod -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to describe pod $pod"
+                echo ""
+              else
+                echo "✅ Pod $pod is ready"
+              fi
+            done
+          fi
+          
+          # API Gateway 비정상 Pod 로그
+          echo "🔍 API Gateway Pod Logs:"
+          API_PODS=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=api-gateway -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$API_PODS" ]; then
+            for pod in $API_PODS; do
+              echo "📋 Pod: $pod"
+              READY_STATUS=$(kubectl get pod $pod -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "Unknown")
+              if [ "$READY_STATUS" != "True" ]; then
+                echo "⚠️ Pod $pod is not ready (Status: $READY_STATUS)"
+                echo "📝 Recent logs from $pod:"
+                kubectl logs $pod -n ${{ env.EKS_NAMESPACE }} --tail=50 || echo "❌ Failed to get logs from $pod"
+                echo ""
+                echo "📝 Pod description for $pod:"
+                kubectl describe pod $pod -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to describe pod $pod"
+                echo ""
+              else
+                echo "✅ Pod $pod is ready"
+              fi
+            done
+          fi
+
+      # --- Health Check 상태 확인 ---
+      - name: Health Check Status
+        if: always()
+        run: |
+          echo "🏥 Health Check Status"
+          echo "====================="
+          
+          # Next.js Client health check
+          echo "🔍 Next.js Client Health Check:"
+          NEXTJS_PODS=$(kubectl get pods -n ${{ env.EKS_NAMESPACE }} -l app=nextjs-client -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$NEXTJS_PODS" ]; then
+            for pod in $NEXTJS_PODS; do
+              echo "📋 Testing /api/healthz on pod: $pod"
+              POD_IP=$(kubectl get pod $pod -n ${{ env.EKS_NAMESPACE }} -o jsonpath='{.status.podIP}' 2>/dev/null || echo "")
+              if [ -n "$POD_IP" ]; then
+                echo "🌐 Pod IP: $POD_IP"
+                # Pod 내부에서 health check 테스트
+                kubectl exec $pod -n ${{ env.EKS_NAMESPACE }} -- curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/healthz 2>/dev/null || echo "❌ Health check failed"
+              else
+                echo "❌ Could not get pod IP"
+              fi
+            done
+          fi
+
+      # --- 에러 발생 시 상세 진단 ---
+      - name: Detailed Error Diagnostics
         if: failure()
         run: |
-          echo "🚨 DEPLOYMENT FAILED - Quick diagnostics..."
-          kubectl get pods -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get pods"
-          kubectl get events -n ${{ env.EKS_NAMESPACE }} --sort-by='.lastTimestamp' | tail -10 || echo "❌ Failed to get events"
+          echo "🚨 DEPLOYMENT FAILED - Detailed diagnostics..."
+          echo "============================================="
+          
+          # 모든 Pod 상태
+          echo "📊 All Pods Status:"
+          kubectl get pods -n ${{ env.EKS_NAMESPACE }} -o wide || echo "❌ Failed to get pods"
+          
+          # 이벤트 확인
+          echo ""
+          echo "📝 Recent Events:"
+          kubectl get events -n ${{ env.EKS_NAMESPACE }} --sort-by='.lastTimestamp' | tail -20 || echo "❌ Failed to get events"
+          
+          # 서비스 상태
+          echo ""
+          echo "🌐 Services Status:"
+          kubectl get svc -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get services"
+          
+          # Ingress 상태
+          echo ""
+          echo "🔗 Ingress Status:"
+          kubectl get ingress -n ${{ env.EKS_NAMESPACE }} || echo "❌ Failed to get ingress"
 
 
 #name: Deploy ToGather Microservices to AWS EKS
