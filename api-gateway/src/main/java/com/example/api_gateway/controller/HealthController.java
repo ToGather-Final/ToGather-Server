@@ -1,5 +1,6 @@
 package com.example.api_gateway.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
+@Hidden
 @Tag(name = "헬스 체크", description = "API Gateway 상태 확인 관련 API")
 public class HealthController {
 

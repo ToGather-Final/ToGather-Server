@@ -100,6 +100,11 @@ public class UserController {
         return ResponseEntity.ok(Map.of("nickname", user.getNickname()));
     }
 
+    @Operation(summary = "그룹 멤버 확인", description = "특정 사용자가 그룹의 멤버인지 확인합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "그룹 멤버 확인 성공"),
+        @ApiResponse(responseCode = "404", description = "그룹을 찾을 수 없음")
+    })
     @GetMapping("/groups/{groupId}/members/{userId}")
     public ResponseEntity<Boolean> isGroupMember(@PathVariable UUID groupId, @PathVariable UUID userId) {
         log.info("🔍 내부 API 호출 - /internal/groups/{}/members/{}", groupId, userId);

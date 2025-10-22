@@ -2,6 +2,10 @@ package com.example.vote_service.controller;
 
 import com.example.vote_service.dto.TradeFailedHistoryRequest;
 import com.example.vote_service.service.HistoryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/internal/history")
 @RequiredArgsConstructor
+@Tag(name = "내부 히스토리", description = "서비스 간 히스토리 저장 관련 API")
 public class InternalHistoryController {
 
     private final HistoryService historyService;
@@ -26,6 +31,11 @@ public class InternalHistoryController {
      * 거래 실패 히스토리 저장
      * POST /internal/history/trade-failed
      */
+    @Operation(summary = "거래 실패 히스토리 저장", description = "거래 실패 시 히스토리를 저장합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "거래 실패 히스토리 저장 성공"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @PostMapping("/trade-failed")
     public ResponseEntity<Void> saveTradeFailedHistory(@RequestBody TradeFailedHistoryRequest request) {
         try {

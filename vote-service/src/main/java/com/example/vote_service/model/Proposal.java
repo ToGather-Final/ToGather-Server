@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -132,7 +133,11 @@ public class Proposal {
         if (this.closeAt == null) {
             return false;
         }
-        return LocalDateTime.now().isAfter(this.closeAt);
+
+        ZoneId koreaZone = ZoneId.of("Asia/Seoul");
+        LocalDateTime nowInKorea = LocalDateTime.now(koreaZone);
+
+        return nowInKorea.isAfter(this.closeAt);
     }
 
     /**

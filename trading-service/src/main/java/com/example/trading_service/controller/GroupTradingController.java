@@ -28,9 +28,11 @@ public class GroupTradingController {
 
     private final GroupTradingService groupTradingService;
 
-    /**
-     * 그룹 매수 주문
-     */
+    @Operation(summary = "그룹 매수 주문", description = "그룹 멤버들의 투자 계좌에 동일한 매수 주문을 생성합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "그룹 매수 주문 생성 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터")
+    })
     @PostMapping("/buy")
     public ResponseEntity<ApiResponse<Integer>> groupBuyOrder(
             @Valid @RequestBody GroupBuyRequest request,
@@ -60,9 +62,11 @@ public class GroupTradingController {
         }
     }
 
-    /**
-     * 그룹 매도 주문
-     */
+    @Operation(summary = "그룹 매도 주문", description = "그룹 멤버들의 투자 계좌에 동일한 매도 주문을 생성합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "그룹 매도 주문 생성 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터")
+    })
     @PostMapping("/sell")
     public ResponseEntity<ApiResponse<Integer>> groupSellOrder(
             @Valid @RequestBody GroupSellRequest request,

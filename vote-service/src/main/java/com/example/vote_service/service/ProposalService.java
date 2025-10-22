@@ -281,7 +281,8 @@ public class ProposalService {
         // 현재는 기본값 5분 사용
         // LocalDateTime closeAt = LocalDateTime.now().plusMinutes(5);
         // log.info("투표 마감 시간 설정 (기본값 5분) - groupId: {}, closeAt: {}", groupId, closeAt);
-        
+        ZoneId koreaZone = ZoneId.of("Asia/Seoul");
+
         // 디버깅용: 1분으로 설정
         int durationMinutes;
 
@@ -293,7 +294,7 @@ public class ProposalService {
             log.info("기본 투표 기간 사용 - groupId: {}, durationMinutes: {}", groupId, durationMinutes);
         }
 
-        LocalDateTime closeAt = LocalDateTime.now().plusMinutes(durationMinutes);
+        LocalDateTime closeAt = LocalDateTime.now(koreaZone).plusMinutes(durationMinutes);
         log.info("투표 마감 시간 설정 - groupId: {}, durationMinutes: {}, closeAt: {}", groupId, durationMinutes, closeAt);
         
         return closeAt;

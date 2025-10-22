@@ -2,14 +2,18 @@ package com.example.trading_service.service;
 
 import com.example.trading_service.domain.*;
 import com.example.trading_service.dto.OrderBookResponse;
+import com.example.trading_service.event.TradeExecutedEvent;
 import com.example.trading_service.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,6 +32,7 @@ public class TradeExecutionService {
     @Lazy
     private final OrderBookService orderBookService;
     private final HistoryRepository historyRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 시장가 주문 처리
     public void processMarketOrder(Order order) {
@@ -108,6 +113,17 @@ public class TradeExecutionService {
         updateAccountAfterTrade(order, executionPrice);
         log.info("✅ 계좌 업데이트 완료");
         
+        // 그룹 보유량 업데이트는 이벤트로 처리 (순환 참조 방지)
+        if (order.getGroupId() != null) {
+            log.info("🔍 그룹 거래 - 그룹 보유량 업데이트는 별도 이벤트로 처리됨");
+        } else {
+            log.info("🔍 개인 거래 - 그룹 보유량 업데이트 건너뜀");
+        }
+        
+        // 거래 체결 이벤트 발행
+        eventPublisher.publishEvent(new TradeExecutedEvent(this, order, executionPrice));
+        log.info("✅ 거래 체결 이벤트 발행 완료");
+        
         
         // 🔥 개인 거래 히스토리는 저장하지 않음 (그룹 거래에서만 히스토리 저장)
         log.info("🔍 개인 거래 체결 완료 - 히스토리는 그룹 거래에서만 저장됨");
@@ -149,10 +165,25 @@ public class TradeExecutionService {
             // 매수
             if (existingHolding.isPresent()) {
                 HoldingCache holding = existingHolding.get();
-                float newAvgCost = ((holding.getAvgCost() * holding.getQuantity()) + (price * quantity)) 
-                        / (holding.getQuantity() + quantity);
-                holding.setQuantity(holding.getQuantity() + quantity);
-                holding.setAvgCost(newAvgCost);
+                
+                // BigDecimal을 사용한 정확한 계산
+                BigDecimal currentQuantity = BigDecimal.valueOf(holding.getQuantity());
+                BigDecimal currentAvgCost = BigDecimal.valueOf(holding.getAvgCost());
+                BigDecimal newQuantity = BigDecimal.valueOf(quantity);
+                BigDecimal newPrice = BigDecimal.valueOf(price);
+                
+                // 새로운 총 수량
+                BigDecimal totalQuantity = currentQuantity.add(newQuantity);
+                
+                // 새로운 평균단가 계산
+                BigDecimal currentTotalCost = currentQuantity.multiply(currentAvgCost);
+                BigDecimal newTotalCost = newQuantity.multiply(newPrice);
+                BigDecimal totalCost = currentTotalCost.add(newTotalCost);
+                BigDecimal newAvgCost = totalCost.divide(totalQuantity, 2, RoundingMode.HALF_UP);
+                
+                // 소수점 6자리로 반올림하여 저장
+                holding.setQuantity(totalQuantity.setScale(6, RoundingMode.HALF_UP).floatValue());
+                holding.setAvgCost(newAvgCost.setScale(2, RoundingMode.HALF_UP).floatValue());
                 holdingCacheRepository.save(holding);
             } else {
                 HoldingCache newHolding = new HoldingCache();
@@ -163,18 +194,24 @@ public class TradeExecutionService {
                 
                 newHolding.setInvestmentAccount(account);
                 newHolding.setStock(stock);
-                newHolding.setQuantity(quantity);
-                newHolding.setAvgCost(price);
+                // 소수점 6자리로 반올림
+                newHolding.setQuantity(BigDecimal.valueOf(quantity).setScale(6, RoundingMode.HALF_UP).floatValue());
+                newHolding.setAvgCost(BigDecimal.valueOf(price).setScale(2, RoundingMode.HALF_UP).floatValue());
                 holdingCacheRepository.save(newHolding);
             }
         } else {
             // 매도
             if (existingHolding.isPresent()) {
                 HoldingCache holding = existingHolding.get();
-                holding.setQuantity(holding.getQuantity() - quantity);
-                if (holding.getQuantity() <= 0) {
+                BigDecimal currentQuantity = BigDecimal.valueOf(holding.getQuantity());
+                BigDecimal sellQuantity = BigDecimal.valueOf(quantity);
+                BigDecimal newQuantity = currentQuantity.subtract(sellQuantity);
+                
+                if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
                     holdingCacheRepository.delete(holding);
                 } else {
+                    // 소수점 6자리로 반올림
+                    holding.setQuantity(newQuantity.setScale(6, RoundingMode.HALF_UP).floatValue());
                     holdingCacheRepository.save(holding);
                 }
             }
@@ -194,6 +231,8 @@ public class TradeExecutionService {
             return 0;
         }
     }
+
+
 
     /**
      * 그룹 총 예수금 잔액 조회

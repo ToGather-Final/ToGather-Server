@@ -11,11 +11,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,6 +32,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/vote")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "투표 관리", description = "투표 제안, 참여, 집계 관련 API")
 public class VoteController {
 
@@ -86,13 +91,8 @@ public class VoteController {
                     String date = p.getOpenAt().toLocalDate().toString();
                     
                     // 투표 마감 시간 포맷팅 (yyyy-MM-dd HH시 mm분)
-                    String closeAt = p.getCloseAt() != null 
-                            ? String.format("%04d-%02d-%02d %02d시 %02d분",
-                                    p.getCloseAt().getYear(),
-                                    p.getCloseAt().getMonthValue(),
-                                    p.getCloseAt().getDayOfMonth(),
-                                    p.getCloseAt().getHour(),
-                                    p.getCloseAt().getMinute())
+                    String closeAt = p.getCloseAt() != null
+                            ? formatToKoreaTime(p.getCloseAt())
                             : null;
                     
                     return new ProposalResponse(
@@ -113,6 +113,32 @@ public class VoteController {
                 .collect(Collectors.toList());
         
         return ResponseEntity.ok(response);
+    }
+
+    private String formatToKoreaTime(LocalDateTime localDateTime) {
+        try{
+            ZoneId serverZone = ZoneId.systemDefault();
+            ZoneId koreaZone = ZoneId.of("Asia/Seoul");
+
+            ZonedDateTime serverTime = localDateTime.atZone(serverZone);
+            ZonedDateTime koreaTime = serverTime.withZoneSameInstant(koreaZone);
+
+            return String.format("%04d-%02d-%02d %02d시 %02d분",
+                    koreaTime.getYear(),
+                    koreaTime.getMonthValue(),
+                    koreaTime.getDayOfMonth(),
+                    koreaTime.getHour(),
+                    koreaTime.getMinute());
+        } catch (Exception e) {
+            log.error("시간 포맷팅 실패 - localDateTime: {}, error: {}", localDateTime, e.getMessage());
+            // 실패 시 원본 시간 그대로 반환
+            return String.format("%04d-%02d-%02d %02d시 %02d분",
+                    localDateTime.getYear(),
+                    localDateTime.getMonthValue(),
+                    localDateTime.getDayOfMonth(),
+                    localDateTime.getHour(),
+                    localDateTime.getMinute());
+        }
     }
 
     /**
@@ -159,16 +185,12 @@ public class VoteController {
     }
 
 
-    /**
-     * POST /vote/{proposalId}/tally - 투표 집계 및 종료
-     * (관리자 또는 자동 스케줄러가 호출)
-     * 
-     * Query Parameters:
-     * - totalMembers: 그룹 전체 멤버 수 (필수)
-     * - voteQuorum: 투표 정족수 (정수, 예: 3 = 3명 이상 찬성 필요)
-     * 
-     * TODO: user-service에서 GroupRule과 멤버 수를 자동으로 조회하도록 개선
-     */
+    @Operation(summary = "투표 집계 및 종료", description = "투표를 집계하고 결과에 따라 투표를 종료합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "투표 집계 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "404", description = "투표를 찾을 수 없음")
+    })
     @PostMapping("/{proposalId}/tally")
     public ResponseEntity<Void> tallyVotes(
             @PathVariable UUID proposalId,

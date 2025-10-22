@@ -11,9 +11,11 @@ import com.example.trading_service.dto.OrderBookResponse;
 import com.example.trading_service.dto.SellRequest;
 import com.example.trading_service.exception.BusinessException;
 import com.example.trading_service.repository.*;
+import com.example.trading_service.event.TradeExecutedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -272,6 +274,59 @@ public class GroupTradingService {
         return processedCount;
     }
 
+
+    /**
+     * 거래 체결 이벤트 리스너 - 그룹 보유량 업데이트
+     */
+    @EventListener
+    @Transactional
+    public void handleTradeExecutedEvent(TradeExecutedEvent event) {
+        try {
+            Order order = event.getOrder();
+            float executionPrice = event.getExecutionPrice();
+            UUID groupId = event.getGroupId();
+            
+            if (groupId != null) {
+                log.info("🔍 그룹 거래 체결 이벤트 처리 - 그룹ID: {}, 주문ID: {}", groupId, order.getOrderId());
+                
+                UUID stockId = order.getStock().getId();
+                float quantity = order.getQuantity();
+                
+                // 매수/매도에 따라 수량 조정
+                float quantityChange = (order.getOrderType() == Order.OrderType.BUY) ? quantity : -quantity;
+                
+                // 그룹 멤버 수 조회
+                int memberCount = getGroupMemberCount(groupId);
+                
+                // 그룹 보유량 업데이트
+                updateGroupHoldingAfterTrade(
+                    groupId, stockId, quantityChange, executionPrice, memberCount
+                );
+                
+                log.info("✅ 그룹 보유량 업데이트 완료 - 그룹ID: {}, 종목ID: {}, 수량변화: {}", 
+                    groupId, stockId, quantityChange);
+            } else {
+                log.debug("🔍 개인 거래 - 그룹 보유량 업데이트 건너뜀");
+            }
+            
+        } catch (Exception e) {
+            log.error("❌ 그룹 거래 체결 이벤트 처리 실패 - 주문ID: {} - {}", 
+                event.getOrder().getOrderId(), e.getMessage());
+        }
+    }
+
+    /**
+     * 그룹 멤버 수 조회
+     */
+    public int getGroupMemberCount(UUID groupId) {
+        try {
+            List<InvestmentAccountDto> memberDtos = userServiceClient.getGroupMemberAccounts(groupId);
+            return memberDtos.size();
+        } catch (Exception e) {
+            log.error("그룹 멤버 수 조회 실패 - 그룹ID: {} - {}", groupId, e.getMessage());
+            return 0;
+        }
+    }
 
     /**
      * 그룹 멤버들의 투자 계좌 조회
@@ -601,11 +656,14 @@ public class GroupTradingService {
         List<GroupHoldingCache> groupHoldings = groupHoldingCacheRepository
                 .findByGroupIdAndTotalQuantityGreaterThan(groupId, 0);
         
-        float totalInvested = 0;
-        float totalValue = 0;
+        BigDecimal totalInvestedBD = BigDecimal.ZERO;
+        BigDecimal totalValueBD = BigDecimal.ZERO;
         
         for (GroupHoldingCache holding : groupHoldings) {
-            totalInvested += holding.getAvgCost() * holding.getTotalQuantity();
+            BigDecimal avgCost = BigDecimal.valueOf(holding.getAvgCost());
+            BigDecimal quantity = BigDecimal.valueOf(holding.getTotalQuantity());
+            
+            totalInvestedBD = totalInvestedBD.add(avgCost.multiply(quantity));
             
             // evaluatedPrice가 null이거나 0이면 실시간으로 계산
             Float evaluatedPrice = holding.getEvaluatedPrice();
@@ -620,11 +678,19 @@ public class GroupTradingService {
                     evaluatedPrice = holding.getAvgCost() * holding.getTotalQuantity();
                 }
             }
-            totalValue += evaluatedPrice != null ? evaluatedPrice : 0;
+            totalValueBD = totalValueBD.add(BigDecimal.valueOf(evaluatedPrice != null ? evaluatedPrice : 0));
         }
         
-        float totalProfit = totalValue - totalInvested;
-        float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+        BigDecimal totalProfitBD = totalValueBD.subtract(totalInvestedBD);
+        BigDecimal totalProfitRateBD = totalInvestedBD.compareTo(BigDecimal.ZERO) > 0 ? 
+            totalProfitBD.divide(totalInvestedBD, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) : 
+            BigDecimal.ZERO;
+        
+        // 금액은 정수로 반올림, 수익률은 소수점 2자리로 반올림
+        float totalInvested = totalInvestedBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalValue = totalValueBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalProfit = totalProfitBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalProfitRate = totalProfitRateBD.setScale(2, RoundingMode.HALF_UP).floatValue();
         
         // 모든 보유 종목 (평가금액 기준 내림차순 정렬)
         List<HoldingResponse> topHoldings = groupHoldings.stream()
@@ -659,20 +725,31 @@ public class GroupTradingService {
         OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
         Float currentPrice = orderBook.getCurrentPrice();
         
-        // 평가금액 계산
-        float evaluatedPrice = currentPrice * holding.getTotalQuantity();
+        // 평가금액 및 수익률 계산 (BigDecimal 사용으로 정밀도 개선)
+        BigDecimal currentPriceBD = BigDecimal.valueOf(currentPrice);
+        BigDecimal quantityBD = BigDecimal.valueOf(holding.getTotalQuantity());
+        BigDecimal avgCostBD = BigDecimal.valueOf(holding.getAvgCost());
         
-        // 평가손익 계산
-        float totalCost = holding.getAvgCost() * holding.getTotalQuantity();
-        float profit = evaluatedPrice - totalCost;
-        
-        // 수익률 계산
-        float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+        BigDecimal evaluatedPriceBD = currentPriceBD.multiply(quantityBD);
+        BigDecimal totalCostBD = avgCostBD.multiply(quantityBD);
+        BigDecimal profitBD = evaluatedPriceBD.subtract(totalCostBD);
+        BigDecimal profitRateBD = totalCostBD.compareTo(BigDecimal.ZERO) > 0 ? 
+            profitBD.divide(totalCostBD, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) : 
+            BigDecimal.ZERO;
         
         // 처음 구매한 가격 대비 변동 정보 (평균 매입가 기준)
-        float changeAmount = (currentPrice - holding.getAvgCost()) * holding.getTotalQuantity();
-        float changeRate = holding.getAvgCost() > 0 ? 
-                ((currentPrice - holding.getAvgCost()) / holding.getAvgCost()) * 100 : 0;
+        BigDecimal changeAmountBD = currentPriceBD.subtract(avgCostBD).multiply(quantityBD);
+        BigDecimal changeRateBD = avgCostBD.compareTo(BigDecimal.ZERO) > 0 ? 
+            currentPriceBD.subtract(avgCostBD).divide(avgCostBD, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) : 
+            BigDecimal.ZERO;
+        
+        // 금액은 정수로 반올림, 수익률은 소수점 2자리로 반올림
+        float evaluatedPrice = evaluatedPriceBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalCost = totalCostBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float profit = profitBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float profitRate = profitRateBD.setScale(2, RoundingMode.HALF_UP).floatValue();
+        float changeAmount = changeAmountBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float changeRate = changeRateBD.setScale(2, RoundingMode.HALF_UP).floatValue();
         
         // 변동 방향 (평균 매입가 대비)
         String changeDirection;
@@ -691,7 +768,7 @@ public class GroupTradingService {
                 stock.getStockName(),
                 stock.getStockImage(),
                 holding.getTotalQuantity(),
-                holding.getAvgCost(),
+                avgCostBD.setScale(0, RoundingMode.HALF_UP).floatValue(), // 매입금액도 정수로 반올림
                 currentPrice,
                 changeAmount,
                 changeRate,
@@ -712,20 +789,31 @@ public class GroupTradingService {
         OrderBookResponse orderBook = orderBookService.getOrderBook(stock.getStockCode());
         Float currentPrice = orderBook.getCurrentPrice();
         
-        // 평가금액 계산
-        float evaluatedPrice = currentPrice * holding.getTotalQuantity();
+        // 평가금액 및 수익률 계산 (BigDecimal 사용으로 정밀도 개선)
+        BigDecimal currentPriceBD = BigDecimal.valueOf(currentPrice);
+        BigDecimal quantityBD = BigDecimal.valueOf(holding.getTotalQuantity());
+        BigDecimal avgCostBD = BigDecimal.valueOf(holding.getAvgCost());
         
-        // 평가손익 계산
-        float totalCost = holding.getAvgCost() * holding.getTotalQuantity();
-        float profit = evaluatedPrice - totalCost;
-        
-        // 수익률 계산
-        float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+        BigDecimal evaluatedPriceBD = currentPriceBD.multiply(quantityBD);
+        BigDecimal totalCostBD = avgCostBD.multiply(quantityBD);
+        BigDecimal profitBD = evaluatedPriceBD.subtract(totalCostBD);
+        BigDecimal profitRateBD = totalCostBD.compareTo(BigDecimal.ZERO) > 0 ? 
+            profitBD.divide(totalCostBD, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) : 
+            BigDecimal.ZERO;
         
         // 처음 구매한 가격 대비 변동 정보 (평균 매입가 기준)
-        float changeAmount = (currentPrice - holding.getAvgCost()) * holding.getTotalQuantity();
-        float changeRate = holding.getAvgCost() > 0 ? 
-                ((currentPrice - holding.getAvgCost()) / holding.getAvgCost()) * 100 : 0;
+        BigDecimal changeAmountBD = currentPriceBD.subtract(avgCostBD).multiply(quantityBD);
+        BigDecimal changeRateBD = avgCostBD.compareTo(BigDecimal.ZERO) > 0 ? 
+            currentPriceBD.subtract(avgCostBD).divide(avgCostBD, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) : 
+            BigDecimal.ZERO;
+        
+        // 금액은 정수로 반올림, 수익률은 소수점 2자리로 반올림
+        float evaluatedPrice = evaluatedPriceBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalCost = totalCostBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float profit = profitBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float profitRate = profitRateBD.setScale(2, RoundingMode.HALF_UP).floatValue();
+        float changeAmount = changeAmountBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float changeRate = changeRateBD.setScale(2, RoundingMode.HALF_UP).floatValue();
         
         // 변동 방향 (평균 매입가 대비)
         String changeDirection;
@@ -749,7 +837,7 @@ public class GroupTradingService {
                 stock.getStockName(),
                 stock.getStockImage(),
                 holding.getTotalQuantity(),
-                holding.getAvgCost(),
+                avgCostBD.setScale(0, RoundingMode.HALF_UP).floatValue(), // 매입금액도 정수로 반올림
                 currentPrice,
                 changeAmount,
                 changeRate,
