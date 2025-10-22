@@ -45,6 +45,7 @@ public class TradingService {
     private final PayServiceClient payServiceClient;
     private final HistoryRepository historyRepository;
     private final VoteTradingService voteTradingService;
+    private final TradeExecutionService tradeExecutionService;
 
     // 투자 계좌 개설
     public UUID createInvestmentAccount(UUID userId) {
@@ -406,87 +407,13 @@ public class TradingService {
         executeTrade(order, order.getPrice());
     }
 
-    // 체결 처리
+    // 체결 처리 (TradeExecutionService로 위임)
     private void executeTrade(Order order, float executionPrice) {
-        // 체결 기록 생성
-        Trade trade = new Trade();
-        trade.setOrder(order);
-        trade.setQuantity(order.getQuantity());
-        trade.setPrice(executionPrice);
-        tradeRepository.save(trade);
-
-        // 주문 상태 업데이트
-        order.setStatus(Order.Status.FILLED);
-        orderRepository.save(order);
-
-        // 잔고 및 보유 종목 업데이트
-        updateAccountAfterTrade(order, executionPrice);
+        // TradeExecutionService의 executeTrade 메서드 호출
+        tradeExecutionService.executeTrade(order, executionPrice);
     }
 
-    // 거래 후 계좌 업데이트
-    private void updateAccountAfterTrade(Order order, float executionPrice) {
-        float totalAmount = executionPrice * order.getQuantity();
-        
-        if (order.getOrderType() == Order.OrderType.BUY) {
-            // 매수: 잔고 차감, 보유 종목 추가/업데이트
-            updateBalance(order.getInvestmentAccount().getInvestmentAccountId(), -totalAmount);
-            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), order.getQuantity(), executionPrice, true);
-        } else {
-            // 매도: 잔고 증가, 보유 종목 차감
-            updateBalance(order.getInvestmentAccount().getInvestmentAccountId(), totalAmount);
-            updateHolding(order.getInvestmentAccount().getInvestmentAccountId(), order.getStock().getId(), order.getQuantity(), executionPrice, false);
-        }
-    }
 
-    // 잔고 업데이트
-    private void updateBalance(UUID accountId, float amount) {
-        BalanceCache balance = balanceCacheRepository.findByAccountId(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("잔고 정보를 찾을 수 없습니다."));
-        
-        balance.setBalance(balance.getBalance() + (int) amount);
-        balanceCacheRepository.save(balance);
-    }
-
-    // 보유 종목 업데이트
-    private void updateHolding(UUID accountId, UUID stockId, float quantity, float price, boolean isBuy) {
-        Optional<HoldingCache> existingHolding = holdingCacheRepository
-                .findByAccountIdAndStockId(accountId, stockId);
-        
-        if (isBuy) {
-            // 매수
-            if (existingHolding.isPresent()) {
-                HoldingCache holding = existingHolding.get();
-                float newAvgCost = ((holding.getAvgCost() * holding.getQuantity()) + (price * quantity)) 
-                        / (holding.getQuantity() + quantity);
-                holding.setQuantity(holding.getQuantity() + quantity);
-                holding.setAvgCost(newAvgCost);
-                holdingCacheRepository.save(holding);
-            } else {
-                HoldingCache newHolding = new HoldingCache();
-                InvestmentAccount account = investmentAccountRepository.findById(accountId)
-                        .orElseThrow(() -> new RuntimeException("투자 계좌를 찾을 수 없습니다"));
-                Stock stock = stockRepository.findById(stockId)
-                        .orElseThrow(() -> new RuntimeException("주식을 찾을 수 없습니다"));
-                
-                newHolding.setInvestmentAccount(account);
-                newHolding.setStock(stock);
-                newHolding.setQuantity(quantity);
-                newHolding.setAvgCost(price);
-                holdingCacheRepository.save(newHolding);
-            }
-        } else {
-            // 매도
-            if (existingHolding.isPresent()) {
-                HoldingCache holding = existingHolding.get();
-                holding.setQuantity(holding.getQuantity() - quantity);
-                if (holding.getQuantity() <= 0) {
-                    holdingCacheRepository.delete(holding);
-                } else {
-                    holdingCacheRepository.save(holding);
-                }
-            }
-        }
-    }
 
     // 헬퍼 메서드들
     private InvestmentAccount getInvestmentAccountByUserId(UUID userId) {

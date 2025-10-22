@@ -210,6 +210,13 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(orderBook));
     }
 
+        // 주식 기본 정보 조회 (현재가, 변동률, 거래량 등) - 상세 경로
+    @GetMapping("/stocks/{stockCode}/info")
+    public ResponseEntity<ApiResponse<StockInfoResponse>> getStockInfoByCode(@PathVariable String stockCode) {
+        StockInfoResponse info = tradingService.getStockInfoByCode(stockCode);
+        return ResponseEntity.ok(ApiResponse.success(info));
+    }
+
     // 주식 차트 데이터 조회 (캔들차트 + 이동평균선 + 거래량 + 기본 정보)
     @GetMapping("/stocks/{stockCode}/chart")
     public ResponseEntity<ApiResponse<StockInfoResponse>> getStockChart(@PathVariable String stockCode,
@@ -370,21 +377,9 @@ public class TradingController {
                 }
             }
             
-            // 4. 그룹 보유량 업데이트 (GroupHoldingCache)
-            for (Map.Entry<UUID, Float> entry : stockQuantityMap.entrySet()) {
-                UUID stockId = entry.getKey();
-                float totalQuantity = entry.getValue();
-                float price = stockPriceMap.get(stockId);
-                
-                try {
-                    groupTradingService.updateGroupHoldingAfterTrade(
-                        groupId, stockId, totalQuantity, price, groupMembers.size()
-                    );
-                    log.info("📊 그룹 보유량 업데이트 - 종목ID: {}, 수량: {}", stockId, totalQuantity);
-                } catch (Exception e) {
-                    log.error("❌ 그룹 보유량 업데이트 실패 - 종목ID: {} - {}", stockId, e.getMessage());
-                }
-            }
+            // 4. 그룹 보유량 업데이트는 TradeExecutionService.executeTrade()에서 자동으로 처리됨
+            // (중복 업데이트 방지를 위해 여기서는 제거)
+            log.info("📊 그룹 보유량 업데이트는 개별 거래 체결 시 자동으로 처리됨");
             
             String message = String.format("그룹의 대기 중인 주문 %d건이 강제 체결되었습니다", totalExecutedCount);
             log.info("🎉 {}", message);

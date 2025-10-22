@@ -45,6 +45,9 @@ public class Order {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt; // 수정일자
 
+    @Column(name = "group_id")
+    private UUID groupId; // 그룹 ID (그룹 거래인 경우)
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

@@ -27,4 +27,11 @@ public interface UserServiceClient {
 
     @GetMapping("/internal/groups/{groupId}/members/accounts")
     List<InvestmentAccountDto> getGroupMemberAccounts(@PathVariable("groupId") UUID groupId);
+
+    /**
+     * 사용자가 속한 그룹 목록 조회
+     * - 사용자가 멤버로 속한 모든 그룹의 ID 목록
+     */
+    @GetMapping("/internal/users/{userId}/groups")
+    List<UUID> getUserGroups(@PathVariable("userId") UUID userId);
 }
