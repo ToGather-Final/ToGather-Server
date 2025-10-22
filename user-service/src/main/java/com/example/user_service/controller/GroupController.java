@@ -263,7 +263,11 @@ public class GroupController {
         return ResponseEntity.ok(response);
     }
 
-    // 시스템용 조회 기능
+    @Operation(summary = "시스템용 그룹 설정 조회", description = "시스템 내부에서 사용하는 그룹 설정 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "그룹 설정 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "그룹을 찾을 수 없음")
+    })
     @GetMapping("/internal/{groupId}/settings")
     public ResponseEntity<GroupSettingsResponse> getGroupSettingsInternal(@PathVariable UUID groupId) {
         GroupSettingsResponse response = groupService.getGroupSettingsInternal(groupId);
@@ -277,6 +281,11 @@ public class GroupController {
         return "MEMBER";
     }
 
+    @Operation(summary = "그룹 멤버 투자 계좌 조회", description = "그룹 멤버들의 투자 계좌 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "그룹 멤버 계좌 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "그룹을 찾을 수 없음")
+    })
     @GetMapping("/internal/groups/{groupId}/members/accounts")
     public List<InvestmentAccountDto> getGroupMemberAccounts(@PathVariable UUID groupId) {
         List<GroupMember> groupMembers = groupMemberRepository.findByIdGroupId(groupId);

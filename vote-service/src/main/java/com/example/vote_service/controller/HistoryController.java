@@ -2,6 +2,10 @@ package com.example.vote_service.controller;
 
 import com.example.vote_service.dto.GetHistoryResponse;
 import com.example.vote_service.service.HistoryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/history")
 @RequiredArgsConstructor
+@Tag(name = "히스토리", description = "사용자 히스토리 조회 관련 API")
 public class HistoryController {
 
     private final HistoryService historyService;
@@ -25,6 +30,11 @@ public class HistoryController {
      * 사용자 히스토리 조회 (페이징)
      * GET /history?page=0&size=20
      */
+    @Operation(summary = "사용자 히스토리 조회", description = "페이징을 통해 사용자의 히스토리를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "히스토리 조회 성공"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @GetMapping
     public ResponseEntity<GetHistoryResponse> getHistory(
             @RequestHeader("X-User-Id") String userIdHeader,
@@ -55,6 +65,11 @@ public class HistoryController {
      * 사용자 히스토리 전체 조회
      * GET /history/all
      */
+    @Operation(summary = "사용자 히스토리 전체 조회", description = "페이징 없이 사용자의 모든 히스토리를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "히스토리 전체 조회 성공"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @GetMapping("/all")
     public ResponseEntity<GetHistoryResponse> getAllHistory(
             @RequestHeader("X-User-Id") String userIdHeader) {

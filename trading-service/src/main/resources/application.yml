@@ -18,7 +18,7 @@ app:
   jwt:
     secret: ${JWT_SECRET_KEY:}
     issuer: ${JWT_ISSUER:togather}
-    access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+    access-exp-seconds: ${JWT_ACCESS_EXP:18000}
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
   services:
     user-service:
@@ -122,7 +122,7 @@ logging:
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  access-exp-seconds: ${JWT_ACCESS_EXP:18000}
   refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 kis:
@@ -187,7 +187,7 @@ server:
   
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}
-  access-exp-seconds: ${JWT_ACCESS_EXP:1800}
+  access-exp-seconds: ${JWT_ACCESS_EXP:18000}
   refresh-exp-days: ${JWT_REFRESH_EXP:7}
 
 kis:

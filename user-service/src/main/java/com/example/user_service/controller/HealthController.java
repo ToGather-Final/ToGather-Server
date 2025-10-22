@@ -1,5 +1,6 @@
 package com.example.user_service.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -18,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
+@Hidden
 @Tag(name = "헬스 체크", description = "User Service 상태 확인 관련 API")
 public class HealthController {
 
@@ -27,6 +29,7 @@ public class HealthController {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
+    @Hidden
     @Operation(summary = "ALB 헬스 체크", description = "ALB에서 사용하는 단순 OK 응답")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "User Service 정상 동작")
@@ -36,6 +39,7 @@ public class HealthController {
         return ResponseEntity.ok("OK");
     }
 
+    @Hidden
     @Operation(summary = "Liveness Probe", description = "JVM 및 스레드 상태 확인")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "서비스 정상 동작"),
@@ -82,6 +86,7 @@ public class HealthController {
         }
     }
 
+    @Hidden
     @Operation(summary = "Readiness Probe", description = "데이터베이스 및 Redis 연결 상태 확인")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "서비스 준비 완료"),

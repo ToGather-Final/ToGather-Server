@@ -2,6 +2,9 @@ package com.example.trading_service.controller;
 
 import com.example.trading_service.dto.ApiResponse;
 import com.example.trading_service.service.BatchProcessingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +18,11 @@ public class BatchController {
 
     private final BatchProcessingService batchProcessingService;
 
-    /**
-     * 수동 배치 처리 실행 (관리자용)
-     */
+    @Operation(summary = "수동 배치 처리 실행", description = "관리자용 수동 배치 처리를 실행합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "배치 처리 실행 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "배치 처리 실행 실패")
+    })
     @PostMapping("/execute")
     public ResponseEntity<ApiResponse<String>> executeBatch() {
         log.info("수동 배치 처리 요청");
@@ -33,9 +38,11 @@ public class BatchController {
         }
     }
 
-    /**
-     * 캐싱 테이블 초기화 (관리자용)
-     */
+    @Operation(summary = "캐싱 테이블 초기화", description = "관리자용 캐싱 테이블을 초기화합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "캐싱 테이블 초기화 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "캐싱 테이블 초기화 실패")
+    })
     @PostMapping("/clear-cache")
     public ResponseEntity<ApiResponse<String>> clearCacheTables() {
         log.info("캐싱 테이블 초기화 요청");
@@ -51,9 +58,10 @@ public class BatchController {
         }
     }
 
-    /**
-     * 배치 처리 상태 확인
-     */
+    @Operation(summary = "배치 처리 상태 확인", description = "배치 처리 서비스의 현재 상태를 확인합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "배치 처리 상태 조회 성공")
+    })
     @GetMapping("/status")
     public ResponseEntity<ApiResponse<String>> getBatchStatus() {
         return ResponseEntity.ok(ApiResponse.success("배치 처리 서비스가 정상적으로 실행 중입니다."));

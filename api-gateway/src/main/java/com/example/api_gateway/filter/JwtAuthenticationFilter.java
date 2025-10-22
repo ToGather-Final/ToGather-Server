@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
-        
+
         log.info("🔍 JWT 필터 실행됨 - 경로: {}", path);
         log.info("=== API Gateway 요청 수신 ===");
         log.info("경로: {}", path);
