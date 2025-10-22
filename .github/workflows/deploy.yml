@@ -77,8 +77,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # --- Next.js 클라이언트 먼저 빌드 & 배포 (빠른 피드백) ---
-      - name: Build Next.js Client and Upload Assets (Priority)
+      # --- Next.js 클라이언트 먼저 빌드 (빠른 피드백) ---
+      - name: Build Next.js Client (Priority)
         run: |
           cd togather-client
           export CDN_URL_CLEAN=$(echo "${{ env.CDN_URL }}" | sed 's:/*$::')
@@ -108,20 +108,11 @@ jobs:
               echo "✅ Found next-server.js"
             fi
           fi
-  
 
           # ✅ .next/server 제외하고 아티팩트 생성
           cd ..
           tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public
           echo "✅ next-artifacts.tgz 생성 완료"
-
-          # ✅ 정적 자산 업로드 및 CDN 무효화 (upload-assets.js)
-          cd togather-client
-          pnpm run upload-assets
-        env:
-          CDN_URL: ${{ env.CDN_URL }}
-          S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
 
       # --- Next.js 빌드 아티팩트 업로드 (1회만) ---
       - name: Upload Next build artifacts (Priority)
@@ -165,6 +156,21 @@ jobs:
             echo "❌ Next.js build failed"
             exit 1
           fi
+
+      # --- S3 정적 자산 업로드 (Docker 빌드 완료 후) ---
+      - name: Upload Static Assets to S3 (Priority)
+        run: |
+          echo "🚀 Uploading static assets to S3..."
+          cd togather-client
+          
+          # ✅ 빌드 완료 후 정적 자산 업로드 및 CDN 무효화
+          pnpm run upload-assets
+          
+          echo "✅ Static assets uploaded to S3 successfully!"
+        env:
+          CDN_URL: ${{ env.CDN_URL }}
+          S3_BUCKET_NAME: ${{ env.S3_BUCKET_NAME }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
 
       # --- kubectl 설치 (Next.js 배포를 위해) ---
       - name: Install kubectl (Priority)
