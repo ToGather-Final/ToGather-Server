@@ -432,7 +432,7 @@ jobs:
           done
           echo "✅ Prewarm completed!"
 
-      # --- 전체 배포 상태 진단 ---
+      # --- 전체 배포 상태 진단 ---!
       - name: Deployment Health Check
         if: always()
         run: |
