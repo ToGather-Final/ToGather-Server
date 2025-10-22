@@ -97,13 +97,14 @@ jobs:
           CDN_URL=$CDN_URL_CLEAN pnpm run build
 
           # ✅ 빌드 결과 검증
-          if [ ! -f ".next/standalone/server.js" ] && [ ! -f ".next/standalone/server.mjs" ]; then
+          if [ ! -f ".next/standalone/server.js" ] && [ ! -f ".next/standalone/server.mjs" ] && [ ! -f ".next/standalone/next-server.js" ]; then
             echo "❌ Next.js standalone server entry not found!"
-            ls -R .next | head -n 40
+            ls -R .next/standalone | head -n 50
             exit 1
           fi
+  
 
-          # ✅ .next/server 제외하고 아티팩트 생성
+  # ✅ .next/server 제외하고 아티팩트 생성
           cd ..
           tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public
           echo "✅ next-artifacts.tgz 생성 완료"
