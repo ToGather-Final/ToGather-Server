@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # --- 공통 준비 단계 ---!!!
+      # --- 공통 준비 단계 ---!!!!
       - name: Checkout Server Repository
         uses: actions/checkout@v4
 
