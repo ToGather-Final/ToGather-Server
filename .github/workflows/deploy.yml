@@ -178,7 +178,7 @@ jobs:
             fi
 
 
-            # ✅ 빌드 산출물 아티팩트로 보관 (Docker와 S3에서 동일 빌드 사용)
+            # ✅ 빌드 산출물 아티팩트로 보관 (Docker와 S3에서 동일 빌드 사용)!!!
             cd ..
             tar -czf next-artifacts.tgz -C togather-client .next/standalone .next/static public
             echo "✅ next-artifacts.tgz 생성 완료"
