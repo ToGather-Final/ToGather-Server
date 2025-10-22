@@ -483,4 +483,26 @@ public class GroupService {
     public boolean isGroupMember(UUID groupId, UUID userId) {
         return groupMemberRepository.existsByIdGroupIdAndIdUserId(groupId, userId);
     }
+
+    /**
+     * 사용자가 속한 그룹 목록 조회 (내부 시스템용)
+     */
+    @Transactional(readOnly = true)
+    public List<UUID> getUserGroupsInternal(UUID userId) {
+        try {
+            log.info("사용자 그룹 목록 조회 - 사용자ID: {}", userId);
+            
+            List<GroupMember> userMemberships = groupMemberRepository.findByIdUserId(userId);
+            List<UUID> userGroups = userMemberships.stream()
+                    .map(member -> member.getId().getGroupId())
+                    .toList();
+            
+            log.info("사용자 그룹 목록 조회 완료 - 사용자ID: {}, 그룹 수: {}", userId, userGroups.size());
+            return userGroups;
+            
+        } catch (Exception e) {
+            log.error("사용자 그룹 목록 조회 실패 - 사용자ID: {} - {}", userId, e.getMessage());
+            return List.of(); // 빈 리스트 반환
+        }
+    }
 }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -94,16 +95,29 @@ public class PortfolioCalculationService {
         List<HoldingCache> holdings = holdingCacheRepository
                 .findByAccountIdAndQuantityGreaterThan(account.getInvestmentAccountId(), 0);
         
-        float totalInvested = 0;
-        float totalValue = 0;
+        BigDecimal totalInvestedBD = BigDecimal.ZERO;
+        BigDecimal totalValueBD = BigDecimal.ZERO;
         
         for (HoldingCache holding : holdings) {
-            totalInvested += holding.getAvgCost() * holding.getQuantity();
-            totalValue += holding.getEvaluatedPrice() != null ? holding.getEvaluatedPrice() : 0;
+            BigDecimal avgCost = BigDecimal.valueOf(holding.getAvgCost());
+            BigDecimal quantity = BigDecimal.valueOf(holding.getQuantity());
+            BigDecimal evaluatedPrice = holding.getEvaluatedPrice() != null ? 
+                BigDecimal.valueOf(holding.getEvaluatedPrice()) : BigDecimal.ZERO;
+            
+            totalInvestedBD = totalInvestedBD.add(avgCost.multiply(quantity));
+            totalValueBD = totalValueBD.add(evaluatedPrice);
         }
         
-        float totalProfit = totalValue - totalInvested;
-        float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+        BigDecimal totalProfitBD = totalValueBD.subtract(totalInvestedBD);
+        BigDecimal totalProfitRateBD = totalInvestedBD.compareTo(BigDecimal.ZERO) > 0 ? 
+            totalProfitBD.divide(totalInvestedBD, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) : 
+            BigDecimal.ZERO;
+        
+        // 금액은 정수로 반올림, 수익률은 소수점 2자리로 반올림
+        float totalInvested = totalInvestedBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalValue = totalValueBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalProfit = totalProfitBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalProfitRate = totalProfitRateBD.setScale(2, RoundingMode.HALF_UP).floatValue();
         
         // 모든 보유 종목 (평가금액 기준 내림차순 정렬)
         List<HoldingResponse> topHoldings = holdings.stream()
@@ -147,16 +161,29 @@ public class PortfolioCalculationService {
         // 보유 종목들의 총 평가금액 계산
         List<HoldingCache> holdings = holdingCacheRepository.findByAccountId(account.getInvestmentAccountId());
         
-        float totalInvested = 0;
-        float totalValue = 0;
+        BigDecimal totalInvestedBD = BigDecimal.ZERO;
+        BigDecimal totalValueBD = BigDecimal.ZERO;
         
         for (HoldingCache holding : holdings) {
-            totalInvested += holding.getAvgCost() * holding.getQuantity();
-            totalValue += holding.getEvaluatedPrice() != null ? holding.getEvaluatedPrice() : 0;
+            BigDecimal avgCost = BigDecimal.valueOf(holding.getAvgCost());
+            BigDecimal quantity = BigDecimal.valueOf(holding.getQuantity());
+            BigDecimal evaluatedPrice = holding.getEvaluatedPrice() != null ? 
+                BigDecimal.valueOf(holding.getEvaluatedPrice()) : BigDecimal.ZERO;
+            
+            totalInvestedBD = totalInvestedBD.add(avgCost.multiply(quantity));
+            totalValueBD = totalValueBD.add(evaluatedPrice);
         }
         
-        float totalProfit = totalValue - totalInvested;
-        float totalProfitRate = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+        BigDecimal totalProfitBD = totalValueBD.subtract(totalInvestedBD);
+        BigDecimal totalProfitRateBD = totalInvestedBD.compareTo(BigDecimal.ZERO) > 0 ? 
+            totalProfitBD.divide(totalInvestedBD, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) : 
+            BigDecimal.ZERO;
+        
+        // 금액은 정수로 반올림, 수익률은 소수점 2자리로 반올림
+        float totalInvested = totalInvestedBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalValue = totalValueBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalProfit = totalProfitBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalProfitRate = totalProfitRateBD.setScale(2, RoundingMode.HALF_UP).floatValue();
         
         return new BalanceResponse(
                 balance.getBalanceId(),
@@ -180,11 +207,23 @@ public class PortfolioCalculationService {
         float changeAmount = changeInfo.get("changeAmount");
         float changeRate = changeInfo.get("changeRate");
         
-        // 평가금액 및 수익률 계산
-        float evaluatedPrice = currentPrice * holding.getQuantity();
-        float totalCost = holding.getAvgCost() * holding.getQuantity();
-        float profit = evaluatedPrice - totalCost;
-        float profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+        // 평가금액 및 수익률 계산 (BigDecimal 사용으로 정밀도 개선)
+        BigDecimal currentPriceBD = BigDecimal.valueOf(currentPrice);
+        BigDecimal quantityBD = BigDecimal.valueOf(holding.getQuantity());
+        BigDecimal avgCostBD = BigDecimal.valueOf(holding.getAvgCost());
+        
+        BigDecimal evaluatedPriceBD = currentPriceBD.multiply(quantityBD);
+        BigDecimal totalCostBD = avgCostBD.multiply(quantityBD);
+        BigDecimal profitBD = evaluatedPriceBD.subtract(totalCostBD);
+        BigDecimal profitRateBD = totalCostBD.compareTo(BigDecimal.ZERO) > 0 ? 
+            profitBD.divide(totalCostBD, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)) : 
+            BigDecimal.ZERO;
+        
+        // 금액은 정수로 반올림, 수익률은 소수점 2자리로 반올림
+        float evaluatedPrice = evaluatedPriceBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float totalCost = totalCostBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float profit = profitBD.setScale(0, RoundingMode.HALF_UP).floatValue();
+        float profitRate = profitRateBD.setScale(2, RoundingMode.HALF_UP).floatValue();
         
         // 변동 방향 결정
         String changeDirection = "unchanged";
@@ -201,7 +240,7 @@ public class PortfolioCalculationService {
                 stock.getStockName(),
                 stock.getStockImage(),
                 holding.getQuantity(),
-                holding.getAvgCost(),
+                avgCostBD.setScale(0, RoundingMode.HALF_UP).floatValue(), // 매입금액도 정수로 반올림
                 currentPrice,
                 changeAmount,
                 changeRate,

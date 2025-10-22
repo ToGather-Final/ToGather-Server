@@ -370,21 +370,9 @@ public class TradingController {
                 }
             }
             
-            // 4. 그룹 보유량 업데이트 (GroupHoldingCache)
-            for (Map.Entry<UUID, Float> entry : stockQuantityMap.entrySet()) {
-                UUID stockId = entry.getKey();
-                float totalQuantity = entry.getValue();
-                float price = stockPriceMap.get(stockId);
-                
-                try {
-                    groupTradingService.updateGroupHoldingAfterTrade(
-                        groupId, stockId, totalQuantity, price, groupMembers.size()
-                    );
-                    log.info("📊 그룹 보유량 업데이트 - 종목ID: {}, 수량: {}", stockId, totalQuantity);
-                } catch (Exception e) {
-                    log.error("❌ 그룹 보유량 업데이트 실패 - 종목ID: {} - {}", stockId, e.getMessage());
-                }
-            }
+            // 4. 그룹 보유량 업데이트는 TradeExecutionService.executeTrade()에서 자동으로 처리됨
+            // (중복 업데이트 방지를 위해 여기서는 제거)
+            log.info("📊 그룹 보유량 업데이트는 개별 거래 체결 시 자동으로 처리됨");
             
             String message = String.format("그룹의 대기 중인 주문 %d건이 강제 체결되었습니다", totalExecutedCount);
             log.info("🎉 {}", message);

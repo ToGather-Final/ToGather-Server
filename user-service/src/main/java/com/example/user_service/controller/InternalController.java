@@ -132,4 +132,21 @@ public class InternalController {
             throw new RuntimeException("그룹 멤버 수 조회 실패", e);
         }
     }
+
+    /**
+     * 사용자가 속한 그룹 목록 조회 (내부 시스템용)
+     * GET /internal/users/{userId}/groups
+     */
+    @GetMapping("/users/{userId}/groups")
+    public ResponseEntity<List<UUID>> getUserGroups(@PathVariable UUID userId) {
+        log.info("🔍 내부 API 호출 - /internal/users/{}/groups", userId);
+        try {
+            List<UUID> userGroups = groupService.getUserGroupsInternal(userId);
+            log.info("✅ 사용자 그룹 목록 조회 성공 - userId: {}, 그룹 수: {}", userId, userGroups.size());
+            return ResponseEntity.ok(userGroups);
+        } catch (Exception e) {
+            log.error("❌ 사용자 그룹 목록 조회 실패 - userId: {}, error: {}", userId, e.getMessage(), e);
+            throw new RuntimeException("사용자 그룹 목록 조회 실패", e);
+        }
+    }
 }

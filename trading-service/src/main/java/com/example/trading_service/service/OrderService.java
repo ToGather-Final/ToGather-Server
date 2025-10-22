@@ -71,6 +71,7 @@ public class OrderService {
         order.setQuantity(request.getQuantity());
         order.setPrice(request.getPrice().floatValue());
         order.setStatus(Order.Status.PENDING);
+        order.setGroupId(groupId); // 그룹 ID 설정
         
         Order savedOrder = orderRepository.save(order);
 
@@ -120,6 +121,7 @@ public class OrderService {
         order.setQuantity(request.getQuantity());
         order.setPrice(request.getPrice().floatValue());
         order.setStatus(Order.Status.PENDING);
+        order.setGroupId(groupId); // 그룹 ID 설정
         
         Order savedOrder = orderRepository.save(order);
 
