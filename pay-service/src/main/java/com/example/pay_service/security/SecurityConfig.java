@@ -27,6 +27,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/qr/resolve", "/payments/**", "/accounts/**").authenticated()
+                        .requestMatchers("/redoc", "/redoc-standalone").permitAll()
                         .anyRequest().permitAll()
                 )
                 .httpBasic(httpBasic -> httpBasic.disable())

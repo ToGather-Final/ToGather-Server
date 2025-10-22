@@ -4,6 +4,9 @@ import com.example.module_common.dto.vote.VoteTradingRequest;
 import com.example.module_common.dto.vote.VoteTradingResponse;
 import com.example.trading_service.dto.ApiResponse;
 import com.example.trading_service.service.VoteTradingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +21,11 @@ public class VoteTradingController {
 
     private final VoteTradingService voteTradingService;
 
-    /**
-     * 투표 결과에 따른 그룹 거래 실행
-     * Vote-Service에서 호출하는 API
-     */
+    @Operation(summary = "투표 결과에 따른 그룹 거래 실행", description = "투표 결과에 따라 그룹 거래를 자동으로 실행합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "투표 기반 거래 실행 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "투표 결과가 유효하지 않음")
+    })
     @PostMapping("/execute")
     public ResponseEntity<VoteTradingResponse> executeVoteBasedTrading(
             @Valid @RequestBody VoteTradingRequest request) {
@@ -54,9 +58,11 @@ public class VoteTradingController {
         }
     }
 
-    /**
-     * 투표 결과 검증
-     */
+    @Operation(summary = "투표 결과 검증", description = "투표 결과의 유효성을 검증합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "투표 결과 검증 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "투표 결과 검증 실패")
+    })
     @PostMapping("/validate")
     public ResponseEntity<ApiResponse<Boolean>> validateVoteResult(
             @Valid @RequestBody VoteTradingRequest request) {

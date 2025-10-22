@@ -53,6 +53,8 @@ public class SecurityConfig{
             reg.requestMatchers("/swagger-ui/**").permitAll();
             reg.requestMatchers("/v3/api-docs/**").permitAll();
             reg.requestMatchers("/swagger-ui.html").permitAll();
+            reg.requestMatchers("/redoc").permitAll();
+            reg.requestMatchers("/redoc-standalone").permitAll();
             reg.anyRequest().authenticated();
         });
         http.addFilterBefore(headerAuthFilter, UsernamePasswordAuthenticationFilter.class);

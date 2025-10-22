@@ -90,9 +90,8 @@ public class HistoryService {
             description = payerName + String.format("%,d원 입금", amount);
         } else if (ledger.getTransactionType() == TransactionType.PAYMENT) {
             // 결제: "김철수가 스타벅스에서 5,000원 결제"
-            String payerName = ledger.getPayerName() != null ? ledger.getPayerName() : "알 수 없는 사용자";
             String recipientName = ledger.getRecipientName() != null ? ledger.getRecipientName() : "알 수 없는 상점";
-            description = payerName + recipientName + "에서 " + String.format("%,d원 결제", amount);
+            description = recipientName + "에서 " + String.format("%,d원 결제", amount);
         }
 
         return new UnifiedHistoryItem(

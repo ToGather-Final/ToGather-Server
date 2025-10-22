@@ -45,6 +45,8 @@ public class SecurityConfig {
             reg.requestMatchers("/actuator/**").permitAll();
             reg.requestMatchers("/v3/api-docs/**").permitAll();
             reg.requestMatchers("/swagger-ui/**").permitAll();
+            reg.requestMatchers("/redoc").permitAll();
+            reg.requestMatchers("/redoc-standalone").permitAll();
             reg.requestMatchers("/internal/**").permitAll(); // 내부 API 엔드포인트 인증 우회
             reg.anyRequest().authenticated();
         });

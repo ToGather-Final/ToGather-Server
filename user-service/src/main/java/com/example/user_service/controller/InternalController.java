@@ -8,6 +8,10 @@ import com.example.user_service.domain.User;
 import com.example.user_service.repository.GroupMemberRepository;
 import com.example.user_service.service.GroupService;
 import com.example.user_service.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +34,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/internal")
 @RequiredArgsConstructor
+@Tag(name = "내부 API", description = "서비스 간 통신용 내부 API")
 public class InternalController {
 
     private final GroupService groupService;
@@ -41,6 +46,11 @@ public class InternalController {
      * 그룹 투표 정족수 조회 (내부 시스템용)
      * GET /internal/{groupId}/vote-quorum
      */
+    @Operation(summary = "그룹 투표 정족수 조회", description = "특정 그룹의 투표 정족수를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "투표 정족수 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "그룹을 찾을 수 없음")
+    })
     @GetMapping("/{groupId}/vote-quorum")
     public ResponseEntity<Integer> getVoteQuorumInternal(@PathVariable UUID groupId) {
         log.info("🔍 내부 API 호출 - /internal/{}/vote-quorum", groupId);
@@ -54,6 +64,11 @@ public class InternalController {
         }
     }
 
+    @Operation(summary = "그룹 멤버 투자 계좌 조회", description = "그룹 멤버들의 투자 계좌 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "그룹 멤버 계좌 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "그룹을 찾을 수 없음")
+    })
     @GetMapping("/groups/{groupId}/members/accounts")
     public List<InvestmentAccountDto> getGroupMemberAccounts(@PathVariable UUID groupId) {
         log.info("🔍 내부 API 호출 - /internal/groups/{}/members/accounts", groupId);
@@ -87,6 +102,11 @@ public class InternalController {
         }
     }
 
+    @Operation(summary = "사용자 정보 조회", description = "특정 사용자의 기본 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    })
     @GetMapping("/users/{userId}")
     public ResponseEntity<UserInfo> getUserInfo(@PathVariable("userId") UUID userId) {
         log.info("🔍 내부 API 호출 - /internal/users/{}", userId);
@@ -106,6 +126,11 @@ public class InternalController {
         }
     }
 
+    @Operation(summary = "그룹 멤버 확인", description = "특정 사용자가 그룹의 멤버인지 확인합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "그룹 멤버 확인 성공"),
+        @ApiResponse(responseCode = "404", description = "그룹을 찾을 수 없음")
+    })
     @GetMapping("/groups/{groupId}/members/{userId}")
     public ResponseEntity<Boolean> isGroupMember(@PathVariable UUID groupId, @PathVariable UUID userId) {
         log.info("🔍 내부 API 호출 - /internal/groups/{}/members/{}", groupId, userId);
@@ -120,6 +145,11 @@ public class InternalController {
         }
     }
 
+    @Operation(summary = "그룹 멤버 수 조회", description = "특정 그룹의 멤버 수를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "그룹 멤버 수 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "그룹을 찾을 수 없음")
+    })
     @GetMapping("/{groupId}/member-count")
     public ResponseEntity<Integer> getGroupMemberCountInternal(@PathVariable UUID groupId) {
         log.info("🔍 내부 API 호출 - /internal/{}/member-count", groupId);

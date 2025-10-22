@@ -86,7 +86,12 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success("매도 주문이 완료되었습니다"));
     }
 
-    // 예수금 충전
+    @Operation(summary = "예수금 충전", description = "사용자의 투자 계좌에 예수금을 충전합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "예수금 충전 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @PutMapping("/trade/deposit")
     public ResponseEntity<ApiResponse<String>> depositFunds(@Valid @RequestBody DepositRequest request,
                                                           Authentication authentication) {
@@ -95,21 +100,33 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success("예수금 충전이 완료되었습니다"));
     }
 
-    // Internal 예수금 충전 (서비스 간 통신용)
+    @Operation(summary = "Internal 예수금 충전", description = "서비스 간 통신을 위한 예수금 충전 API입니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Internal 예수금 충전 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터")
+    })
     @PostMapping("/internal/deposit")
     public ResponseEntity<ApiResponse<String>> internalDepositFunds(@Valid @RequestBody InternalDepositRequest request) {
         tradingService.internalDepositFunds(request);
         return ResponseEntity.ok(ApiResponse.success("Internal 예수금 충전이 완료되었습니다"));
     }
 
-    // Internal 투표 기반 거래 실행 (서비스 간 통신용)
+    @Operation(summary = "Internal 투표 기반 거래 실행", description = "서비스 간 통신을 위한 투표 기반 거래 실행 API입니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "투표 기반 거래 실행 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터")
+    })
     @PostMapping("/internal/vote-trading")
     public ResponseEntity<VoteTradingResponse> executeVoteBasedTrading(@Valid @RequestBody VoteTradingRequest request) {
         VoteTradingResponse response = tradingService.executeVoteBasedTrading(request);
         return ResponseEntity.ok(response);
     }
 
-    // Internal 그룹 예수금 총합 조회 (서비스 간 통신용)
+    @Operation(summary = "Internal 그룹 예수금 총합 조회", description = "서비스 간 통신을 위한 그룹 예수금 총합 조회 API입니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "그룹 예수금 총합 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터")
+    })
     @PostMapping("/internal/group-balance")
     public ResponseEntity<Integer> getGroupTotalBalance(@RequestBody List<UUID> memberIds) {
         Integer totalBalance = tradingService.getGroupTotalBalance(memberIds);
@@ -136,7 +153,11 @@ public class TradingController {
         }
     }
 
-    // 보유 종목 조회 (StockResponse 형식)
+    @Operation(summary = "보유 종목 조회 (StockResponse)", description = "사용자가 보유한 종목을 StockResponse 형식으로 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "보유 종목 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/portfolio/stocks")
     public ResponseEntity<ApiResponse<List<StockResponse>>> getPortfolioStocks(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -152,7 +173,11 @@ public class TradingController {
         }
     }
 
-    // 그룹 포트폴리오 요약 정보 조회
+    @Operation(summary = "그룹 포트폴리오 요약 조회", description = "특정 그룹의 포트폴리오 요약 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "그룹 포트폴리오 요약 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 그룹 ID")
+    })
     @GetMapping("/portfolio/summary")
     public ResponseEntity<ApiResponse<PortfolioSummaryResponse>> getGroupPortfolioSummary(
             @RequestParam UUID groupId) {
@@ -162,7 +187,11 @@ public class TradingController {
 
 
 
-    // 계좌 잔고 조회
+    @Operation(summary = "계좌 잔고 조회", description = "사용자의 투자 계좌 잔고 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "계좌 잔고 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/account/balance")
     public ResponseEntity<ApiResponse<BalanceResponse>> getAccountBalance(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -170,7 +199,11 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(balance));
     }
 
-    // 거래 내역 조회
+    @Operation(summary = "거래 내역 조회", description = "사용자의 모든 거래 내역을 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "거래 내역 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/portfolio/history")
     public ResponseEntity<ApiResponse<List<TradeHistoryResponse>>> getTradeHistory(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -189,28 +222,44 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(stocks));
     }
 
-    // 주식 기본 정보 조회 (현재가, 변동률, 거래량 등) - 간단한 경로
+    @Operation(summary = "주식 기본 정보 조회", description = "특정 주식의 현재가, 변동률, 거래량 등 기본 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "주식 정보 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "주식을 찾을 수 없음")
+    })
     @GetMapping("/stocks/{stockCode}")
     public ResponseEntity<ApiResponse<StockInfoResponse>> getStockByCode(@PathVariable String stockCode) {
         StockInfoResponse info = tradingService.getStockInfoByCode(stockCode);
         return ResponseEntity.ok(ApiResponse.success(info));
     }
 
-    // 주식 기본 정보 조회 (현재가, 변동률, 거래량 등) - 상세 경로
+    @Operation(summary = "주식 상세 정보 조회", description = "특정 주식의 상세 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "주식 상세 정보 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "주식을 찾을 수 없음")
+    })
     @GetMapping("/stocks/{stockCode}/info")
     public ResponseEntity<ApiResponse<StockInfoResponse>> getStockInfoByCode(@PathVariable String stockCode) {
         StockInfoResponse info = tradingService.getStockInfoByCode(stockCode);
         return ResponseEntity.ok(ApiResponse.success(info));
     }
 
-    // 주식 호가 정보 조회
+    @Operation(summary = "주식 호가 정보 조회", description = "특정 주식의 매수/매도 호가 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "호가 정보 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "주식을 찾을 수 없음")
+    })
     @GetMapping("/stocks/{stockCode}/orderbook")
     public ResponseEntity<ApiResponse<OrderBookResponse>> getOrderBook(@PathVariable String stockCode) {
         OrderBookResponse orderBook = orderBookService.getOrderBook(stockCode);
         return ResponseEntity.ok(ApiResponse.success(orderBook));
     }
 
-    // 주식 차트 데이터 조회 (캔들차트 + 이동평균선 + 거래량 + 기본 정보)
+    @Operation(summary = "주식 차트 데이터 조회", description = "특정 주식의 캔들차트, 이동평균선, 거래량 등 차트 데이터를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "차트 데이터 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "주식을 찾을 수 없음")
+    })
     @GetMapping("/stocks/{stockCode}/chart")
     public ResponseEntity<ApiResponse<StockInfoResponse>> getStockChart(@PathVariable String stockCode,
                                                                         @RequestParam(defaultValue = "D") String periodDiv) {
@@ -218,7 +267,11 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(chartInfo));
     }
 
-    // 전체 주문 조회 (모든 상태)
+    @Operation(summary = "전체 주문 조회", description = "사용자의 모든 주문(대기, 체결, 취소 등)을 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "주문 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/orders")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getAllOrders(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -226,7 +279,11 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
     
-    // 대기 중인 주문 조회 (PENDING)
+    @Operation(summary = "대기 중인 주문 조회", description = "사용자의 대기 중인 주문들을 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "대기 주문 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/orders/pending")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getPendingOrders(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -234,7 +291,11 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
     
-    // 체결 완료된 주문 조회 (FILLED)
+    @Operation(summary = "체결 완료된 주문 조회", description = "사용자의 체결 완료된 주문들을 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "체결 주문 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/orders/filled")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getFilledOrders(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -242,7 +303,13 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
-    // 주문 취소
+    @Operation(summary = "주문 취소", description = "대기 중인 주문을 취소합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "주문 취소 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "주문을 취소할 수 없음"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "주문을 찾을 수 없음")
+    })
     @DeleteMapping("/orders/{orderId}")
     public ResponseEntity<ApiResponse<String>> cancelOrder(@PathVariable UUID orderId, 
                                                           Authentication authentication) {
@@ -251,7 +318,11 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success("주문이 취소되었습니다"));
     }
 
-    // 계좌 정보 조회
+    @Operation(summary = "계좌 정보 조회", description = "사용자의 투자 계좌 상세 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "계좌 정보 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/account/info")
     public ResponseEntity<ApiResponse<AccountInfoResponse>> getAccountInfo(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -259,7 +330,11 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(accountInfo));
     }
 
-    // 계좌 정보 조회 (마스킹된 계좌번호)
+    @Operation(summary = "계좌 정보 조회 (마스킹)", description = "마스킹된 계좌번호로 사용자의 투자 계좌 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "계좌 정보 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/account/info/masked")
     public ResponseEntity<ApiResponse<AccountInfoMaskedResponse>> getAccountInfoMasked(Authentication authentication) {
         UUID userId = getUserIdFromAuthentication(authentication);
@@ -283,7 +358,11 @@ public class TradingController {
         return ResponseEntity.ok(ApiResponse.success(maskedResponse));
     }
 
-    // 특정 종목 거래 내역 조회
+    @Operation(summary = "특정 종목 거래 내역 조회", description = "특정 종목에 대한 거래 내역을 조회합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "종목 거래 내역 조회 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping("/portfolio/history/{stockCode}")
     public ResponseEntity<ApiResponse<List<TradeHistoryResponse>>> getStockTradeHistory(@PathVariable String stockCode,
                                                                                        Authentication authentication) {
@@ -307,8 +386,12 @@ public class TradingController {
     }
 
 
-    @PostMapping("/internal/transfer-to-pay")
     @Operation(summary = "투자계좌에서 페이계좌로 송금 (Internal)", description = "서비스 간 통신용 송금 API")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "송금 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터")
+    })
+    @PostMapping("/internal/transfer-to-pay")
     public ResponseEntity<TransferToPayResponse> internalTransferToPay(
             @Parameter(description = "사용자 ID", required = true) @RequestParam UUID userId,
             @Parameter(description = "송금 금액", required = true) @RequestParam Long amount,
@@ -320,9 +403,12 @@ public class TradingController {
         return ResponseEntity.ok(response);
     }
   
-    // 테스트용: 그룹의 모든 대기 중인 주문을 강제 체결
-    @PostMapping("/internal/orders/execute-all")
     @Operation(summary = "그룹의 대기 중인 주문 강제 체결 (테스트용)", description = "그룹의 모든 PENDING 주문을 즉시 체결합니다.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "주문 강제 체결 성공"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 그룹 ID")
+    })
+    @PostMapping("/internal/orders/execute-all")
     public ResponseEntity<ApiResponse<String>> executeAllPendingOrdersForGroup(@RequestParam UUID groupId) {
         log.info("🔥 그룹 강제 체결 요청 - 그룹ID: {}", groupId);
         

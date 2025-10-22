@@ -46,6 +46,8 @@ public class SecurityConfig {
                 .requestMatchers("/status", "/reconnect", "/test-approval-key", "/cache-status", "/cached-orderbook/**").permitAll()
                 // Swagger UI 및 API 문서는 인증 불필요
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/index.html", "/swagger-resources/**", "/webjars/**").permitAll()
+                // Redoc 문서는 인증 불필요
+                .requestMatchers("/redoc", "/redoc-standalone").permitAll()
                 // favicon.ico 허용
                 .requestMatchers("/favicon.ico").permitAll()
                 // OPTIONS 요청 허용 (CORS preflight)
