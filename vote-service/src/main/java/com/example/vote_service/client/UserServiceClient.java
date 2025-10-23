@@ -15,7 +15,7 @@ import java.util.UUID;
  * User Service API 클라이언트
  * - Feign을 사용하여 user-service와 통신
  */
-@FeignClient(name = "user-service", url = "http://localhost:8082", configuration = FeignConfig.class)
+@FeignClient(name = "user-service", url = "${app.services.user-service.url:http://localhost:8082}", configuration = FeignConfig.class)
 public interface UserServiceClient {
 
 

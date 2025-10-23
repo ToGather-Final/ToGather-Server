@@ -32,6 +32,11 @@ spec:
           value: "WARN"
         - name: LOGGING_LEVEL_COM_EXAMPLE
           value: "INFO"
+        # 서비스 간 통신 URL 환경변수
+        - name: USER_SERVICE_URL
+          value: "http://user-service.togather.svc.cluster.local:8080"
+        - name: TRADING_SERVICE_URL
+          value: "http://trading-service.togather.svc.cluster.local:8080"
         - name: SPRING_DATA_REDIS_HOST
           value: "redis"
         - name: SPRING_DATA_REDIS_PORT

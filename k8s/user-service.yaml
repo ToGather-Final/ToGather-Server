@@ -45,6 +45,9 @@ spec:
           value: "WARN"
         - name: LOGGING_LEVEL_COM_EXAMPLE
           value: "INFO"
+        # 서비스 간 통신 URL 환경변수
+        - name: TRADING_SERVICE_URL
+          value: "http://trading-service.togather.svc.cluster.local:8080"
         envFrom:
           - configMapRef:
               name: togather-config

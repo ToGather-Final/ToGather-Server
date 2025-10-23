@@ -81,7 +81,7 @@ spring:
       routes:
         # 인증 서비스
         - id: auth-service
-          uri: http://localhost:8082
+          uri: ${USER_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/auth/**
           filters:
@@ -89,7 +89,7 @@ spring:
 
         # 사용자 서비스
         - id: user-service
-          uri: http://localhost:8082
+          uri: ${USER_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/users/**
           filters:
@@ -97,7 +97,7 @@ spring:
 
         # 그룹 서비스
         - id: group-service
-          uri: http://localhost:8082
+          uri: ${USER_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/groups/**
           filters:
@@ -105,7 +105,7 @@ spring:
 
         # 투표 서비스
         - id: vote-service
-          uri: http://localhost:8084
+          uri: ${VOTE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/api/vote/**,/api/votes/**
           filters:
@@ -113,7 +113,7 @@ spring:
 
         # 히스토리 서비스 (vote-service에서 제공)
         - id: history-service
-          uri: http://localhost:8084
+          uri: ${VOTE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/api/history/**
           filters:
@@ -121,7 +121,7 @@ spring:
 
         # WebSocket 서비스 (트레이딩 서비스 내부)
         - id: websocket-service
-          uri: http://localhost:8081
+          uri: ${TRADING_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/api/websocket/**
           filters:
@@ -129,7 +129,7 @@ spring:
 
         # 트레이딩 서비스
         - id: trading-service
-          uri: http://localhost:8081
+          uri: ${TRADING_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/api/trading/**,/api/group-trading/**
           filters:
@@ -137,13 +137,13 @@ spring:
 
         # WebSocket 연결 엔드포인트
         - id: websocket-connection
-          uri: ws://localhost:8081
+          uri: ws://${TRADING_SERVICE_URL:localhost:8081}
           predicates:
             - Path=/ws/**
 
         # 알림 서비스 (vote-service에서 제공)
         - id: notification-service
-          uri: http://localhost:8084
+          uri: ${VOTE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/api/notification/**
           filters:
@@ -151,14 +151,14 @@ spring:
 
         # 결제 서비스
         - id: pay-service
-          uri: http://localhost:8083
+          uri: ${PAY_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/pay/**
           filters:
             - StripPrefix=1
 
         - id: payments-service
-          uri: http://localhost:8083
+          uri: ${PAY_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/payments/**
           filters:
@@ -166,7 +166,7 @@ spring:
 
         # QR 서비스 (pay-service에서 제공)
         - id: qr-service
-          uri: http://localhost:8083
+          uri: ${PAY_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/qr/**
           filters:
@@ -174,7 +174,7 @@ spring:
 
         # 계좌 서비스 (pay-service에서 제공)
         - id: accounts-service
-          uri: http://localhost:8083
+          uri: ${PAY_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/accounts/**
           filters:
@@ -182,28 +182,28 @@ spring:
 
         # Swagger API Docs
         - id: user-service-api-docs
-          uri: http://localhost:8082
+          uri: ${USER_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/v3/api-docs/user-service
           filters:
             - RewritePath=/v3/api-docs/user-service, /v3/api-docs
 
         - id: trading-service-api-docs
-          uri: http://localhost:8081
+          uri: ${TRADING_SERVICE_URL:http://localhost:8081}
           predicates:
             - Path=/v3/api-docs/trading-service
           filters:
             - RewritePath=/v3/api-docs/trading-service, /v3/api-docs
 
         - id: vote-service-api-docs
-          uri: http://localhost:8084
+          uri: ${VOTE_SERVICE_URL:http://localhost:8084}
           predicates:
             - Path=/v3/api-docs/vote-service
           filters:
             - RewritePath=/v3/api-docs/vote-service, /v3/api-docs
 
         - id: pay-service-api-docs
-          uri: http://localhost:8083
+          uri: ${PAY_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/v3/api-docs/pay-service
           filters:
@@ -257,112 +257,226 @@ spring:
   cloud:
     gateway:
       routes: #deprecated전에 server: webflux: routes: 형태로 수정해야함.
+        # ===============================================
+        # 🚀 현재 설정 (환경변수 방식) - 권장
+        # ===============================================
         - id: auth-service-route
-          uri: lb://user-service
+          uri: ${USER_SERVICE_URL:http://user-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/auth/**
           filters:
             - StripPrefix=1
         - id: user-service-route
-          uri: lb://user-service
+          uri: ${USER_SERVICE_URL:http://user-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/users/**
           filters:
             - StripPrefix=1
         - id: group-service-route
-          uri: lb://user-service
+          uri: ${USER_SERVICE_URL:http://user-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/groups/**
           filters:
             - StripPrefix=1
         - id: vote-service-route
-          uri: lb://vote-service
+          uri: ${VOTE_SERVICE_URL:http://vote-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/vote/**,/api/votes/**
           filters:
             - StripPrefix=1
         - id: history-service-route
-          uri: lb://vote-service
+          uri: ${VOTE_SERVICE_URL:http://vote-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/history/**
           filters:
             - StripPrefix=1
         - id: notification-service-route
-          uri: lb://vote-service
+          uri: ${VOTE_SERVICE_URL:http://vote-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/notification/**
           filters:
             - StripPrefix=1
         - id: websocket-service-route
-          uri: lb://trading-service
+          uri: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/websocket/**
           filters:
             - RewritePath=/api/websocket/(?<segment>.*), /${segment}
         - id: trading-service-route
-          uri: lb://trading-service
+          uri: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/trading/**
           filters:
             - StripPrefix=1
         - id: websocket-connection-route
-          uri: lb://trading-service
+          uri: ws://${TRADING_SERVICE_URL:trading-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/ws/**
         - id: vote-trading-service-route
-          uri: lb://trading-service
+          uri: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/vote-trading/**
           filters:
             - StripPrefix=1
         - id: group-trading-service-route
-          uri: lb://trading-service
+          uri: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/group-trading/**
           filters:
             - StripPrefix=1
         - id: batch-service-route
-          uri: lb://trading-service
+          uri: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/batch/**
           filters:
             - StripPrefix=1
         - id: admin-kis-service-route
-          uri: lb://trading-service
+          uri: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/admin/kis/**
           filters:
             - StripPrefix=1
         - id: pay-service-route
-          uri: lb://pay-service
+          uri: ${PAY_SERVICE_URL:http://pay-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/pay/**
           filters:
             - StripPrefix=1
         - id: payments-service-route
-          uri: lb://pay-service
+          uri: ${PAY_SERVICE_URL:http://pay-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/payments/**
           filters:
             - StripPrefix=1
         - id: accounts-service-route
-          uri: lb://pay-service
+          uri: ${PAY_SERVICE_URL:http://pay-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/accounts/**
           filters:
             - StripPrefix=1
         - id: qr-service-route
-          uri: lb://pay-service
+          uri: ${PAY_SERVICE_URL:http://pay-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/qr/**
           filters:
             - StripPrefix=1
         - id: transfers-service-route
-          uri: lb://pay-service
+          uri: ${PAY_SERVICE_URL:http://pay-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/api/transfers/**
           filters:
             - StripPrefix=1
+
+        # ===============================================
+        # 🔄 롤백용 기존 설정 (lb:// 방식) - 주석처리됨
+        # ===============================================
+        # 기존에 잘 작동했던 lb:// 방식 (문제 발생 시 주석 해제하여 롤백 가능)
+        # - id: auth-service-route
+        #   uri: lb://user-service
+        #   predicates:
+        #     - Path=/api/auth/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: user-service-route
+        #   uri: lb://user-service
+        #   predicates:
+        #     - Path=/api/users/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: group-service-route
+        #   uri: lb://user-service
+        #   predicates:
+        #     - Path=/api/groups/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: vote-service-route
+        #   uri: lb://vote-service
+        #   predicates:
+        #     - Path=/api/vote/**,/api/votes/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: history-service-route
+        #   uri: lb://vote-service
+        #   predicates:
+        #     - Path=/api/history/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: notification-service-route
+        #   uri: lb://vote-service
+        #   predicates:
+        #     - Path=/api/notification/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: websocket-service-route
+        #   uri: lb://trading-service
+        #   predicates:
+        #     - Path=/api/websocket/**
+        #   filters:
+        #     - RewritePath=/api/websocket/(?<segment>.*), /${segment}
+        # - id: trading-service-route
+        #   uri: lb://trading-service
+        #   predicates:
+        #     - Path=/api/trading/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: websocket-connection-route
+        #   uri: lb://trading-service
+        #   predicates:
+        #     - Path=/ws/**
+        # - id: vote-trading-service-route
+        #   uri: lb://trading-service
+        #   predicates:
+        #     - Path=/api/vote-trading/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: group-trading-service-route
+        #   uri: lb://trading-service
+        #   predicates:
+        #     - Path=/api/group-trading/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: batch-service-route
+        #   uri: lb://trading-service
+        #   predicates:
+        #     - Path=/api/batch/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: admin-kis-service-route
+        #   uri: lb://trading-service
+        #   predicates:
+        #     - Path=/api/admin/kis/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: pay-service-route
+        #   uri: lb://pay-service
+        #   predicates:
+        #     - Path=/api/pay/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: payments-service-route
+        #   uri: lb://pay-service
+        #   predicates:
+        #     - Path=/api/payments/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: accounts-service-route
+        #   uri: lb://pay-service
+        #   predicates:
+        #     - Path=/api/accounts/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: qr-service-route
+        #   uri: lb://pay-service
+        #   predicates:
+        #     - Path=/api/qr/**
+        #   filters:
+        #     - StripPrefix=1
+        # - id: transfers-service-route
+        #   uri: lb://pay-service
+        #   predicates:
+        #     - Path=/api/transfers/**
+        #   filters:
+        #     - StripPrefix=1
     kubernetes:
       discovery:
         enabled: true

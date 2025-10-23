@@ -114,10 +114,11 @@ server:
   port: 8083
 
 app:
-  trading-service:
-    url: ${TRADING_SERVICE_URL:http://localhost:8081}
-  user-service:
-    url: ${USER_SERVICE_URL:http://localhost:8082}
+  services:
+    trading-service:
+      url: ${TRADING_SERVICE_URL:http://localhost:8081}
+    user-service:
+      url: ${USER_SERVICE_URL:http://localhost:8082}
 
 ---
 # ===============================================
@@ -151,10 +152,11 @@ server:
   port: 8080
 
 app:
-  trading-service:
-    url: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
-  user-service:
-    url: ${USER_SERVICE_URL:http://user-service.togather.svc.cluster.local:8080}
+  services:
+    trading-service:
+      url: ${TRADING_SERVICE_URL:http://trading-service.togather.svc.cluster.local:8080}
+    user-service:
+      url: ${USER_SERVICE_URL:http://user-service.togather.svc.cluster.local:8080}
 
 jwt:
   secret: ${JWT_SECRET_KEY:TogatherSecretkey}

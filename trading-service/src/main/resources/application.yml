@@ -68,9 +68,11 @@ spring:
 jwt:
   secret-key: ${JWT_SECRET_KEY}
 
-# 서비스 URL 설정 (하위 호환성을 위해 유지)
-vote-service:
-  url: ${VOTE_SERVICE_URL:http://localhost:8084}
+# 서비스 URL 설정
+app:
+  services:
+    vote-service:
+      url: ${VOTE_SERVICE_URL:http://localhost:8084}
 
 springdoc:
   api-docs:
@@ -206,7 +208,3 @@ app:
       url: ${VOTE_SERVICE_URL:http://vote-service.togather.svc.cluster.local:8080}
     pay-service:
       url: ${PAY_SERVICE_URL:http://pay-service.togather.svc.cluster.local:8080}
-
-# 서비스 URL 설정 (하위 호환성을 위해 유지)
-vote-service:
-  url: ${VOTE_SERVICE_URL:http://vote-service.togather.svc.cluster.local:8080}

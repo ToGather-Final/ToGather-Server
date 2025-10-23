@@ -72,6 +72,15 @@ spec:
                 secretKeyRef:
                   name: togather-secrets
                   key: REDIS_PASSWORD
+            # 서비스 URL 환경변수
+            - name: USER_SERVICE_URL
+              value: "http://user-service.togather.svc.cluster.local:8080"
+            - name: TRADING_SERVICE_URL
+              value: "http://trading-service.togather.svc.cluster.local:8080"
+            - name: VOTE_SERVICE_URL
+              value: "http://vote-service.togather.svc.cluster.local:8080"
+            - name: PAY_SERVICE_URL
+              value: "http://pay-service.togather.svc.cluster.local:8080"
           envFrom:
             - configMapRef:
                 name: togather-config

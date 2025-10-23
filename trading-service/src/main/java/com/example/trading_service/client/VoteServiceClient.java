@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
  */
 @FeignClient(
     name = "vote-service",
-    url = "${vote-service.url:http://localhost:8084}"
+    url = "${app.services.vote-service.url:http://localhost:8084}"
 )
 public interface VoteServiceClient {
 
