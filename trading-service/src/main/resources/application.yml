@@ -22,7 +22,11 @@ app:
     refresh-exp-days: ${JWT_REFRESH_EXP:7}
   services:
     user-service:
-      url: ${USER_SERVICE_URL:http://localhost:8082}
+      url: ${USER_SERVICE_URL:http://user-service.togather.svc.cluster.local:8080}
+    vote-service:
+      url: ${VOTE_SERVICE_URL:http://vote-service.togather.svc.cluster.local:8080}
+    pay-service:
+      url: ${PAY_SERVICE_URL:http://pay-service.togather.svc.cluster.local:8080}
 
 spring:
   config:
@@ -68,11 +72,7 @@ spring:
 jwt:
   secret-key: ${JWT_SECRET_KEY}
 
-# 서비스 URL 설정
-app:
-  services:
-    vote-service:
-      url: ${VOTE_SERVICE_URL:http://localhost:8084}
+# 서비스 URL 설정 (통합됨)
 
 springdoc:
   api-docs:
@@ -137,13 +137,7 @@ server:
 
 pay-service:
   url: ${PAY_SERVICE_URL:http://localhost:8083}
-user-service:
-  url: ${USER_SERVICE_URL:http://localhost:8082}
-
-app:
-  services:
-    user-service:
-      url: ${USER_SERVICE_URL:http://localhost:8082}
+# user-service URL 설정 (통합됨)
 
 ---
 # ===============================================
@@ -197,14 +191,4 @@ kis:
   appkey: ${KIS_APPKEY:}
   appsecret: ${KIS_APPSECRET:}
 
-pay-service:
-  url: ${PAY_SERVICE_URL:http://pay-service:8080}
-
-app:
-  services:
-    user-service:
-      url: ${USER_SERVICE_URL:http://user-service.togather.svc.cluster.local:8080}
-    vote-service:
-      url: ${VOTE_SERVICE_URL:http://vote-service.togather.svc.cluster.local:8080}
-    pay-service:
-      url: ${PAY_SERVICE_URL:http://pay-service.togather.svc.cluster.local:8080}
+# main 프로파일 서비스 URL 설정 (통합됨)
