@@ -309,7 +309,7 @@ spring:
           filters:
             - StripPrefix=1
         - id: websocket-connection-route
-          uri: ws://${TRADING_SERVICE_URL:trading-service.togather.svc.cluster.local:8080}
+          uri: http://${TRADING_SERVICE_URL:trading-service.togather.svc.cluster.local:8080}
           predicates:
             - Path=/ws/**
         - id: vote-trading-service-route

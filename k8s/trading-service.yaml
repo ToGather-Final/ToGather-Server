@@ -6,12 +6,12 @@ metadata:
   labels:
     app: trading-service
 spec:
-  replicas: 2  # 🚀 전용 노드 고가용성 (Trading + User Service)
+  replicas: 2  # 🚀 단일 파드 운영 (KIS API 중복 방지)
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 2         # 일시적으로 +2개 허용 (총 5개)
-      maxUnavailable: 1   # 최소 1개 유지 (가용성 보장)
+      maxSurge: 2        # 단일 파드 운영
+      maxUnavailable: 0   # 무중단 배포
   selector:
     matchLabels:
       app: trading-service
@@ -20,22 +20,10 @@ spec:
       labels:
         app: trading-service
     spec:
-      # Pod Anti-Affinity: 각 노드에 고르게 분산
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                    - key: app
-                      operator: In
-                      values:
-                        - trading-service
-                topologyKey: kubernetes.io/hostname
+      # 단일 파드 운영으로 Anti-Affinity 불필요
       containers:
       - name: trading-service
-        image: ${ECR_REGISTRY}/togather/trading-service:latest
+        image: 340623336075.dkr.ecr.ap-northeast-2.amazonaws.com/togather/trading-service:latest
         ports:
         - containerPort: 8080
         env:
@@ -61,11 +49,11 @@ spec:
               name: togather-secrets
         resources:
           requests:
-            memory: "400Mi"  # 🚀 전용 노드 최적화 (실제 사용량 기반)
-            cpu: "200m"      # 🚀 CPU 요청 최적화
+            memory: "2Gi"    # 🚀 단일 파드 대용량 메모리 할당
+            cpu: "1000m"     # 🚀 단일 파드 고성능 CPU 할당
           limits:
-            memory: "800Mi"  # 🚀 메모리 제한 최적화
-            cpu: "400m"      # 🚀 CPU 제한 최적화
+            memory: "4Gi"    # 🚀 단일 파드 최대 메모리 확장
+            cpu: "2000m"      # 🚀 단일 파드 최대 CPU 확장
         startupProbe:
           httpGet:
             path: /actuator/health/liveness
